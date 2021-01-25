@@ -1,0 +1,19 @@
+[package]
+name = "geoelan"
+version = "1.0.0"
+authors = ["Jens Larsson, jens.larsson@humlab.lu.se"]
+edition = "2018"
+description = "GeoElan is a command-line tool for geo-referencing ELAN annotations of Garmin VIRB footage"
+license = "Apache-2.0"
+# repository = "GITLAB_URL"
+
+[dependencies]
+clap = "^2"
+walkdir = "^2.3"
+regex = "^1.4"
+chrono = "0.4"
+quick-xml = "^0.20"
+sha2 = "^0.9"
+itertools = "^0.9"
+fit = {path="../lib/fit-rs"}
+eaf = {path="../lib/eaf-rs"}

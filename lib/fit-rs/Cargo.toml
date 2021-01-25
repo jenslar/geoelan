@@ -1,0 +1,10 @@
+[package]
+name = "fit"
+version = "0.1.0"
+authors = ["jens"]
+edition = "2018"
+
+[dependencies]
+byteorder = "1"
+nalgebra = "0.18"
+chrono = "0.4"

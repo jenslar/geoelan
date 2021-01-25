@@ -1,0 +1,9 @@
+[package]
+name = "eaf"
+version = "0.1.0"
+authors = ["jens"]
+edition = "2018"
+
+[dependencies]
+chrono = "0.4"
+quick-xml = "^0.20"

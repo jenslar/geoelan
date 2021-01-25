@@ -1,0 +1,160 @@
+= GeoELAN README
+:imagesdir: img
+
+Acknowledgements::
+****
+GeoELAN was developed with support from the https://www.rj.se/en/[Bank of Sweden Tercentenary Foundation] (Grant nos https://www.rj.se/en/grants/2015/language-as-key-to-perceptual-diversity-an-interdisciplinary-approach-to-the-senses/[NHS14-1665:1] and https://www.rj.se/en/grants/2017/digital-multimedia-archive-of-austroasiatic-intangible-heritage-phase-ii-seeding-multidisciplinary-workspaces/[IN17-0183:1]).
+
+We would also like to acknowledge the https://archive.mpi.nl/tla/[The Language Archive], Max Planck Institute for Psycholinguistics in Nijmegen for their tireless efforts in developing https://archive.mpi.nl/tla/elan[ELAN].
+****
+
+== Introduction
+
+GeoELAN is a command-line tool that geo-references time-aligned text-annotations of observed phenomena in audiovisual recordings, captured with a recent Garmin VIRB action camera (see <<larsson2021_ref, Larsson et al 2021>>). By annotating a section representing an on-site utterance, a plant that is in view, or anything else that was captured, it can be automatically linked to the corresponding coordinates. The nature of the workflow also means consultants not physically present at the the time of recording may evaluate observed phenomena to be geo-referenced post-collection. As the name implies, the free <<elan_ref, ELAN>> annotation software plays a central role and is required to annotate events. The final output can be points or polylines in the form of an annotated https://www.ogc.org/standards/kml/[KML-file]. Henceforth, "VIRB" refers to the Garmin VIRB Ultra 30. Also see the <<A note on GoPro, note on GoPro>>.
+
+****
+GeoELAN is multi-functional tool that can::
+* geo-reference ELAN-annotations of VIRB footage and output these as annotated points or poly-lines.
+* search your harddrive to locate and match all relevant VIRB-files, including FIT-files.
+* automatically concatenate the clips for a specific recording, and generate an ELAN-file.
+* inspect the content of your FIT-files, even outside of coordinates.
+
+Manual::
+* See the `doc` directory for the full manual and a brief A4-guide.
+
+Installation::
+* See the `bin` directory for pre-compiled executables for Linux (Ubuntu Intel x86), macOS (Intel x86 + Apple M1), and Windows (Intel x86). The `.sha256` text-files contain the SHA-256 hashes for each build.
+Compile and install from source::
+. Install https://www.rust-lang.org[Rust]
+. Get the GeoELAN source (via `git` or the zip)
+. `cd geoelan`
+. `cargo build --release`
+. `cargo install --path .` (makes `geoelan` https://doc.rust-lang.org/cargo/commands/cargo-install.html[a global command])
+
+Requirements::
+* Garmin VIRB action camera, such as the https://buy.garmin.com/en-US/US/p/522869/pn/010-01529-03[VIRB Ultra 30] (https://support.garmin.com/en-US/?partNumber=010-01529-03&tab=manuals[documentation])
+* https://archive.mpi.nl/tla/elan[ELAN] (https://archive.mpi.nl/tla/elan/documentation[documentation])
+* https://www.ffmpeg.org[FFmpeg] (required for concatenating video)
+
+Quick help::
+* Usage: `geoelan SUBCOMMAND OPTIONS`. E.g. to geo-reference an ELAN-file:
+** `geoelan eaf2geo --eaf MyElanFile.eaf --fit MyFitFile.fit`
+* Running `geoelan` with no options will display an overview.
+* Running `geoelan SUBCOMMAND --help` displays an overview for that sub-command, e.g.:
+** `geoelan eaf2geo --help`.
+* Available sub-commands: `cam2eaf`, `eaf2geo`, `match`, `check`, `manual`
+* The `geoelan` executable contains the full manual for convenience: `geoelan manual --pdf`
+****
+
+== Example walkthrough
+
+Described below is an example of how GeoELAN can be used to geo-reference ELAN-annotations. Please refer to the detailed sections if you get stuck. Note that all input video clips must be the unprocessed, original VIRB files. The so-called FIT-files mentioned throughout this manual are where the VIRB logs GPS-data and other kinds of telemetry during a recording session. These need to be matched to the corresponding video recording (see _<<The FIT-format and the Garmin VIRB>>_ for further information). GeoELAN will help with all of this, with the exception of annotating your data.
+
+[#img-elan]
+.ELAN overview, including a tier with coordinates imported using GeoELAN
+image::elan.jpg[]
+
+The basic steps are:
+
+. Record video with a recent Garmin VIRB action camera.
+. Use GeoELAN to concatenate the video clips and generate an ELAN-file.
+. Annotate spatially interesting sections in ELAN using the pre-generated ELAN-file.
+. Use GeoELAN to geo-reference the annotations, resulting in an annotated KML-file.
+
+****
+Input files::
+* `VIRB0001-1.MP4`, the first clip in one recording session (remaining clips located automatically)
+* FIT-file with corresponding GPS-data (located automatically)
+Output files::
+* `VIRB0001-1_point-single.kml`: the final output is a KML-file with ELAN annotation content synchronised and mapped to the corresponding points as descriptions. In this example, each annotation will generate a single point. See sub-command _<<_eaf2geo>>_ for other options.
+
+Example of VIRB SDCard file structure::
+....
+├── DCIM
+│   └── 100_VIRB
+│       ├── VIRB0001-1.GLV           Recording session split up
+│       ├── VIRB0001-1.MP4           as 10 minutes clips. Low (GLV)
+│       ├── VIRB0001-2.GLV           and high (MP4) resolution clip.
+│       └── VIRB0001-2.MP4
+└── GMetrix
+    ├── 2017-01-01-12-00-00.fit  Telemetry files, a.k.a "FIT-files".
+    └── 2017-01-02-12-00-00.fit  May contain data, such as GPS-logs,
+                                 for multiple recording sessions.
+....
+****
+
+
+=== Step 1/3: Generate an ELAN-file with linked media files
+
+Command::
+....
+geoelan cam2eaf --video INDIR/VIRB0001-1.MP4 --indir INDIR/ --outdir OUTDIR/
+....
+
+Output::
+....
+OUTDIR/VIRB0001-1/
+├── VIRB0001-1.mp4     High-resolution video (concatenated)
+├── VIRB0001-1_glv.mp4 Low-resolution video for ELAN (concatenated)
+├── VIRB0001-1.wav     Extracted audio for ELAN (concatenated)
+├── VIRB0001-1.eaf     ELAN-file with pre-linked media files
+├── VIRB0001-1.kml     Overview KML-file with all points logged during the recording session
+└── VIRB0001-1.txt     FFmpeg concatenation file, paths to input clips
+....
+
+Explanation::
+GeoELAN locates and concatenates all clips belonging to the recording session starting with `VIRB0001-1.MP4`, then generates an ELAN-file with the resulting audio and video files pre-linked.
+
+=== Step 2/3: Annotate events in ELAN
+
+The user annotates events that are to be geo-referenced using the generated ELAN-file. Currently, the tool only supports extracting annotations from a single tier, selectable in step 3. So if the user wants to generate a KML-file with e.g. indigenous place names mentioned on-site during the recording, all information concerning the place names must be limited to a single tier. When the annotations are geo-referenced in step 3, their textual content will be used as descriptions for the corresponding points in the KML-file. Points corresponding to unannotated sections of the ELAN-file will either be discarded or have no description, depending on the output options in step 3.
+
+=== Step 3/3: Generate a KML-file from geo-referenced ELAN annotations
+
+Command::
+....
+geoelan eaf2geo --eaf VIRB0001-1.eaf --fit 2003-01-02-12-00-00.fit --geoshape point-single
+....
+
+Output::
+....
+OUTDIR/VIRB0001-1/
+├── ...                          Existing files
+└── VIRB0001-1_point-single.kml  New KML-file, one point per ELAN-annotation in the selected tier
+....
+
+Explanation::
+GeoELAN geo-references all annotations in a single ELAN-tier (selectable from a list) for the specified ELAN-file and generates an annotated KML-file where each point represents a single annotation.
++
+[caption="Figure 1: "]
+.Selecting a recording session (UUIDs shortened to fit)
+....
+ Session | Clips | First UUID in session
+..........................................................................................
+  1.     |  1    | VIRBactioncameraULTRA30_Tall_..._32eed236_1_17_2017-01-28-05-16-40.fit
+  2.     |  1    | VIRBactioncameraULTRA30_Tall_..._32eed5ab_1_18_2017-01-28-05-16-40.fit
+  3.     |  3    | VIRBactioncameraULTRA30_Tall_..._32eed7e9_1_19_2017-01-28-05-16-40.fit
+  4.     |  1    | VIRBactioncameraULTRA30_Tall_..._32eedd83_1_20_2017-01-28-05-16-40.fit
+..........................................................................................
+Select session:
+....
++
+`--geoshape point-single` lets GeoELAN know that each, respective annotation should be distilled into a single point, meaning that the generated KML-file will contain as many points as there are annotations on the selected tier. Each point inherits the corresponding annotation text for the selected tier as its description. See the full manual for other options, such as poly-lines.
+
+[#img-elan_placename]
+.Annotating placename utterances recorded on-site
+image::elan_placename.jpg[]
+
+[#img-map_placename]
+.Using GeoELAN to geo-reference ELAN annotations
+image::map_placename.jpg[]
+
+== A note on GoPro
+
+GoPro action cameras are currently not supported. At the time this method was piloted, no public documentation for GoPro's GPMF data format existed (https://github.com/gopro/gpmf-parser[now available]). Both FIT and GPMF are binary formats, meaning the content can't be viewed in a text editor or parsed without documentation. Since the FIT-format was already well established in other products and developer tools and documentation were freely available, a decision was made to use the Garmin VIRB Ultra 30. GPMF also lacks some of the features in FIT, such as explicit timestamps for all individual data points and data logging outside of recording video. There is no immediate plan to support GoPro, but if necessary a limited implementation may be possible.
+
+== References
+
+[[larsson2021_ref]]Larsson, Jens, Niclas Burenhult, Nicole Kruspe, Ross. S Purves, Mikael Rothstein and Peter Sercombe. 2020. Integrating behavioral and geospatial data on the timeline: towards new dimensions of analysis. _International Journal of Social Research Methodology_. doi: https://doi.org/10.1080/13645579.2020.1763705[10.1080/13645579.2020.1763705]
+
+[[elan_ref]]ELAN (Version 5.9) [Computer software]. 2020. Nijmegen: Max Planck Institute for Psycholinguistics. Retrieved from https://archive.mpi.nl/tla/elan
