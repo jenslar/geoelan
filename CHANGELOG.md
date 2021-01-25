@@ -14,6 +14,6 @@
     - UNC paths, Rust and ELAN
         - `canonicalize()` produces [UNC paths](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsc/149a3039-98ce-491a-9268-2f5ddef08192) on Windows: <https://github.com/rust-lang/rust/issues/42869>
         - When writing paths as strings into an ELAN-file, the prefix `\\?` causes issues.
-        - In-memory paths while running GeoELAN works fine on Windows so far.
+        - In-memory paths while running GeoELAN work fine on Windows so far.
         - Hacky workaround via `trim_start_matches(r"\\?")`, but...
         - ...UNC path prefixes may have further content in place of `?` so a more general solution is required.
