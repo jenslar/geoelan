@@ -1,4 +1,4 @@
-# UNRELEASED v1.1 210307
+# v1.1 210307
 - Functionality:
     - General
         - Fixed various typos and re-formatted some output.
