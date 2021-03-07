@@ -21,7 +21,7 @@
         - Changed most parse functions to methods for `EafFile`.
         - Added `EafFile` method `derive_timestamps()` to derive time stamps for annotations in a dependent tier.
     - `fit-rs`:
-        - Added method for full parse, `FitFile::parse()`. Supports Developer data.
+        - Added method for full parse, `FitFile::parse()`. Supports Developer data. Methods for filtering further are available (i.e. on specific message type).
         - Added method for filtered parse, `FitFile::parse_filter(global_id: u16)`. Discards Developer data.
 ## Known issues
 - Since this release is focused on fixing/changing internals some issues from initial relese still remain.
