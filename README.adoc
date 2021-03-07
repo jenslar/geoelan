@@ -126,19 +126,6 @@ OUTDIR/VIRB0001-1/
 Explanation::
 GeoELAN geo-references all annotations in a single ELAN-tier (selectable from a list) for the specified ELAN-file and generates an annotated KML-file where each point represents a single annotation.
 +
-[caption="Figure 1: "]
-.Selecting a recording session (UUIDs shortened to fit)
-....
- Session | Clips | First UUID in session
-..........................................................................................
-  1.     |  1    | VIRBactioncameraULTRA30_Tall_..._32eed236_1_17_2017-01-28-05-16-40.fit
-  2.     |  1    | VIRBactioncameraULTRA30_Tall_..._32eed5ab_1_18_2017-01-28-05-16-40.fit
-  3.     |  3    | VIRBactioncameraULTRA30_Tall_..._32eed7e9_1_19_2017-01-28-05-16-40.fit
-  4.     |  1    | VIRBactioncameraULTRA30_Tall_..._32eedd83_1_20_2017-01-28-05-16-40.fit
-..........................................................................................
-Select session:
-....
-+
 `--geoshape point-single` lets GeoELAN know that each, respective annotation should be distilled into a single point, meaning that the generated KML-file will contain as many points as there are annotations on the selected tier. Each point inherits the corresponding annotation text for the selected tier as its description. See the full manual for other options, such as poly-lines.
 
 [#img-elan_placename]
