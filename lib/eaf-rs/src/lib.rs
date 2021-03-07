@@ -1,9 +1,10 @@
 #![allow(dead_code)]
 
-mod structs;
+pub mod errors;
+pub mod structs;
 
 pub mod write {
-    use std::path::PathBuf;
+    use std::path::Path;
 
     // DOC CONTAINER, HEADER ETC
     pub fn head(author: &str, ver: &str) -> String {
@@ -22,6 +23,7 @@ pub mod write {
         )
     }
 
+    /// Meant for Garmin VIRB only
     pub fn meta(uuid: &str, fit: &str, start: &str, stop: &str) -> String {
         format!(
             r#"<PROPERTY NAME="fit_uuid">{0}</PROPERTY>
@@ -71,7 +73,7 @@ pub mod write {
     }
 
     // TIME
-    pub fn timeorder(timeslots: String) -> String {
+    pub fn timeorder(timeslots: &str) -> String {
         if timeslots.len() == 0 {
             format!(
                 r#"    <TIME_ORDER/>
@@ -107,7 +109,7 @@ pub mod write {
         )
     }
 
-    pub fn annotation(id: usize, ts1: usize, ts2: usize, text: String) -> String {
+    pub fn annotation(id: usize, ts1: usize, ts2: usize, text: &str) -> String {
         format!(
             r#"        <ANNOTATION>
             <ALIGNABLE_ANNOTATION ANNOTATION_ID="a{0}" TIME_SLOT_REF1="ts{1}" TIME_SLOT_REF2="ts{2}">
@@ -120,9 +122,9 @@ pub mod write {
     }
 
     pub fn build(
-        video: &PathBuf,
-        audio: &PathBuf,
-        fit: &String, // filename only
+        video: &Path,
+        audio: &Path,
+        fit: &str, // filename only
         uuid: &[String],
         video_start: &str,
         video_end: &str,
@@ -154,7 +156,7 @@ pub mod write {
             &eaf_meta,
         );
 
-        let mut eaf_content = timeorder(timeslots.join(""));
+        let mut eaf_content = timeorder(&timeslots.join(""));
         if geo_tier {
             eaf_content.push_str(&tier("geo", &annotations.join("")));
         }
@@ -173,27 +175,40 @@ pub mod parse {
     use quick_xml::Reader;
     use std::collections::HashMap;
     use std::io::{stdout, Write};
-    use std::path::PathBuf;
+    use std::path::Path;
     use std::str;
 
-    use crate::structs::{Annotation, Header, MediaDescriptor, Property};
+    use crate::errors::EafError;
+    use crate::structs::{
+        Annotation, AnnotationAttributes, Constraint, EafFile, Header, LinguisticType,
+        MediaDescriptor, Property, Stereotype, Tier, TierAttributes,
+    };
 
-    fn str_from_bytes(s: &[u8]) -> &str {
-        str::from_utf8(s).expect("(!) Could not parse &[u8] into &str")
-    }
-
-    pub fn select_tier(tiers: &[String], tiertype: &str) -> String {
-        println!("[EAF] Found the following tiers:");
-        for (i, t) in tiers.iter().enumerate() {
-            println!("  {:2}:  {}", i + 1, t);
+    pub fn select_tier(
+        eaf_file: &EafFile,
+        tiertype: &str,
+        print_prefix: Option<&str>,
+    ) -> Result<Tier, EafError> {
+        let prefix = match print_prefix {
+            Some(p) => p,
+            None => "",
+        };
+        println!("{}Found the following tiers:", prefix);
+        for (i, t) in eaf_file.tiers.iter().enumerate() {
+            println!(
+                "{}{:2}: {:36} {:5} annotations. Tokenized: {}",
+                " ".repeat(prefix.len()),
+                i + 1,
+                t.attributes.tier_id,
+                t.annotations.len(),
+                t.tokenized
+            );
         }
         loop {
-            print!("Select {} tier: ", tiertype);
-            stdout().flush().unwrap();
+            print!("{}Select {} tier: ", prefix, tiertype);
+            stdout().flush()?;
             let mut select = String::new();
-            std::io::stdin()
-                .read_line(&mut select)
-                .expect("Failed to read line");
+            std::io::stdin().read_line(&mut select)?;
             let num = match select.trim().parse::<usize>() {
                 Ok(n) => n - 1,
                 Err(_) => {
@@ -201,8 +216,14 @@ pub mod parse {
                     continue;
                 }
             };
-            match tiers.get(num) {
-                Some(t) => return t.to_string(),
+            match eaf_file.tiers.get(num) {
+                Some(t) => {
+                    if t.tokenized {
+                        println!("Select a non-tokenized tier");
+                        continue;
+                    }
+                    return Ok(t.to_owned());
+                }
                 None => {
                     println!("No such item");
                     continue;
@@ -211,8 +232,8 @@ pub mod parse {
         }
     }
 
-    pub fn header(path: &PathBuf) -> Header {
-        let mut reader = Reader::from_file(&path).unwrap();
+    pub fn header(path: &Path) -> Result<Header, EafError> {
+        let mut reader = Reader::from_file(&path)?;
 
         let mut time_units: String = String::new();
         let mut media_file: String = String::new();
@@ -227,8 +248,8 @@ pub mod parse {
                     b"HEADER" => {
                         for attr in e.attributes() {
                             if let Ok(a) = attr {
-                                let key = str_from_bytes(&a.key);
-                                let val = str_from_bytes(&a.value);
+                                let key = str::from_utf8(&a.key)?;
+                                let val = str::from_utf8(&a.value)?;
                                 match key {
                                     "MEDIA_FILE" => {
                                         media_file = val.to_owned();
@@ -245,8 +266,8 @@ pub mod parse {
                         let mut name = String::new();
                         for attr in e.attributes() {
                             if let Ok(a) = attr {
-                                let key = str_from_bytes(&a.key);
-                                let val = str_from_bytes(&a.value);
+                                let key = str::from_utf8(&a.key)?;
+                                let val = str::from_utf8(&a.value)?;
                                 if key == "NAME" {
                                     name = val.to_owned()
                                 }
@@ -254,7 +275,7 @@ pub mod parse {
                         }
                         properties.push(Property {
                             name,
-                            value: reader.read_text(e.name(), &mut Vec::new()).unwrap(),
+                            value: reader.read_text(e.name(), &mut Vec::new())?,
                         });
                     }
                     _ => (),
@@ -267,8 +288,8 @@ pub mod parse {
                         let mut relative_media_url: String = String::new();
                         for attr in e.attributes() {
                             if let Ok(a) = attr {
-                                let key = str_from_bytes(&a.key);
-                                let val = str_from_bytes(&a.value);
+                                let key = str::from_utf8(&a.key)?;
+                                let val = str::from_utf8(&a.value)?;
                                 match key {
                                     "EXTRACTED_FROM" => extracted_from = Some(val.to_owned()),
                                     "MEDIA_URL" => media_url = val.to_owned(),
@@ -287,25 +308,25 @@ pub mod parse {
                     }
                 }
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
-                Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                Err(e) => return Err(EafError::QuickXMLError(e)),
                 _ => (),
             }
 
-            // buf.clear()
+            buf.clear() // NOTE 2102013->15 previously uncommented...?
         }
 
-        Header {
+        Ok(Header {
             time_units,
             media_file,
             media_descriptor,
             properties,
-        }
+        })
     }
 
-    pub fn timeslots(path: &PathBuf) -> HashMap<String, u64> {
+    pub fn timeslots(path: &Path) -> Result<HashMap<String, u64>, EafError> {
         // lookup for time_values via time_slot_id (&str, e.g. "ts1")
 
-        let mut reader = Reader::from_file(&path).unwrap();
+        let mut reader = Reader::from_file(&path)?;
         reader.trim_text(true);
 
         let mut ts: HashMap<String, u64> = HashMap::new();
@@ -320,14 +341,14 @@ pub mod parse {
                     if e.name() == b"TIME_SLOT" {
                         for attr in e.attributes() {
                             if let Ok(a) = attr {
-                                let key = str_from_bytes(&a.key);
-                                let val = str_from_bytes(&a.value);
+                                let key = str::from_utf8(&a.key)?;
+                                let val = str::from_utf8(&a.value)?;
                                 match key {
                                     "TIME_SLOT_ID" => {
                                         time_slot_id = Some(val.to_owned());
                                     }
                                     "TIME_VALUE" => {
-                                        time_value = Some(val.parse::<u64>().unwrap());
+                                        time_value = Some(val.parse::<u64>()?);
                                     }
                                     _ => (),
                                 }
@@ -336,7 +357,7 @@ pub mod parse {
                     }
                 }
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
-                Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                Err(e) => return Err(EafError::QuickXMLError(e)),
                 _ => (), // other events exist, check quick_xml docs
             }
 
@@ -344,17 +365,16 @@ pub mod parse {
                 ts.insert(ts_id, ts_val);
             }
 
-            // clear the buffer to keep memory usage low (if no borrow elsewhere)
             buf.clear();
         }
 
-        ts
+        Ok(ts)
     }
 
-    pub fn tiers(path: &PathBuf) -> Vec<String> {
+    pub fn tiers(path: &Path) -> Result<Vec<String>, EafError> {
         let mut t: Vec<String> = Vec::new();
 
-        let mut reader = Reader::from_file(&path).unwrap();
+        let mut reader = Reader::from_file(&path)?;
         reader.trim_text(true);
 
         let mut buf = Vec::new();
@@ -366,8 +386,8 @@ pub mod parse {
                         // match tier_id to selected one
                         for attr in e.attributes() {
                             if let Ok(a) = attr {
-                                let key = str_from_bytes(&a.key);
-                                let val = str_from_bytes(&a.value);
+                                let key = str::from_utf8(&a.key)?;
+                                let val = str::from_utf8(&a.value)?;
 
                                 if key == "TIER_ID" {
                                     t.push(val.to_owned())
@@ -377,7 +397,7 @@ pub mod parse {
                     }
                 }
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
-                Err(e) => panic!("XmlError at position {}: {:?}", reader.buffer_position(), e),
+                Err(e) => return Err(EafError::QuickXMLError(e)),
                 _ => (), // other events exist, check quick_xml docs
             }
 
@@ -385,22 +405,94 @@ pub mod parse {
             buf.clear();
         }
 
-        t
+        Ok(t)
     }
 
-    pub fn annotations(path: &PathBuf, tier: &Option<String>) -> Vec<Annotation> {
+    pub fn tier_attribs(path: &Path) -> Result<Vec<TierAttributes>, EafError> {
+        let mut t: Vec<TierAttributes> = Vec::new();
+
+        let mut reader = Reader::from_file(&path)?;
+        reader.trim_text(true);
+
+        let mut buf = Vec::new();
+
+        let mut tier_id: Option<String> = None;
+        let mut parent_ref: Option<String> = None;
+        let mut participant: Option<String> = None;
+        let mut annotator: Option<String> = None;
+        let mut linguistic_type_ref: Option<String> = None;
+        let mut break_loop = false;
+
+        loop {
+            tier_id = None;
+            match reader.read_event(&mut buf) {
+                Ok(Event::Start(ref e)) => {
+                    if e.name() == b"TIER" {
+                        // match tier_id to selected one
+                        for attr in e.attributes() {
+                            if let Ok(a) = attr {
+                                let key = str::from_utf8(&a.key)?;
+                                let val = str::from_utf8(&a.value)?;
+
+                                match key {
+                                    "TIER_ID" => tier_id = Some(val.into()),
+                                    "PARENT_REF" => parent_ref = Some(val.into()),
+                                    "PARTICIPANT" => participant = Some(val.into()),
+                                    "ANNOTATOR" => annotator = Some(val.into()),
+                                    "LINGUISTIC_TYPE_REF" => linguistic_type_ref = Some(val.into()),
+                                    _ => (),
+                                }
+                            }
+                        }
+                    }
+                }
+                Ok(Event::Eof) => break_loop = true, // exits the loop when reaching end of file
+                Err(e) => return Err(EafError::QuickXMLError(e)),
+                _ => (), // other events exist, check quick_xml docs
+            }
+
+            if tier_id.is_some() {
+                t.push(TierAttributes {
+                    tier_id: tier_id.to_owned().unwrap(), // FIXME unwrap tier_id
+                    parent_ref: parent_ref.to_owned(),
+                    participant: participant.to_owned(),
+                    annotator: annotator.to_owned(),
+                    linguistic_type_ref: linguistic_type_ref.to_owned().unwrap(), // FIXME unwrap()
+                });
+                tier_id = None;
+                parent_ref = None;
+                participant = None;
+                annotator = None;
+                linguistic_type_ref = None;
+            }
+
+            // clear the buffer to keep memory usage low (if no borrow elsewhere)
+            buf.clear();
+
+            // break here, rather than Event::Eof to push last tier attributes
+            if break_loop {
+                break;
+            }
+        }
+
+        Ok(t)
+    }
+
+    /// Collects all annotations in EAF or for a single tier
+    pub fn annotations(path: &Path, tier_id: Option<&String>) -> Result<Vec<Annotation>, EafError> {
         let mut annots: Vec<Annotation> = Vec::new();
 
-        let ts = timeslots(&path);
+        let ts = timeslots(&path)?;
 
-        let mut reader = Reader::from_file(&path).unwrap(); // std::io::BufReader<std::fs::File>
+        let mut reader = Reader::from_file(&path)?;
         reader.trim_text(true);
 
         let mut buf = Vec::new();
 
         // annotation values -> annots
         let mut annotation_id: Option<String> = None; // "a1"
-        let mut annotation_ref: Option<String> = None; // Optional, ref_annotation?
+        let mut annotation_ref: Option<String> = None;
+        let mut previous_annotation: Option<String> = None;
         let mut time_slot_ref1: Option<String> = None; // "ts1"
         let mut time_slot_ref2: Option<String> = None; // "ts2"
         let mut annotation_value: Option<String> = None; // "a1"
@@ -415,33 +507,34 @@ pub mod parse {
                     match e.name() {
                         b"TIER" => {
                             // match tier_id to selected one
-                            if tier == &None {
+                            if tier_id == None {
                                 continue;
                             } else if tier_found {
+                                // new tier encounterd, stop compiling annotations
                                 break;
-                            }; // new tier encounterd, stop compiling annotations
+                            };
 
                             for attr in e.attributes() {
                                 if let Ok(a) = attr {
-                                    let t = tier.to_owned().unwrap();
-                                    let key = str_from_bytes(&a.key);
-                                    let val = str_from_bytes(&a.value);
+                                    let t_id = tier_id.to_owned().unwrap(); // unwrap ok, checked above
+                                    let key = str::from_utf8(&a.key)?;
+                                    let val = str::from_utf8(&a.value)?;
 
-                                    if key == "TIER_ID" && t == val {
+                                    if key == "TIER_ID" && t_id == &val {
                                         tier_found = true
                                     };
                                 }
                             }
                         }
                         b"ALIGNABLE_ANNOTATION" => {
-                            if tier != &None && !tier_found {
+                            if tier_id.is_some() && !tier_found {
                                 continue;
                             };
                             for attr in e.attributes() {
                                 annot_found = true;
                                 if let Ok(a) = attr {
-                                    let key = str_from_bytes(&a.key);
-                                    let val = str_from_bytes(&a.value);
+                                    let key = str::from_utf8(&a.key)?;
+                                    let val = str::from_utf8(&a.value)?;
                                     match key {
                                         "ANNOTATION_ID" => annotation_id = Some(val.to_owned()),
                                         "TIME_SLOT_REF1" => time_slot_ref1 = Some(val.to_owned()),
@@ -451,10 +544,30 @@ pub mod parse {
                                 }
                             }
                         }
+                        b"REF_ANNOTATION" => {
+                            if tier_id.is_some() && !tier_found {
+                                continue;
+                            };
+                            for attr in e.attributes() {
+                                annot_found = true;
+                                if let Ok(a) = attr {
+                                    let key = str::from_utf8(&a.key)?;
+                                    let val = str::from_utf8(&a.value)?;
+                                    match key {
+                                        "ANNOTATION_ID" => annotation_id = Some(val.to_owned()),
+                                        "ANNOTATION_REF" => annotation_ref = Some(val.to_owned()),
+                                        "PREVIOUS_ANNOTATION" => {
+                                            previous_annotation = Some(val.to_owned())
+                                        }
+                                        _ => (),
+                                    }
+                                }
+                            }
+                        }
                         b"ANNOTATION_VALUE" => {
                             if annot_found {
-                                let txt = reader.read_text(e.name(), &mut Vec::new()).unwrap();
-                                annotation_value = Some(txt);
+                                let txt = reader.read_text(e.name(), &mut Vec::new())?;
+                                annotation_value = Some(txt); // trimming whitespace already set globally
                                 annot_found = false;
                             }
                         }
@@ -462,20 +575,24 @@ pub mod parse {
                     }
                 }
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
-                Err(e) => panic!("Error at position {}: {:?}", reader.buffer_position(), e),
+                Err(e) => return Err(EafError::QuickXMLError(e)),
                 _ => (), // other events exist, check quick_xml docs
             }
 
             if annotation_value.is_some() {
                 annots.push(Annotation {
-                    annotation_id: annotation_id.unwrap(),
-                    annotation_ref: annotation_ref.to_owned(),
-                    time_slot_value1: *ts.get(&time_slot_ref1.unwrap()).unwrap(),
-                    time_slot_value2: *ts.get(&time_slot_ref2.unwrap()).unwrap(),
+                    attributes: AnnotationAttributes {
+                        annotation_id: annotation_id.unwrap(),
+                        annotation_ref: annotation_ref.to_owned(),
+                        previous_annotation: previous_annotation.to_owned(),
+                        time_slot_value1: time_slot_ref1.map_or(None, |t| ts.get(&t).cloned()),
+                        time_slot_value2: time_slot_ref2.map_or(None, |t| ts.get(&t).cloned()),
+                    },
                     annotation_value: annotation_value.unwrap(),
                 });
                 annotation_id = None; // "a1"
                 annotation_ref = None; // Optional, ref_annotation?
+                previous_annotation = None; // Optional, ref_annotation?
                 time_slot_ref1 = None; // "ts1"
                 time_slot_ref2 = None; // "ts2"
                 annotation_value = None; // "a1"
@@ -485,6 +602,166 @@ pub mod parse {
             buf.clear();
         }
 
-        annots
+        Ok(annots)
+    }
+
+    pub fn constraints(path: &Path) -> Result<Vec<Constraint>, EafError> {
+        let mut c: Vec<Constraint> = Vec::new();
+
+        let mut reader = Reader::from_file(&path)?;
+        reader.trim_text(true);
+
+        let mut buf = Vec::new();
+
+        let mut description: Option<String> = None;
+        let mut stereotype: Option<Stereotype> = None;
+
+        let mut break_loop = false;
+
+        loop {
+            match reader.read_event(&mut buf) {
+                Ok(Event::Empty(ref e)) => {
+                    if e.name() == b"CONSTRAINT" {
+                        // match tier_id to selected one
+                        for attr in e.attributes() {
+                            if let Ok(a) = attr {
+                                let key = str::from_utf8(&a.key)?;
+                                let val = str::from_utf8(&a.value)?;
+
+                                match key {
+                                    "DESCRIPTION" => description = Some(val.into()),
+                                    "STEREOTYPE" => {
+                                        match val {
+                                            "Symbolic_Subdivision" => {
+                                                stereotype = Some(Stereotype::SymbolicSubdivision)
+                                            }
+                                            "Included_In" => {
+                                                stereotype = Some(Stereotype::IncludedIn)
+                                            }
+                                            "Symbolic_Association" => {
+                                                stereotype = Some(Stereotype::SymbolicAssociation)
+                                            }
+                                            "Time_Subdivision" => {
+                                                stereotype = Some(Stereotype::TimeSubdivision)
+                                            }
+                                            _ => (), // only four listed stereotypes in eaf spec
+                                        }
+                                    }
+                                    _ => (),
+                                }
+                            }
+                        }
+                    }
+                }
+                Ok(Event::Eof) => break_loop = true, // exits the loop when reaching end of file
+                Err(e) => return Err(EafError::QuickXMLError(e)),
+                _ => (), // other events exist, check quick_xml docs
+            }
+
+            if let Some(s) = stereotype {
+                c.push(Constraint {
+                    stereotype: s,
+                    description: description.unwrap(),
+                });
+                stereotype = None;
+                description = None;
+            }
+
+            // clear the buffer to keep memory usage low (if no borrow elsewhere)
+            buf.clear();
+
+            // break here, rather than Event::Eof to push last constraint
+            if break_loop {
+                break;
+            }
+        }
+
+        Ok(c)
+    }
+
+    pub fn linguistic_types(path: &Path) -> Result<Vec<LinguisticType>, EafError> {
+        let mut l: Vec<LinguisticType> = Vec::new();
+
+        let mut reader = Reader::from_file(&path)?;
+        reader.trim_text(true);
+
+        let mut buf = Vec::new();
+
+        // Linguistic Type
+        let mut constraint: Option<Stereotype> = None;
+        let mut graphic_references: Option<bool> = None;
+        let mut linguistic_type_id: Option<String> = None;
+        let mut time_alignable: Option<bool> = None;
+
+        let mut break_loop = false;
+
+        loop {
+            match reader.read_event(&mut buf) {
+                Ok(Event::Empty(ref e)) => {
+                    if e.name() == b"LINGUISTIC_TYPE" {
+                        for attr in e.attributes() {
+                            if let Ok(a) = attr {
+                                let key = str::from_utf8(&a.key)?;
+                                let val = str::from_utf8(&a.value)?;
+
+                                match key {
+                                    "CONSTRAINTS" => match val {
+                                        "Symbolic_Subdivision" => {
+                                            constraint = Some(Stereotype::SymbolicSubdivision)
+                                        }
+                                        "Included_In" => constraint = Some(Stereotype::IncludedIn),
+                                        "Symbolic_Association" => {
+                                            constraint = Some(Stereotype::SymbolicAssociation)
+                                        }
+                                        "Time_Subdivision" => {
+                                            constraint = Some(Stereotype::TimeSubdivision)
+                                        }
+                                        _ => (),
+                                    },
+                                    "GRAPHIC_REFERENCES" => match val {
+                                        "true" => graphic_references = Some(true),
+                                        "false" => graphic_references = Some(false),
+                                        _ => (),
+                                    },
+                                    "LINGUISTIC_TYPE_ID" => linguistic_type_id = Some(val.into()),
+                                    "TIME_ALIGNABLE" => match val {
+                                        "true" => time_alignable = Some(true),
+                                        "false" => time_alignable = Some(false),
+                                        _ => (),
+                                    },
+                                    _ => (),
+                                }
+                            }
+                        }
+                    }
+                }
+                Ok(Event::Eof) => break_loop = true, // exits the loop when reaching end of file
+                Err(e) => return Err(EafError::QuickXMLError(e)),
+                _ => (), // other events exist, check quick_xml docs
+            }
+
+            if linguistic_type_id.is_some() {
+                l.push(LinguisticType {
+                    constraints: constraint,
+                    graphic_references: graphic_references.unwrap(),
+                    linguistic_type_id: linguistic_type_id.unwrap(),
+                    time_alignable: time_alignable.unwrap(),
+                });
+                constraint = None;
+                graphic_references = None;
+                linguistic_type_id = None;
+                time_alignable = None;
+            }
+
+            // clear the buffer to keep memory usage low (if no borrow elsewhere)
+            buf.clear();
+
+            // break here, rather than Event::Eof to push last constraint
+            if break_loop {
+                break;
+            }
+        }
+
+        Ok(l)
     }
 }

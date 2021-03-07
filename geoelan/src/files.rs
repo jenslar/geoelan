@@ -1,7 +1,7 @@
 use sha2::{Digest, Sha256};
 use std::fs::File;
-use std::io::*;
-use std::path::{Path, PathBuf};
+use std::io::{copy, stdin, stdout, Write};
+use std::path::Path;
 
 /// Calculate hash, return sha256 hash+bytes read
 pub fn checksum(path: &Path) -> std::io::Result<(String, u64)> {
@@ -22,18 +22,18 @@ pub fn checksum(path: &Path) -> std::io::Result<(String, u64)> {
 }
 
 /// Used for any acknowledgement, e.g. overwrite file
-pub fn acknowledge(message: &str) -> bool {
+pub fn acknowledge(message: &str) -> std::io::Result<bool> {
     loop {
         print!("(!) {} (y/n): ", message);
-        stdout().flush().unwrap();
+        stdout().flush()?;
         let mut overwrite = String::new();
         stdin()
             .read_line(&mut overwrite)
             .expect("Unable to read input");
 
         return match overwrite.to_lowercase().trim() {
-            "y" | "yes" => true,
-            "n" | "no" => false,
+            "y" | "yes" => Ok(true),
+            "n" | "no" => Ok(false),
             _ => {
                 println!("Enter y/yes or n/no");
                 continue;
@@ -42,10 +42,10 @@ pub fn acknowledge(message: &str) -> bool {
     }
 }
 
-/// File io etc
-pub fn writefile(content: &[u8], path: &PathBuf) -> std::io::Result<()> {
+/// Write file with confirmation if path exists
+pub fn writefile(content: &[u8], path: &Path) -> std::io::Result<()> {
     let write = if path.exists() {
-        acknowledge(&format!("{} already exists. Overwrite?", path.display()))
+        acknowledge(&format!("{} already exists. Overwrite?", path.display()))?
     } else {
         true
     };

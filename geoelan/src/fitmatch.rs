@@ -1,25 +1,26 @@
-use fit::structs::FitFile;
-
-use crate::virb::{compile_virbfiles, select_session};
 use crate::files::writefile;
+use crate::virb::{compile_virbfiles, select_session};
+use fit_rs::{get_video_uuid, structs::FitFile};
 use std::time::Instant;
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
 
-// main match sub-command
+//////////////////////////
+// MAIN MATCH SUB-COMMAND
+//////////////////////////
 pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let timer = Instant::now();
 
     let indir = PathBuf::from(args.value_of("input-directory").unwrap()).canonicalize()?;
     let write_csv = args.is_present("write-csv");
     let uuid: Option<String> = if let Some(v) = args.value_of("video") {
-        fit::get_video_uuid(&Path::new(v))?
+        get_video_uuid(&Path::new(v))?
     } else if let Some(u) = args.value_of("uuid") {
         Some(u.to_string())
     } else if let Some(f) = args.value_of("fit") {
-        let fitfile = FitFile::new(&PathBuf::from(f));
+        let fitfile = FitFile::parse(&Path::new(f), true)?;
         Some(select_session(&fitfile)?)
     } else {
         None
@@ -28,7 +29,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let quiet = args.is_present("quiet");
 
     // NEW IN DEV PART START
-    let virbfiles = compile_virbfiles(&indir, !quiet, duplicates)?;
+    let virbfiles = compile_virbfiles(&indir, !quiet, duplicates, true)?;
 
     println!("---------------------");
     println!(
@@ -56,14 +57,14 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let virbsession = match &uuid {
         Some(u) => {
             let mut hm: HashMap<String, Vec<String>> = HashMap::new();
-            match virbfiles.session.get(&*u) {
+            match virbfiles.session.get(u) {
                 Some(s) => {
                     hm.insert(u.into(), s.clone());
                     hm
                 }
                 None => {
                     println!("No session starting with UUID {}", u);
-                    std::process::exit(0)
+                    std::process::exit(1)
                 }
             }
         }
@@ -84,7 +85,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                     if write_csv {
                         match file.filetype {
                             crate::structs::VirbFileType::FIT => {
-                                fit_date = match FitFile::new(&file.path).t0(0, true) {
+                                fit_date = match FitFile::parse(&file.path, false)?.t0(0) {
                                     Ok(t) => t.format("%Y-%m-%dT%H:%M:%S%.3f").to_string(),
                                     Err(_) => "COULD NOT DERIVE TIMESTAMP".to_owned(),
                                 };
@@ -109,21 +110,18 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     if csv.len() > 1 && write_csv {
         let csv_path = PathBuf::from("matches.csv");
         if let Err(e) = writefile(&csv.join("\n").as_bytes(), &csv_path) {
-            println!("(!) Could note write {}: {}", csv_path.display(), e);
+            println!("(!) Failed to write {}: {}", csv_path.display(), e);
         };
     }
 
-    println!("-------");
-    println!("SUMMARY");
-    println!("-------");
+    println!("------------------------------");
+    println!("SUMMARY (FILES WITH UUID ONLY)");
+    println!("------------------------------");
     println!("Matches: {}", match_count);
     for (filetype, count) in virbfiles.filetypes {
         println!("    {}: {}", filetype, count);
     }
 
-    println!(
-        "Done ({:.3}s)",
-        (timer.elapsed().as_millis() as f64) / 1000.0
-    );
+    println!("Done ({:?})", timer.elapsed());
     Ok(())
 }

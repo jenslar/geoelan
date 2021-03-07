@@ -1,8 +1,7 @@
-use std::io::Write;
+use crate::files::writefile;
+use std::io::{stdout, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
-use crate::files::writefile;
 
 // CONCATENATE VIDEO
 pub fn concatenate(
@@ -82,7 +81,7 @@ fn run_ffmpeg(
         println!("      Video target already exists.")
     } else {
         print!("      Concatenating to {}... ", output_path.display());
-        std::io::stdout().flush()?;
+        stdout().flush()?;
 
         let ffmpeg_args_head = vec![
             "-f",
@@ -113,11 +112,11 @@ fn run_ffmpeg(
             ffmpeg_args_mid.push(format!("fit_file={}", m.file));
             ffmpeg_args_mid.push(String::from("-metadata"));
             ffmpeg_args_mid.push(format!("fit_size={}", m.size));
-            let start = (m.t0 + m.start).format("%Y-%m-%dT%H:%M:%S%.3f").to_string();
-            let end = (m.t0 + m.end).format("%Y-%m-%dT%H:%M:%S%.3f").to_string();
             ffmpeg_args_mid.push(String::from("-metadata"));
+            let start = (m.t0 + m.start).format("%Y-%m-%dT%H:%M:%S%.3f").to_string();
             ffmpeg_args_mid.push(format!("fit_start={}", start));
             ffmpeg_args_mid.push(String::from("-metadata"));
+            let end = (m.t0 + m.end).format("%Y-%m-%dT%H:%M:%S%.3f").to_string();
             ffmpeg_args_mid.push(format!("fit_end={}", end));
         }
         let ffmpeg_args = [
@@ -138,7 +137,7 @@ fn run_ffmpeg(
             println!("      Audio target already exists.")
         } else {
             print!("      Extracting wav to {}... ", wav.display());
-            std::io::stdout().flush()?;
+            stdout().flush()?;
             Command::new(&ffmpeg_cmd)
                 .args(&["-i", &output_path_str, "-vn", &wav.display().to_string()])
                 .output()?;

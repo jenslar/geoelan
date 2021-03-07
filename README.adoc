@@ -48,7 +48,7 @@ Quick help::
 
 == Example walkthrough
 
-Described below is an example of how GeoELAN can be used to geo-reference ELAN-annotations. Please refer to the detailed sections in the full manual if you get stuck. Note that all input video clips must be the unprocessed, original VIRB files. The so-called FIT-files mentioned throughout this manual are where the VIRB logs GPS-data and other kinds of telemetry during a recording session. These need to be matched to the corresponding video recording (see the full manual for further information). GeoELAN will help with all of this, with the exception of annotating your data.
+Described below is an example of how GeoELAN can be used to geo-reference ELAN-annotations. Please refer to the detailed sections if you get stuck. Note that all input video clips must be the unprocessed, original VIRB files. The so-called FIT-files mentioned throughout this manual are where the VIRB logs GPS-data and other kinds of telemetry during a recording session. These need to be matched to the corresponding video recording (see the full manual for further information). GeoELAN will help with all of this, with the exception of annotating your data.
 
 [#img-elan]
 .ELAN overview, including a tier with coordinates imported using GeoELAN

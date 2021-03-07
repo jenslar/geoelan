@@ -1,3 +1,4 @@
+//! Crate for parsing [FIT-files](https://developer.garmin.com/fit/overview/), a common, binary logging  used in fitness devices from various brands. Developer data is supported. Various filtering methods and custom errors are implemented, including partial data reads. Additionally, this crate was developed in parallel with the VIRB centric tool [GeoELAN](https://gitlab.com/rwaai/geoelan) and contains some VIRB specific functions and methods that may not apply to other devices.
 #![allow(dead_code)]
 #![warn(rust_2018_idioms, missing_copy_implementations)]
 // #![warn(rust_2018_idioms, missing_docs, missing_copy_implementations)]
@@ -6,18 +7,22 @@
 pub mod errors;
 pub mod messages; // message lists (names used in Profile.xlsx)
 pub mod process; // various fit data processing algorithms (mag, acc, gyro, bar)
+pub mod profile; // message type lists (names used in Profile.xlsx)
 pub mod structs; // various structs for messages (names used in Profile.xlsx) // Fit parse errors
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian};
 use chrono::Duration;
+use errors::Mp4Error;
 use std::collections::HashMap;
 use std::convert::From;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use std::path::Path; // for gps_metadata -> point conversion
+use std::path::Path;
+use structs::ParseMethod; // for gps_metadata -> point conversion
 
 /// Read 'bytes_to_read' at 'offset' in 'file'
 fn read_bytes(file: &mut File, offset: u64, bytes_to_read: u64) -> std::io::Result<Vec<u8>> {
+    // Unsure whether number of read bytes etc should be returned or discarded.
     // let new_offset = file.seek(SeekFrom::Start(offset))?;
     file.seek(SeekFrom::Start(offset))?;
     let mut chunk = file.take(bytes_to_read);
@@ -48,106 +53,120 @@ fn bit_set(byte: u8, position: u8) -> bool {
 /// | 0-4 | Base Type Number   | Number assigned to Base Type (provided in SDK) |
 fn get_basevalues(
     basetype: u8,
-    data: &[u8], // all fields, NOT single field with correct length as old impl
+    data: &[u8], // all values in a single field
     architecture: u8,
     unchecked_string: bool, // only for unchecked utf-8 strings
 ) -> Result<structs::BaseType, errors::ParseError> {
     // See Profile.xlsx: Types, fit_base_types
-    if ![0, 1].contains(&architecture) {
-        return Err(errors::ParseError::InvalidArchitecture(architecture));
-    }
     let base_type_number = 0b0001_1111 & basetype; // as in fit sdk, but ok to just use the full u8?
-    let base_type_len = match &base_type_number { // match twice, performance issue?
-        3 | 4 | 11 => 2, // 16-bit values
-        5 | 6 | 8 | 12 => 4, // 32-bit values
+    let base_type_len = match &base_type_number {
+        // match twice, performance issue?
+        3 | 4 | 11 => 2,       // 16-bit values
+        5 | 6 | 8 | 12 => 4,   // 32-bit values
         9 | 14 | 15 | 16 => 8, // 64-bit values
-        _ => 1
+        _ => 1,
     };
     if data.len() % base_type_len != 0 {
-        return Err(errors::ParseError::InvalidLengthForBasetypeCluster((data.len(), base_type_number, base_type_len)))
+        // need to handle error here since byteorder
+        // read_X_into() panics on incorrect buf length
+        return Err(errors::ParseError::InvalidLengthForBasetypeCluster((
+            data.len(),
+            base_type_number,
+            base_type_len,
+        )));
     }
     match base_type_number {
         0 => Ok(structs::BaseType::ENUM(data.into())), // byte -> u8
         1 => Ok(structs::BaseType::SINT8(
-            data.to_vec().iter().map(|d| *d as i8).collect::<Vec<i8>>(), // ok?
-            // data.to_vec().iter().map(|d| i8::from(*d)).collect::<Vec<i8>>(),
+            data.to_vec().iter().map(|d| *d as i8).collect::<Vec<i8>>(), // cast ok?
         )),
         2 => Ok(structs::BaseType::UINT8(data.into())),
         3 => Ok(structs::BaseType::SINT16({
-            let mut buf: Vec<i16> = vec![0; data.len() / base_type_len]; // 2
-            if architecture == 0 {
-                LittleEndian::read_i16_into(data, &mut buf)
-            } else {
-                BigEndian::read_i16_into(data, &mut buf)
+            let mut buf: Vec<i16> = vec![0; data.len() / base_type_len];
+            match architecture {
+                0 => LittleEndian::read_i16_into(data, &mut buf),
+                1 => BigEndian::read_i16_into(data, &mut buf),
+                _ => return Err(errors::ParseError::InvalidArchitecture(architecture)),
             }
             buf
         })),
         4 => Ok(structs::BaseType::UINT16({
-            let mut buf: Vec<u16> = vec![0; data.len() / base_type_len]; // 2
-            if architecture == 0 {
-                LittleEndian::read_u16_into(data, &mut buf)
-            } else {
-                BigEndian::read_u16_into(data, &mut buf)
+            let mut buf: Vec<u16> = vec![0; data.len() / base_type_len];
+            match architecture {
+                0 => LittleEndian::read_u16_into(data, &mut buf),
+                1 => BigEndian::read_u16_into(data, &mut buf),
+                _ => return Err(errors::ParseError::InvalidArchitecture(architecture)),
             }
             buf
         })),
         5 => Ok(structs::BaseType::SINT32({
-            let mut buf: Vec<i32> = vec![0; data.len() / base_type_len]; // 4
-            if architecture == 0 {
-                LittleEndian::read_i32_into(data, &mut buf)
-            } else {
-                BigEndian::read_i32_into(data, &mut buf)
+            let mut buf: Vec<i32> = vec![0; data.len() / base_type_len];
+            match architecture {
+                0 => LittleEndian::read_i32_into(data, &mut buf),
+                1 => BigEndian::read_i32_into(data, &mut buf),
+                _ => return Err(errors::ParseError::InvalidArchitecture(architecture)),
             }
             buf
         })),
         6 => Ok(structs::BaseType::UINT32({
-            let mut buf: Vec<u32> = vec![0; data.len() / base_type_len]; // 4
-            if architecture == 0 {
-                LittleEndian::read_u32_into(data, &mut buf)
-            } else {
-                BigEndian::read_u32_into(data, &mut buf)
+            let mut buf: Vec<u32> = vec![0; data.len() / base_type_len];
+            match architecture {
+                0 => LittleEndian::read_u32_into(data, &mut buf),
+                1 => BigEndian::read_u32_into(data, &mut buf),
+                _ => return Err(errors::ParseError::InvalidArchitecture(architecture)),
             }
             buf
         })),
         8 => Ok(structs::BaseType::FLOAT32({
-            let mut buf: Vec<f32> = vec![0.0; data.len() / base_type_len]; // 4
-            if architecture == 0 {
-                LittleEndian::read_f32_into(data, &mut buf)
-            } else {
-                BigEndian::read_f32_into(data, &mut buf)
+            let mut buf: Vec<f32> = vec![0.0; data.len() / base_type_len];
+            match architecture {
+                0 => LittleEndian::read_f32_into(data, &mut buf),
+                1 => BigEndian::read_f32_into(data, &mut buf),
+                _ => return Err(errors::ParseError::InvalidArchitecture(architecture)),
             }
             buf
         })),
         9 => Ok(structs::BaseType::FLOAT64({
-            let mut buf: Vec<f64> = vec![0.0; data.len() / base_type_len]; // 8
-            if architecture == 0 {
-                LittleEndian::read_f64_into(data, &mut buf)
-            } else {
-                BigEndian::read_f64_into(data, &mut buf)
+            let mut buf: Vec<f64> = vec![0.0; data.len() / base_type_len];
+            match architecture {
+                0 => LittleEndian::read_f64_into(data, &mut buf),
+                1 => BigEndian::read_f64_into(data, &mut buf),
+                _ => return Err(errors::ParseError::InvalidArchitecture(architecture)),
             }
             buf
         })),
         7 => Ok(structs::BaseType::STRING(
-            // null terminated utf-8
-            // old behaviour: use ENTIRE LENGTH of &[u8] THEN trim null, caused parse error for some fit
-            // current behaviour: only use UP UNTIL first encountered null OR
+            // Null terminated utf-8
+            // Old behaviour: use ENTIRE LENGTH of &[u8] THEN trim null,
+            // which caused parse error for some fit (FitCSVtool seems to parse this way)
+            // Current behaviour: only use UP UNTIL first encountered null OR
             // if none encountered use entire length of &[u8]
-            // debug only for strings
             {
                 if unchecked_string {
                     unsafe {
-                        std::str::from_utf8_unchecked(data)
-                            .trim_matches(char::from(0)) // unnecessary?
-                            .to_string()
+                        // Using the entire &[u8] fails for some fit...
+                        // std::str::from_utf8_unchecked(data)
+                        //     .trim_matches(char::from(0)) // unnecessary?
+                        //     .to_string()
+                        // ...this one doesn't. Which is preferred for debug?
+                        if let Some(idx) = data.iter().position(|&x| x == 0) {
+                            std::str::from_utf8_unchecked(&data[..idx])
+                                // .trim_matches(char::from(0)) // unnecessary?
+                                .to_string()
+                        } else {
+                            std::str::from_utf8_unchecked(data)
+                                // .trim_matches(char::from(0)) // unnecessary since checked for 0?
+                                .to_string()
+                        }
                     }
                 } else {
                     if let Some(idx) = data.iter().position(|&x| x == 0) {
                         std::str::from_utf8(&data[..idx])?
-                            .trim_matches(char::from(0)) // unnecessary?
+                            // .trim_matches(char::from(0)) // unnecessary?
                             .to_string()
                     } else {
                         std::str::from_utf8(data)?
-                            .trim_matches(char::from(0)) // unnecessary?
+                            // .trim_matches(char::from(0)) // unnecessary since checked for 0?
                             .to_string()
                     }
                 }
@@ -156,47 +175,47 @@ fn get_basevalues(
         10 => Ok(structs::BaseType::UINT8Z(data.into())), // Z = ?
         13 => Ok(structs::BaseType::BYTE(data.into())),   // byte
         11 => Ok(structs::BaseType::UINT16Z({
-            let mut buf: Vec<u16> = vec![0; data.len() / base_type_len]; // 2
-            if architecture == 0 {
-                LittleEndian::read_u16_into(data, &mut buf)
-            } else {
-                BigEndian::read_u16_into(data, &mut buf)
+            let mut buf: Vec<u16> = vec![0; data.len() / base_type_len];
+            match architecture {
+                0 => LittleEndian::read_u16_into(data, &mut buf),
+                1 => BigEndian::read_u16_into(data, &mut buf),
+                _ => return Err(errors::ParseError::InvalidArchitecture(architecture)),
             }
             buf
         })),
         12 => Ok(structs::BaseType::UINT32Z({
-            let mut buf: Vec<u32> = vec![0; data.len() / base_type_len]; // 4
-            if architecture == 0 {
-                LittleEndian::read_u32_into(data, &mut buf);
-            } else {
-                BigEndian::read_u32_into(data, &mut buf);
+            let mut buf: Vec<u32> = vec![0; data.len() / base_type_len];
+            match architecture {
+                0 => LittleEndian::read_u32_into(data, &mut buf),
+                1 => BigEndian::read_u32_into(data, &mut buf),
+                _ => return Err(errors::ParseError::InvalidArchitecture(architecture)),
             }
             buf
         })),
         14 => Ok(structs::BaseType::SINT64({
-            let mut buf: Vec<i64> = vec![0; data.len() / base_type_len]; // 8
-            if architecture == 0 {
-                LittleEndian::read_i64_into(data, &mut buf)
-            } else {
-                BigEndian::read_i64_into(data, &mut buf)
+            let mut buf: Vec<i64> = vec![0; data.len() / base_type_len];
+            match architecture {
+                0 => LittleEndian::read_i64_into(data, &mut buf),
+                1 => BigEndian::read_i64_into(data, &mut buf),
+                _ => return Err(errors::ParseError::InvalidArchitecture(architecture)),
             }
             buf
         })),
         15 => Ok(structs::BaseType::UINT64({
-            let mut buf: Vec<u64> = vec![0; data.len() / base_type_len]; // 8
-            if architecture == 0 {
-                LittleEndian::read_u64_into(data, &mut buf)
-            } else {
-                BigEndian::read_u64_into(data, &mut buf)
+            let mut buf: Vec<u64> = vec![0; data.len() / base_type_len];
+            match architecture {
+                0 => LittleEndian::read_u64_into(data, &mut buf),
+                1 => BigEndian::read_u64_into(data, &mut buf),
+                _ => return Err(errors::ParseError::InvalidArchitecture(architecture)),
             }
             buf
         })),
         16 => Ok(structs::BaseType::UINT64Z({
-            let mut buf: Vec<u64> = vec![0; data.len() / base_type_len]; // 8
-            if architecture == 0 {
-                LittleEndian::read_u64_into(data, &mut buf)
-            } else {
-                BigEndian::read_u64_into(data, &mut buf)
+            let mut buf: Vec<u64> = vec![0; data.len() / base_type_len];
+            match architecture {
+                0 => LittleEndian::read_u64_into(data, &mut buf),
+                1 => BigEndian::read_u64_into(data, &mut buf),
+                _ => return Err(errors::ParseError::InvalidArchitecture(architecture)),
             }
             buf
         })),
@@ -227,7 +246,7 @@ fn header(data: &[u8]) -> Result<structs::FitHeader, errors::ParseError> {
     })
 }
 
-/// Parses &[u8] and returns `DefinitionMessage` if `Ok`.
+/// Attempts to parse &[u8] into `DefinitionMessage`.
 /// If developer data is present, the relevant field_descriptions are looked up and converted
 /// into DefinitionFields.
 fn definition_message(
@@ -271,7 +290,12 @@ fn definition_message(
         for i in (1..dev_field_number * 3).step_by(3) {
             let dev_def = match field_descriptions.get(&(dev[i], dev[i + 2])) {
                 Some(fd) => fd,
-                None => return Err(errors::ParseError::UnknownFieldDescription(dev[i + 2])),
+                None => {
+                    return Err(errors::ParseError::UnknownFieldDescription((
+                        dev[i],
+                        dev[i + 2],
+                    )))
+                }
             };
             let field = structs::DefinitionField {
                 field_definition_number: dev_def.field_definition_number,
@@ -298,7 +322,7 @@ fn definition_message(
     })
 }
 
-/// Parses &[u8] and returns `DataMessage` if `Ok`.
+/// Attempts to parse &[u8] into `DataMessage`.
 /// Checks for and parses developer data into `DataMessage` if present in input Definition.
 fn data_message(
     data: &[u8],
@@ -366,14 +390,22 @@ fn data_message(
 /// Key is numerical FIT `global_id` (e.g. `gps_metadata` = 160), value is Vec<DataMessage>.
 pub fn parse_fit(
     path: &Path,
-    extract_id: &Option<u16>,
-    uuid: &Option<String>,
-    mut break_early: bool, // for e.g. messages that only occur once or to break loop if uuid provided
-    debug: bool,           // print definition and data messages while parsing
+    global_id: Option<&u16>, // optionally extract only a specific message type
+    debug: bool,             // print definition and data messages while parsing
     debug_unchecked_string: bool, // same as debug but parses strings as unchecked utf-8
-) -> Result<structs::FitData, errors::FitError> {
+) -> Result<structs::FitFile, errors::FitError> {
     let mut fitdata: Vec<structs::DataMessage> = Vec::new();
-    let uuid = uuid.to_owned();
+
+    let parse_type = match global_id {
+        Some(g) => ParseMethod::Filter(*g),
+        None => {
+            if debug {
+                ParseMethod::Debug
+            } else {
+                ParseMethod::Full
+            }
+        }
+    };
 
     // MESSAGE/DATA STRUCTURE DEFINITIONS, LOOKUP VIA LOCAL ID (0-15)
     // "normal" definitions
@@ -412,8 +444,8 @@ pub fn parse_fit(
         // Estimate data size if it exceeds file size in header (firmware bug?).
         // See fit bikeroutes from musette.se, all data sizes exceed file size by 11 bytes.
         x if x as usize > data.len() => {
-            let crc_len: u8 = if header.crc.is_some() { 2 } else { 0 };
-            let size = data.len() - header_size - crc_len as usize;
+            let crc_len: usize = if header.crc.is_some() { 2 } else { 0 };
+            let size = data.len() - header_size - crc_len;
             error_kind = Some(errors::ParseError::DataSizeExceedsFileSize(
                 structs::DataSize {
                     read: size as usize,
@@ -429,16 +461,18 @@ pub fn parse_fit(
     // every increment to index must euqal the length of the current message
     // to ensure new offset is at a message header for each loop
     let mut index: usize = header_size; // global data index/cursor position, start after header
-    let mut extract_data = uuid.is_none(); // if uuid == None -> exctract all messsages
 
     while index < data_size as usize {
         let message_header = match data[index] {
             255 => {
                 return Err(errors::FitError::Partial(
                     errors::ParseError::InvalidMessageHeader((255, index)),
-                    structs::FitData {
+                    structs::FitFile {
+                        path: path.to_owned(),
                         header,
                         records: fitdata,
+                        crc: None,
+                        parse: parse_type,
                     },
                 ));
             }
@@ -480,9 +514,12 @@ pub fn parse_fit(
                 Err(e) => {
                     return Err(errors::FitError::Partial(
                         e,
-                        structs::FitData {
+                        structs::FitFile {
+                            path: path.to_owned(),
                             header,
                             records: fitdata,
+                            crc: None,
+                            parse: parse_type,
                         },
                     ))
                 }
@@ -493,12 +530,15 @@ pub fn parse_fit(
             // FIT DATA MESSAGE (HEADER BITS: X0XXXXXX)
             if bit_set(message_header, 7) {
                 return Err(errors::FitError::Partial(
-                    errors::ParseError::UnimplementedFeature(
-                        errors::Feature::CompressedTimeStampHeader,
+                    errors::ParseError::UnsupportedFeature(
+                        errors::Feature::CompressedTimestampHeader,
                     ),
-                    structs::FitData {
+                    structs::FitFile {
+                        path: path.to_owned(),
                         header,
                         records: fitdata,
+                        crc: None,
+                        parse: parse_type,
                     },
                 ));
             }
@@ -507,17 +547,28 @@ pub fn parse_fit(
                 None => {
                     return Err(errors::FitError::Partial(
                         errors::ParseError::UnknownDefinition(local_id),
-                        structs::FitData {
+                        structs::FitFile {
+                            path: path.to_owned(),
                             header,
                             records: fitdata,
+                            crc: None,
+                            parse: parse_type,
                         },
                     ));
                 }
             };
 
-            let global_id = definition.global;
-            let message_length = definition.data_message_length;
-            let slice = &data[index..index + message_length];
+            // Parse filter, continue before parsing data messages.
+            // Intendend for the FitFile.parse_filter(global) method
+            // Note that this will ignore developer definitions.
+            if let Some(g) = global_id {
+                if g != &definition.global {
+                    index += definition.data_message_length;
+                    continue;
+                }
+            }
+
+            let slice = &data[index..index + definition.data_message_length];
 
             if debug {
                 println!(
@@ -531,9 +582,12 @@ pub fn parse_fit(
                 Err(e) => {
                     return Err(errors::FitError::Partial(
                         e,
-                        structs::FitData {
+                        structs::FitFile {
+                            path: path.to_owned(),
                             header,
                             records: fitdata,
+                            crc: None,
+                            parse: parse_type,
                         },
                     ))
                 }
@@ -543,7 +597,7 @@ pub fn parse_fit(
                 println!("  PARSED {:#?}", message);
             }
 
-            if global_id == 206 {
+            if definition.global == 206 {
                 match process::field_description_message(&message) {
                     Ok(f) => {
                         developer_definitions
@@ -552,91 +606,35 @@ pub fn parse_fit(
                     Err(e) => {
                         return Err(errors::FitError::Partial(
                             e,
-                            structs::FitData {
+                            structs::FitFile {
+                                path: path.to_owned(),
                                 header,
                                 records: fitdata,
+                                crc: None,
+                                parse: parse_type,
                             },
                         ))
                     }
                 }
             }
 
-            // TOGGLE DATA EXTRACTION FOR SESSION IF UUID PASSED
-            if uuid.is_some() && global_id == 161 {
-                let mut uuid_cam: Option<String> = None; // for toggling data extraction
-                let mut video_event: Option<u8> = None; // for toggling data extraction
+            fitdata.push(message);
 
-                for field in message.fields.iter() {
-                    match field.field_definition_number {
-                        1 => {
-                            video_event = if let structs::BaseType::ENUM(s) = &field.data {
-                                Some(s[0])
-                            } else {
-                                return Err(errors::FitError::Partial(
-                                    errors::ParseError::ErrorParsingField(
-                                        global_id,
-                                        field.field_definition_number,
-                                    ),
-                                    structs::FitData {
-                                        header,
-                                        records: fitdata,
-                                    },
-                                ));
-                            };
-                        }
-                        2 => {
-                            uuid_cam = if let structs::BaseType::STRING(s) = &field.data {
-                                Some(s.to_owned())
-                            } else {
-                                return Err(errors::FitError::Partial(
-                                    errors::ParseError::ErrorParsingField(
-                                        global_id,
-                                        field.field_definition_number,
-                                    ),
-                                    structs::FitData {
-                                        header,
-                                        records: fitdata,
-                                    },
-                                ));
-                            };
-                        }
-                        _ => (),
-                    }
-
-                    // start extracting data on camera_event 0 = video session start
-                    if uuid_cam == uuid && video_event == Some(0) {
-                        extract_data = true
-                    }
-                    // stop extracting data on camera event 2 = video session end
-                    if extract_data && video_event == Some(2) {
-                        break_early = true
-                    }
-                }
-            }
-
-            if extract_data {
-                match extract_id {
-                    Some(ei) => {
-                        if ei == &global_id {
-                            fitdata.push(message)
-                        }
-                    }
-                    None => fitdata.push(message),
-                }
-                if break_early {
-                    break; // break if session is done or single msg types (t corr)
-                };
-            }
-
-            index += message_length;
+            index += definition.data_message_length;
         }
     }
 
     if debug {
-        println!("FINAL INDEX: {}", index);
-        // if header.crc.is_some() { // crc check not yet implemented
-        //     println!("FINAL CRC:   {}", LittleEndian::read_u16(&data[index ..= index + 1]));
-        // }
+        println!("FINAL INDEX:        {}", index);
+        if header.crc.is_some() {
+            // crc check not yet implemented
+            println!(
+                "FINAL CRC (UINT16): [{} {}] -> {}",
+                data[index],
+                data[index + 1],
+                LittleEndian::read_u16(&data[index..=index + 1])
+            );
+        }
     }
 
     // Error_kind currently only used to report:
@@ -648,26 +646,32 @@ pub fn parse_fit(
     // Note that "non-fatal" in this case means some data could be extracted,
     // but that the error was indeed fatal in terms of not being able to
     // continue the parse process...
+
+    let crc16 = if error_kind.is_some() {
+        None // only get crc if no error since FIT file may be truncated
+    } else {
+        Some(LittleEndian::read_u16(&data[index..=index + 1]))
+    };
+
+    let fitfile = structs::FitFile {
+        path: path.to_owned(),
+        header,
+        records: fitdata,
+        crc: crc16, // set to crc16/last two bytes of FIT file
+        parse: parse_type,
+    };
+
     match error_kind {
-        Some(e) => Err(errors::FitError::Partial(
-            e,
-            structs::FitData {
-                header,
-                records: fitdata,
-            },
-        )),
-        None => Ok(structs::FitData {
-            header,
-            records: fitdata,
-        }),
+        Some(e) => Err(errors::FitError::Partial(e, fitfile)),
+        None => Ok(fitfile),
     }
 }
 
 /// Get UUID from unaltered VIRB video clip (MP4 or GLV)
-pub fn get_video_uuid(path: &Path) -> std::io::Result<Option<String>> {
+pub fn get_video_uuid(path: &Path) -> Result<Option<String>, Mp4Error> {
     let mut video = File::open(path)?;
     let file_size = match video.metadata()?.len() {
-        0 => return Err(errors::Mp4Error::UnexpectedFileSize(0).into()),
+        0 => return Err(Mp4Error::UnexpectedFileSize(0).into()),
         l => l,
     };
 
@@ -680,9 +684,9 @@ pub fn get_video_uuid(path: &Path) -> std::io::Result<Option<String>> {
         let size = BigEndian::read_u32(&read_bytes(&mut video, index, 4)?);
         if size == 0 {
             // Dropbox has 1024 byte placeholders (content all 0:s)
-            return Err(errors::Mp4Error::UnexpectedAtomSize(size as u64).into());
+            return Err(Mp4Error::UnexpectedAtomSize(size as u64).into());
         }
-        let name = String::from_utf8_lossy(&read_bytes(&mut video, index + 4, 4)?).to_string();
+        let name = std::str::from_utf8(&read_bytes(&mut video, index + 4, 4)?)?.to_string();
         let ext_size: Option<u64> = match size {
             1 => Some(BigEndian::read_u64(&read_bytes(&mut video, index + 8, 8)?)),
             _ => None,
@@ -696,10 +700,10 @@ pub fn get_video_uuid(path: &Path) -> std::io::Result<Option<String>> {
         } else {
             if name == "uuid" {
                 uuid = Some(
-                    String::from_utf8_lossy(&read_bytes(&mut video, index + 8, size as u64 - 8)?)
+                    std::str::from_utf8(&read_bytes(&mut video, index + 8, size as u64 - 8)?)?
                         .trim_matches(char::from(0))
                         .to_string(),
-                ); // TODO: utf8 error handling
+                );
                 break;
             }
             index += match ext_size {
@@ -710,3 +714,64 @@ pub fn get_video_uuid(path: &Path) -> std::io::Result<Option<String>> {
     }
     Ok(uuid)
 }
+
+// Get embedded FIT metadata concatenated VIRB video session
+// Note: Only looks for keys embedded by GeoELAN.
+// pub fn get_video_meta(path: &Path) -> Result<Option<String>, Mp4Error> {
+//     let mut video = File::open(path)?;
+//     let file_size = match video.metadata()?.len() {
+//         0 => return Err(Mp4Error::UnexpectedFileSize(0).into()),
+//         l => l,
+//     };
+
+//     let mut index = 0;
+//     let mut uuid = None;
+
+//     // Atom udta @ 1065504223 of size: 918, ends @ 1065505141
+//     //      Atom meta @ 1065504231 of size: 910, ends @ 1065505141
+//     //          Atom hdlr @ 1065504243 of size: 33, ends @ 1065504276
+//     //          Atom keys @ 1065504276 of size: 129, ends @ 1065504405				 ~
+//     //          Atom ilst @ 1065504405 of size: 736, ends @ 1065505141
+//     //              Atom  @ 1065504413 of size: 431, ends @ 1065504844
+//     //                  Atom data
+//     //              ... more data
+
+//     let container = ["moov", "udta", "meta"]; // virb mp4 hierarchy: moov->udta->uuid
+
+//     let mut keys: Vec<String> = Vec::new(); // from "keys" Atom
+//     let mut values: Vec<String> = Vec::new(); // from "ilst/data" Atoms, should have same length as keys
+
+//     while index < file_size - 8 {
+//         let size = BigEndian::read_u32(&read_bytes(&mut video, index, 4)?);
+//         if size == 0 {
+//             // Dropbox has 1024 byte placeholders (content all 0:s)
+//             return Err(Mp4Error::UnexpectedAtomSize(size as u64).into());
+//         }
+//         let name = std::str::from_utf8(&read_bytes(&mut video, index + 4, 4)?)?.to_string();
+//         let ext_size: Option<u64> = match size {
+//             1 => Some(BigEndian::read_u64(&read_bytes(&mut video, index + 8, 8)?)),
+//             _ => None,
+//         };
+
+//         if container.contains(&&name[..]) {
+//             index += 8;
+//             if index >= file_size - 8 {
+//                 break; // required...?
+//             };
+//         } else {
+//             if name == "uuid" {
+//                 uuid = Some(
+//                     std::str::from_utf8(&read_bytes(&mut video, index + 8, size as u64 - 8)?)?
+//                         .trim_matches(char::from(0))
+//                         .to_string(),
+//                 );
+//                 break;
+//             }
+//             index += match ext_size {
+//                 Some(s) => s,
+//                 None => size as u64,
+//             }
+//         }
+//     }
+//     Ok(uuid)
+// }

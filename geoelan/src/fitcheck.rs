@@ -1,15 +1,18 @@
 use crate::files::writefile;
 use crate::virb::{select_session, session_timespan};
 use chrono::offset::TimeZone;
+use fit_rs::{errors::FitError, get_video_uuid, structs::FitFile};
+use itertools::Itertools;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::time::Instant;
 
-// main check sub-command
+//////////////////////////
+// MAIN CHECK SUB-COMMAND
+//////////////////////////
 pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
-    let fitpath = PathBuf::from(args.value_of("fit").unwrap()).canonicalize()?;
-    let fitfile = fit::structs::FitFile::new(&fitpath);
+    let fit_path = PathBuf::from(args.value_of("fit").unwrap()).canonicalize()?;
 
     let mut verbose = args.is_present("verbose");
     let (debug, debug_unchecked_strings) = match args.is_present("debug-unchecked") {
@@ -17,67 +20,91 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         false => (args.is_present("debug"), false),
     };
 
+    let mut argument_error_messages: Vec<String> = Vec::new();
+    let mut parse_error_messages: Vec<String> = Vec::new();
+
     let global_id: Option<u16> = match args.value_of("global-id") {
         Some(id) => {
-            verbose = true;
-            Some(id.parse().expect("Error parsing global ID"))
+            match id.parse() {
+                Ok(g) => {
+                    verbose = true;
+                    Some(g)
+                }
+                Err(e) => {
+                    argument_error_messages.push(format!(
+                        "'--global-id': Invalid value '{}'. Must be a number: {}",
+                        id, e
+                    ));
+                    None // print full overview on error
+                }
+            }
         }
         None => None,
     };
 
+    let timer_parse = Instant::now();
+
+    let fit_file_result = if debug {
+        verbose = false;
+        FitFile::debug(&fit_path, debug_unchecked_strings)
+    } else {
+        FitFile::parse(&fit_path, false)
+    };
+    let fit_file = match fit_file_result {
+        Ok(d) => d,
+        Err(FitError::Fatal(e)) => {
+            println!("Aborted. Fatal parse error: {}", e);
+            exit(1)
+        }
+        Err(FitError::Partial(e, d)) => {
+            parse_error_messages.push(format!("{}", e));
+            d
+        }
+    };
+
+    // exclude selection time for `--select`
+    let timer_parse_span = timer_parse.elapsed();
+
     // Set UUID depending on source.
     // 'None' means all FIT-data will be extracted.
-    // 'Some()' means only FIT-data for recording session with set starting UUID will be extracted.
+    // 'Some()' means only FIT-data for recording session
+    // starting with specified UUID will be extracted.
     let uuid: Option<String> = if let Some(v) = args.value_of("video") {
-        match fit::get_video_uuid(&Path::new(v))? {
+        match get_video_uuid(&Path::new(v))? {
             Some(u) => Some(u),
             None => {
-                println!("Specified MP4 contains no UUID.");
-                exit(0)
+                argument_error_messages.push(format!("'--video': Specified MP4 contains no UUID."));
+                None // print full overview on error
             }
         }
     } else if let Some(u) = args.value_of("uuid") {
         Some(u.to_string())
     } else if args.is_present("select") {
-        Some(select_session(&fitfile)?)
+        match select_session(&fit_file) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                argument_error_messages.push(format!(
+                    "Not a VIRB FIT-file or required data not present: {}",
+                    e
+                ));
+                None // print full overview on error
+            }
+        }
     } else {
         None
     };
 
-    let timer = Instant::now();
-
-    let mut error_message: Option<fit::errors::ParseError> = None; // for partial parse with error
-
-    let fitdata_result = if debug {
-        verbose = false;
-        fitfile.debug(debug_unchecked_strings)
-    } else {
-        fitfile.parse(&global_id, &uuid)
-    };
-    let fitdata = match fitdata_result {
-        Ok(d) => d,
-        Err(e) => match e {
-            fit::errors::FitError::Fatal(e) => {
-                eprintln!("Aborted. Fatal error: {}", e);
-                exit(1)
-            }
-            fit::errors::FitError::Partial(e, d) => {
-                error_message = Some(e);
-                d
-            }
-        },
-    };
-
     // Get video duration/time span via UUID restrictions
     let video_time_span = if uuid.is_some() {
-        let cam = match fitfile.cam(&None, true) {
-            Ok(data) => data,
-            Err(err) => {
-                println!("Could not determine session: {}", err);
-                exit(1)
+        match fit_file.cam(None) {
+            Ok(data) => {
+                session_timespan(&data, uuid.as_ref(), false) // only limit to uuid/session here
             }
-        };
-        session_timespan(&cam, &uuid, false) // only limit to uuid/session here
+            Err(err) => {
+                parse_error_messages.push(format!("Could not determine session/duration: {}", err));
+                None
+            }
+        }
     } else {
         None
     };
@@ -85,7 +112,17 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let mut stats: HashMap<(u16, String), usize> = HashMap::new(); // k: (global_id, description), v: count
     let mut count = 0; // k: (global_id, description), v: count
 
-    for msg in fitdata.records.iter() {
+    let timer_filter = std::time::Instant::now();
+
+    let records = match (global_id, &uuid) {
+        (Some(g), None) => fit_file.filter(g),
+        (_, Some(u)) => fit_file.filter_session(u, global_id),
+        (None, None) => fit_file.records.to_owned(),
+    };
+
+    let timer_filter_span = timer_filter.elapsed();
+
+    for msg in records.iter() {
         *stats
             .entry((msg.global, msg.description.clone()))
             .or_insert(0) += 1;
@@ -94,67 +131,50 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 continue;
             }
             count += 1;
-            println!(
-                "[{}] Global ID: {} | Message type: {} | Header: {3:?}/{3:#010b}",
-                count, msg.global, msg.description, msg.header
-            );
-            for field in msg.fields.iter() {
-                println!(
-                    "    id: {:3} {:22}: {:?} {}",
-                    field.field_definition_number,
-                    field.description,
-                    field.data,
-                    fit::messages::field_types::get_enum(msg.global, &field)
-                );
-            }
-            for field in msg.dev_fields.iter() {
-                println!(
-                    "DEV id: {:3} {:22}: {:?} {} (units: {})",
-                    field.field_definition_number,
-                    field.description,
-                    field.data,
-                    fit::messages::field_types::get_enum(msg.global, &field),
-                    field.units.clone().unwrap_or_else(|| String::from("N/A"))
-                );
-            }
+            println!("[{}] {}", count, msg); // msg has impl Display
         }
     }
 
     println!("\nSUMMARY");
     println!("{}", "-".repeat(51));
     println!("Header\n");
-    println!("      size: {}", fitdata.header.headersize);
-    println!("  protocol: {}", fitdata.header.protocol);
-    println!("   profile: {}", fitdata.header.profile);
-    println!("  datasize: {}", fitdata.header.datasize);
-    println!("    dotfit: {:?}", fitdata.header.dotfit);
-    println!("       crc: {:?}", fitdata.header.crc); // TODO 201129 crc not verified
+    println!("      size: {}", fit_file.header.headersize);
+    println!("  protocol: {}", fit_file.header.protocol);
+    println!("   profile: {}", fit_file.header.profile);
+    println!("  datasize: {}", fit_file.header.datasize);
+    println!("    dotfit: {:?}", fit_file.header.dotfit);
+    println!(
+        "       crc: {:?} (for bytes 0-11 of header)",
+        fit_file.header.crc
+    );
 
     // print table with fit message counts in file
+    println!("{}", ".".repeat(51));
+    println!("   FIT crc: {:?} (for file)", fit_file.crc);
     println!("{}", "-".repeat(51));
     println!("Data\n");
     println!(" Global ID | {:28} | Count", "Message type");
     println!("{}", ".".repeat(51));
-    let required = vec![160, 161, 162];
-    let mut req_count = 0;
-    for (k, v) in stats.iter() {
+    let required: Vec<u16> = vec![160, 161, 162];
+    let mut req_found: Vec<u16> = Vec::new();
+    for (k, v) in stats.iter().sorted() {
         print!("{:10} | {:28} | {:6}", k.0, k.1, v);
         if required.contains(&k.0) {
-            req_count += 1;
+            req_found.push(k.0);
             println!(" *");
         } else {
-            println!("");
+            println!();
         };
     }
     println!("{}", ".".repeat(51));
-    println!("{:36}Total:{:8} ", " ", fitdata.len());
+    println!("{:36}Total:{:8} ", " ", records.len());
 
     // print time spans
     println!("{}", "-".repeat(51));
     if let Some(span) = video_time_span {
         // probably only VIRB
         println!("Session time span\n");
-        match fitfile.t0(0, true) {
+        match fit_file.t0(0) {
             Ok(t) => {
                 println!(
                     "  Start:    {}",
@@ -165,7 +185,8 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                     (t + span.end).format("%Y-%m-%dT%H:%M:%S%.3f")
                 );
             }
-            Err(err) => { // only fatal errors since return_partial = true
+            Err(err) => {
+                // only fatal errors since return_partial = true
                 println!("  Could not determine absolute timeline in FIT-file: {}\n  Printing relative values.", err);
                 println!(
                     "  Start:    {}s {}ms",
@@ -199,7 +220,15 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         }
     );
 
-    if let Ok(uuids) = fitfile.uuid(&uuid, true) {
+    if let Some(start_uuid) = &uuid {
+        for session in fit_file.sessions()? {
+            if &session[0] == start_uuid {
+                for (i, s) in session.iter().enumerate() {
+                    println!("  {}. {}", i + 1, s)
+                }
+            }
+        }
+    } else if let Ok(uuids) = fit_file.uuid() {
         for (i, u) in uuids.iter().enumerate() {
             println!(" {:2}. {}", i + 1, u);
         }
@@ -212,19 +241,33 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     println!("{}", "-".repeat(51));
     println!("Result\n");
-    print!("  Message types 160, 161, 162 (*) present: ");
+    println!("  Required message types for ELAN workflow (VIRB FIT-files only):");
     if uuid.is_none() && global_id.is_none() {
-        if req_count == 3 {
-            println!("YES [may lack required fields if non-VIRB FIT-file]")
-        } else {
-            println!("NO")
+        for id in required.iter() {
+            print!("    {}: ", id);
+            if req_found.contains(&id) {
+                println!("Yes");
+            } else {
+                println!("No");
+            }
         }
     } else {
-        println!("N/A")
+        println!("    N/A, run again without '--uuid'/'--global-id'/'--select'.")
     }
-    match error_message {
-        Some(e) => println!("  Partial parse with error: \"{}\"", e),
-        None => println!("  Parsed in full, no errors"),
+    println!("  Errors");
+    if parse_error_messages.is_empty() {
+        println!("    Parse error: None")
+    } else {
+        for e in parse_error_messages.iter() {
+            println!("    Parse error: {}", e)
+        }
+    }
+    if argument_error_messages.is_empty() {
+        println!("    Input error: None")
+    } else {
+        for e in argument_error_messages.iter() {
+            println!("    Input error: {}", e);
+        }
     }
     println!("{}", "-".repeat(51));
 
@@ -236,17 +279,14 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
             .parse()
             .expect("Could not parse '--downsample'");
 
-        let gps = match fitfile.gps(&uuid, false) {
+        let gps = match fit_file.gps(uuid.as_ref()) {
             Ok(data) => data,
             Err(err) => {
                 eprintln!("Error extracting GPS data: {}", err);
                 println!("Retrying without UUID restrictions... ");
-                match fitfile.gps(&None, false) {
-                    Ok(g) => println!("Done.\n  Found {} GPS messages in total", g.len()),
-                    Err(e) => match e {
-                        fit::errors::FitError::Fatal(e) => eprintln!("Could not extract any GPS data from FIT-file: {}", e),
-                        fit::errors::FitError::Partial(e,d) => eprintln!("Could only extract partial GPS data from FIT-file ({} data messages extracted): {}", d.len(), e),
-                    }
+                match fit_file.gps(None) {
+                    Ok(g) => println!("Done.\n  Found {} GPS messages.", g.len()),
+                    Err(e) => println!("Unable to extract GPS data: {}", e),
                 }
                 exit(1)
             }
@@ -254,14 +294,14 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
         let downsampled_points = crate::geo::downsample(downsample_factor, &gps);
 
-        let mut kml_path = PathBuf::from(&fitfile.path);
+        let mut kml_path = PathBuf::from(&fit_file.path);
         kml_path.set_extension("kml");
 
-        let uuids = fitfile.uuid(&uuid, true)?;
+        let uuids = fit_file.uuid()?; // FIXME currently ALL uuids
 
         let kml_doc = crate::kml::write::build(
             &crate::structs::GeoType::POINT(downsampled_points),
-            &fitfile.t0(0, true).unwrap_or_else(|_| {
+            &fit_file.t0(0).unwrap_or_else(|_| {
                 chrono::offset::Utc
                     .ymd(1989, 12, 31)
                     .and_hms_milli(0, 0, 0, 0)
@@ -269,14 +309,21 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
             &uuids,
             "Garmin VIRB",
             false,
+            None,
         );
 
         writefile(&kml_doc.as_bytes(), &kml_path)?;
         println!("{}", "-".repeat(51));
     }
+
+    let timer_sessions = std::time::Instant::now();
+    let _ = fit_file.sessions();
+
     println!(
-        "Done ({:.3}s)",
-        (timer.elapsed().as_millis() as f64) / 1000.0
+        "Done\n  parse    {:?}\n  filter   {:?}\n  sessions {:?}",
+        timer_parse_span,
+        timer_filter_span,
+        timer_sessions.elapsed()
     );
     Ok(())
 }

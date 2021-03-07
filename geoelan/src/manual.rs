@@ -1,6 +1,9 @@
-use std::path::PathBuf;
 use crate::files::writefile;
+use std::path::PathBuf;
 
+///////////////////////////
+// MAIN MANUAL SUB-COMMAND
+///////////////////////////
 pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let outpath: PathBuf;
     let content: &[u8];
@@ -16,7 +19,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         std::process::exit(0)
     }
 
-    // write selected file to disk
+    // write selected file to disk, asks for confirmation if file exists
     writefile(&content, &outpath)?;
 
     Ok(())

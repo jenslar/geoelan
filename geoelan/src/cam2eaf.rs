@@ -1,13 +1,8 @@
-use fit::structs::FitFile;
-
 use crate::ffmpeg::concatenate;
-use crate::files::{
-    checksum, writefile
-};
-use crate::virb::{
-    advise_check, compile_virbfiles, select_session, session_timespan
-};
+use crate::files::{checksum, writefile};
 use crate::structs::{FitMetaData, VirbFileType};
+use crate::virb::{advise_check, compile_virbfiles, select_session, session_timespan};
+use fit_rs::{get_video_uuid, structs::FitFile, structs::Point};
 use std::fs::{copy, create_dir_all};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -15,10 +10,10 @@ use std::process::exit;
 use std::time::Instant;
 
 pub fn generate_eaf(
-    points: &[crate::structs::Point],
+    points: &[Point],
     meta: &FitMetaData,
-    video_eaf: &PathBuf,
-    audio_eaf: &PathBuf,
+    video_eaf: &Path,
+    audio_eaf: &Path,
     geotier: bool,
 ) -> String {
     let mut eaf_points: Vec<String> = Vec::new();
@@ -37,14 +32,14 @@ pub fn generate_eaf(
         // EAF CONTENT
         if geotier {
             let annotation = format!(
-                "LAT:{:.6};LON:{:.6};ALT:{:.1};HDG:{:.1};VEL:{:.3};SPE:{:.3};T:{}",
-                p.latitude, p.longitude, p.altitude, p.heading, p.velocity, p.speed, timestamp
+                "LAT:{:.6};LON:{:.6};ALT:{:.1};HDG:{:.1};SPE:{:.3};T:{}",
+                p.latitude, p.longitude, p.altitude, p.heading, p.speed, timestamp
             );
             eaf_points.push(eaf::write::annotation(
                 point_count + 1,
                 point_count + 1,
                 point_count + 2,
-                annotation,
+                &annotation,
             ));
             eaf_timeslots.push(eaf::write::timeslot(point_count + 1, time_ms as usize));
         }
@@ -77,14 +72,23 @@ pub fn generate_eaf(
     )
 }
 
-///////////////////
-// MAIN CAM2EAF.RS
-///////////////////
+///////////////////////////
+// MAIN CAM2EAF SUB-COMMAND
+///////////////////////////
 pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let timer = Instant::now();
 
     // INPUT
-    let mut fit_path = args.value_of("fit").map(|p| PathBuf::from(p)); // set later if not specified
+    let force = args.is_present("force"); // Return partial FIT-data reads on error if possible
+    let mut fit_file_arg =
+        args.value_of("fit")
+            .map(|p| match FitFile::parse(&Path::new(p), force) {
+                Ok(f) => f,
+                Err(e) => {
+                    println!("Unable to parse FIT-file: {}", e);
+                    exit(1)
+                }
+            }); // set later if not specified
     let indir = PathBuf::from(args.value_of("input-directory").unwrap()).canonicalize()?;
     let outdir = {
         let p = PathBuf::from(&args.value_of("output-directory").unwrap());
@@ -94,23 +98,22 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         p.canonicalize()?
     };
     let video = args.value_of("video");
-    // ownership issues if uuid is not Option<String>... otherwise not necessary
-    let uuid: Option<String> = if let Some(v) = video {
-        fit::get_video_uuid(&Path::new(v))?
+    let uuid: String = if let Some(v) = video {
+        match get_video_uuid(&Path::new(v))? {
+            Some(u) => u,
+            None => {
+                println!("No UUID in video file.");
+                exit(1)
+            }
+        }
     } else if let Some(u) = args.value_of("uuid") {
-        Some(u.to_owned())
-    } else if let Some(f) = fit_path.as_ref() {
-        Some(select_session(&fit::structs::FitFile {
-            path: f.canonicalize()?,
-        })?)
+        u.to_owned()
+    } else if let Some(f) = fit_file_arg.as_ref() {
+        select_session(f)?
     } else {
-        None
-    };
-
-    if uuid.is_none() {
         println!("Unable to assign UUID.");
-        exit(0)
-    }
+        exit(1)
+    };
 
     let mut downsample_factor: usize = args
         .value_of("downsample-factor")
@@ -128,18 +131,16 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         .unwrap()
         .parse()
         .unwrap_or_else(|e| panic!("Unable to parse '--time-offset': {}", e));
-    
-    // For returning partial FIT-data reads in some cases
-    let force = args.is_present("force");
+    let no_metadata = args.is_present("no-metadata");
 
     // OUTPUT
-    let virbfiles = compile_virbfiles(&indir, !quiet, false)?; // does not filter on uuid
+    let virbfiles = compile_virbfiles(&indir, !quiet, false, force)?; // does not filter on uuid
 
     // files in session
     let mut mp4_session: Vec<PathBuf> = Vec::new();
     let mut glv_session: Vec<PathBuf> = Vec::new();
 
-    if let Some(session) = virbfiles.session.get(&uuid.clone().unwrap()) {
+    if let Some(session) = virbfiles.session.get(&uuid) {
         for u in session.iter() {
             if let Some(files) = virbfiles.uuid.get(&*u) {
                 for file in files.iter() {
@@ -147,8 +148,8 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                         VirbFileType::MP4 => mp4_session.push(file.path.to_owned()),
                         VirbFileType::GLV => glv_session.push(file.path.to_owned()),
                         VirbFileType::FIT => {
-                            if fit_path.is_none() {
-                                fit_path = Some(file.path.to_owned())
+                            if fit_file_arg.is_none() {
+                                fit_file_arg = Some(FitFile::parse(&file.path, force)?)
                             }
                         }
                     }
@@ -160,75 +161,70 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         exit(0)
     }
 
-    if fit_path.is_none() {
-        println!(
-            "Unable to locate a corresponding FIT-file in {}.\nTry using '-f <FITFILE>'",
-            indir.display()
-        );
-        exit(1)
-    }
-
-    let fit_file = FitFile::new(&fit_path.unwrap().canonicalize()?);
+    let fit_file = match fit_file_arg {
+        Some(f) => f,
+        None => {
+            println!(
+                "Unable to locate a corresponding FIT-file in {}.\nTry using '-f <FITFILE>'",
+                indir.display()
+            );
+            exit(1)
+        }
+    };
 
     // EXTRACT TIME, CAMERA, AND GPS DATA FROM FIT
-    let t0 = match fit_file.t0(offset_hours, force) {
+    let t0 = match fit_file.t0(offset_hours) {
         Ok(data) => data,
         Err(err) => {
-            match err {
-                fit::errors::FitError::Fatal(e) => println!("Unable to determine start time: {}", e),
-                fit::errors::FitError::Partial(e,v) => println!("Extracted timestamp_correlation with error ({} data messages extracted): {}", v.len(), e),
-            }
-            println!("Try '{}'", advise_check(&fit_file.path, 162, &None, true));
+            println!("Unable to determine start time: {}", err);
+            println!("Try '{}'", advise_check(&fit_file.path, 162, None, true));
             println!("Alternatively try using '--force'");
             exit(1)
         }
     };
     let cam = {
-        match fit_file.cam(&None, force) {
+        match fit_file.cam(None) {
             Ok(data) => {
                 if data.is_empty() {
                     println!("No logged recording session in FIT-file");
-                    println!("Try '{}'", advise_check(&fit_file.path, 161, &None, true));
+                    println!("Try '{}'", advise_check(&fit_file.path, 161, None, true));
                     exit(1)
                 } else {
                     data
-                }    
-            },
-            Err(err) => {
-                match err {
-                    fit::errors::FitError::Fatal(e) => println!("Unable to determine recording session: {}", e),
-                    fit::errors::FitError::Partial(e,v) => println!("Extracted partial camera_event data with error ({} data messages extracted): {}", v.len(), e),
                 }
-                println!("Try '{}'", advise_check(&fit_file.path, 161, &None, true));
+            }
+            Err(err) => {
+                println!("Unable to determine recording session: {}", err);
+                println!("Try '{}'", advise_check(&fit_file.path, 161, None, true));
                 println!("Alternatively try using '--force'");
                 exit(1)
             }
         }
     };
     let gps = {
-        match fit_file.gps(&uuid, force) {
+        match fit_file.gps(Some(&uuid)) {
             Ok(data) => {
                 if data.is_empty() {
                     println!("No logged points for UUID in FIT-file");
-                    println!("Try '{}'", advise_check(&fit_file.path, 160, &None, true));
+                    println!("Try '{}'", advise_check(&fit_file.path, 160, None, true));
                     exit(1)
                 } else {
                     data
                 }
-            },
+            }
             Err(err) => {
-                match err {
-                    fit::errors::FitError::Fatal(e) => println!("Unable to extract GPS data: {}", e),
-                    fit::errors::FitError::Partial(e,v) => println!("Extracted partial GPS data with error ({} data messages extracted): {}", v.len(), e),
-                }
-                println!("Try '{}'", advise_check(&fit_file.path, 160, &uuid, true));
+                println!("Unable to extract GPS data: {}", err);
+                println!(
+                    "Try '{}'",
+                    advise_check(&fit_file.path, 160, Some(&uuid), true)
+                );
                 println!("Alternatively try using '--force'");
                 exit(1)
             }
         }
     };
 
-    let session_timespan = match session_timespan(&cam, &uuid, false) {
+    let session_timespan = match session_timespan(&cam, Some(&uuid), false) {
         Some(t) => t,
         None => {
             // use relative timestamps if err?
@@ -246,13 +242,11 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     // VIRB001 if first file is VIRB001.MP4, used for output dir etc
     let basename = if let Some(path) = mp4_session.get(0) {
         path.file_stem().unwrap()
+    } else if let Some(path) = glv_session.get(0) {
+        path.file_stem().unwrap()
     } else {
-        if let Some(path) = glv_session.get(0) {
-            path.file_stem().unwrap()
-        } else {
-            println!("Unable to determine input clips.");
-            exit(0)
-        }
+        println!("Unable to determine input clips.");
+        exit(1)
     };
     let outdir_session = outdir.join(&Path::new(&basename));
     if !outdir_session.exists() {
@@ -295,7 +289,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         // copy original clips
         println!("      'low-res-only' set: Skipping concatenation for high-resolution MP4.");
         if copy_mp4 {
-            println!("      Copying hi-resolution clips...");
+            println!("      Copying high-resolution clips...");
             let out_dir_org = outdir_session.join("original");
             if !out_dir_org.exists() {
                 create_dir_all(&out_dir_org)?;
@@ -317,7 +311,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
             }
             println!("      Done");
         } else {
-            println!("      Use '--copy' to copy the original files as-is.");
+            println!("      Use '--copy' to copy the high-resolution clips as is.");
         }
         (None, None)
     } else {
@@ -327,11 +321,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
             false,
             true,
             ffmpeg,
-            if args.is_present("no-metadata") {
-                None
-            } else {
-                Some(&metadata)
-            },
+            if no_metadata { None } else { Some(&metadata) },
             if glv_session.is_empty() { mpeg2 } else { false },
         )?
     };
@@ -392,6 +382,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         &metadata.uuid,
         "Garmin VIRB",
         false,
+        None,
     );
     let mut kml_path = outdir_session.join(PathBuf::from(&basename));
     kml_path.set_extension("kml");
@@ -448,9 +439,6 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     );
     println!("  All:         {}", gps.len());
     println!("  Downsampled: {}", points_len);
-    println!(
-        "Done ({:.3}s)",
-        (timer.elapsed().as_millis() as f64) / 1000.0
-    );
+    println!("Done ({:?})", timer.elapsed());
     Ok(())
 }

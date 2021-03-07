@@ -2,6 +2,8 @@
 
 pub mod write {
     use chrono::Local;
+    use random_color::RandomColor;
+    use std::collections::HashMap;
 
     fn head() -> String {
         let ver = "2.2";
@@ -22,35 +24,53 @@ pub mod write {
         )
     }
 
-    fn meta(uuid: &str, device: &str, linestyle: bool) -> String {
+    fn meta(uuid: &str, device: &str, linestyle_id: Option<&HashMap<String, usize>>) -> String {
         // let t = Local::now().format("%+").to_string(); // ISO with time zone offset
         let t = Local::now().format("%Y-%m-%dT%H:%M:%S%.3f").to_string();
-        let style = match linestyle {
-            true => {
-                r#"
-        <Style id="marked_event">
+        let mut linestyles: Vec<String> = Vec::new();
+        if let Some(stl) = linestyle_id {
+            for s in stl.values().into_iter() {
+                let color = RandomColor::new().alpha(1.0).to_hex();
+                linestyles.push(format!(
+                    r#"
+                        <Style id="style{}">
+                            <LineStyle>
+                                <color>{}00</color>
+                                <width>4</width>
+                            </LineStyle>
+                        </Style>
+                "#,
+                    s,
+                    color.trim_start_matches("#")
+                ));
+            }
+        }
+        linestyles.push(
+            r#"
+        <Style id="unmarked">
             <LineStyle>
-                <color>7fff0000</color>
                 <width>4</width>
             </LineStyle>
         </Style>
 "#
-            }
-            false => "",
-        };
+            .to_owned(),
+        );
         format!(
             r#"        <name>{0}</name>
         <description>uuid:{1}</description>
         <TimeStamp><when>{2}</when></TimeStamp>{3}
 "#,
-            device, uuid, t, style
+            device,
+            uuid,
+            t,
+            linestyles.join("")
         )
     }
 
     fn point(
         t0: chrono::DateTime<chrono::Utc>,
         id: usize,
-        point: &crate::structs::Point,
+        point: &fit_rs::structs::Point,
         cdata: bool,
     ) -> String {
         // using six decimal digits (around 11mm...)
@@ -137,45 +157,59 @@ pub mod write {
     fn polyline(
         t0: chrono::DateTime<chrono::Utc>,
         id: usize,
-        line: &[crate::structs::Point],
+        points: &[fit_rs::structs::Point],
         cdata: bool,
+        linestyle_id: &HashMap<String, usize>,
     ) -> String {
-        // NOTE: input = coordindates for single line, not mulitple
+        // NOTE: input = coordindates for single line, not mulitiple
         let mut polystr: Vec<String> = Vec::new();
-        let mut text: Option<String> = None;
+        let text: Option<String> = points
+            .first()
+            .expect("Polyline: No points?")
+            .text
+            .to_owned();
 
-        let t1 = (t0 + line.first().expect("Polyline: No points?").time)
+        let t1 = (t0 + points.first().expect("Polyline: No points?").time)
             .format("%Y-%m-%dT%H:%M:%S%.3f")
             .to_string();
-        let t2 = (t0 + line.last().expect("Polyline: No points?").time)
+        let t2 = (t0 + points.last().expect("Polyline: No points?").time)
             .format("%Y-%m-%dT%H:%M:%S%.3f")
             // .format("%+").to_string(), // ISO with time zone offset
             .to_string();
 
-        for point in line {
-            if text.is_none() && point.text.is_some() {
-                text = match cdata {
-                    true => Some(format!(
-                        "
-            <![CDATA[
-                <table>
-                <tr><td>Description: {}</td></tr>
-                <tr><td>Longitude:   {:.6}</td></tr>
-                <tr><td>Latitude:    {:.6}</td></tr>
-                <tr><td>Time Start:  {}</td></tr>
-                <tr><td>Time End:    {}</td></tr>
-                </table>
-            ]]>
-        ",
-                        point.text.to_owned().unwrap(),
-                        point.longitude,
-                        point.latitude,
-                        t1,
-                        t2
-                    )),
-                    false => point.text.to_owned(),
-                };
-            }
+        let txt_cdata = if cdata && text.is_some() {
+            format!(
+                "
+        <![CDATA[
+            <table>
+            <tr><td>Description:      {}</td></tr>
+            <tr><td>Longitude, Start: {:.6}</td></tr>
+            <tr><td>Latitude, Start:  {:.6}</td></tr>
+            <tr><td>Longitude, End:   {:.6}</td></tr>
+            <tr><td>Latitude, End:    {:.6}</td></tr>
+            <tr><td>Time Start:       {}</td></tr>
+            <tr><td>Time End:         {}</td></tr>
+            </table>
+        ]]>
+    ",
+                points
+                    .first()
+                    .expect("Polyline: No points?")
+                    .text
+                    .to_owned()
+                    .unwrap(),
+                points.first().expect("Polyline: No points?").longitude,
+                points.first().expect("Polyline: No points?").latitude,
+                points.last().expect("Polyline: No points?").longitude,
+                points.last().expect("Polyline: No points?").latitude,
+                t1,
+                t2
+            )
+        } else {
+            "".to_owned()
+        };
+
+        for point in points {
             polystr.push(
                 [
                     format!("{:.6}", point.longitude),
@@ -186,18 +220,22 @@ pub mod write {
             );
         }
 
-        let description = if let Some(t) = text {
+        let description = if let Some(txt) = text {
+            println!("{}", txt);
+            let styleurl = linestyle_id
+                .get(&txt)
+                .expect("Polyline: Linestyle not found");
             format!(
-                "<description>{}</description>
+                "<description>{}{}</description>
             <TimeSpan>
                 <begin>{}</begin>
                 <end>{}</end>
             </TimeSpan>
-        <styleUrl>#marked_event</styleUrl>",
-                t, t1, t2
+        <styleUrl>#style{}</styleUrl>",
+                txt, txt_cdata, t1, t2, styleurl
             )
         } else {
-            String::from("<description/>")
+            String::from("<description/>\n<styleUrl>#unmarked</styleUrl>")
         };
 
         format!(
@@ -222,11 +260,11 @@ pub mod write {
         uuid: &[String],
         device: &str,
         cdata: bool,
+        linestyle_id: Option<&HashMap<String, usize>>,
     ) -> String {
         let mut kml_data: Vec<String> = Vec::new();
 
         // KML CONTENT
-        let mut linestyle = false;
         match data {
             crate::structs::GeoType::POINT(points) => {
                 for (point_count, p) in points.iter().enumerate() {
@@ -234,9 +272,15 @@ pub mod write {
                 }
             }
             crate::structs::GeoType::LINE(lines) => {
-                linestyle = true;
+                // linestyle = true;
                 for (line_count, l) in lines.iter().enumerate() {
-                    kml_data.push(polyline(*t0, line_count + 1, l, cdata));
+                    kml_data.push(polyline(
+                        *t0,
+                        line_count + 1,
+                        l,
+                        cdata,
+                        linestyle_id.expect("Polyline: No linestyles provided"),
+                    ));
                 }
             }
         }
@@ -245,7 +289,7 @@ pub mod write {
         let mut kml_doc = String::new();
 
         let kml_head = head();
-        let kml_meta = meta(&uuid.join(";"), device, linestyle);
+        let kml_meta = meta(&uuid.join(";"), device, linestyle_id);
         let kml_tail = tail();
 
         kml_doc.push_str(&kml_head[..]);

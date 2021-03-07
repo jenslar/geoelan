@@ -1,13 +1,14 @@
-GeoELAN Manual, v1.0
+GeoELAN Manual, v1.1
 Jens Larsson
 
-GeoELAN Manual, v1.0
+GeoELAN Manual, v1.1
 
 Jens Larsson
 jens.larsson@humlab.lu.se
 
 Table of Contents
 
+-   Changelog
 -   Introduction
     -   Compile and install from source
     -   Before you start
@@ -44,7 +45,50 @@ Acknowledgments
   Institute for Psycholinguistics in Nijmegen for their tireless efforts
   in developing ELAN.
 
-Document date: 2021-01-25
+Document date: 2021-03-07
+
+Changelog
+
+-   v1.1
+
+    -   General
+
+        -   Fixed various typos.
+
+    -   eaf2geo
+
+        -   Added: Geo-referencing annotations on dependent tiers is now
+            supported, with the caveat that the tier can not be
+            tokenized, nor can any of its parents.
+
+        -   Added number of annotations and whether tier is tokenized,
+            when selecting tier to geo-reference.
+
+        -   Added: Polylines are now colour coded according to
+            annotation value. Annotated events with the same annotation
+            value will have the same color.
+
+    -   check
+
+        -   Changed: reporting of errors should be clearer (FIT parsing
+            error and user input errors)
+
+            -   if recoverable error raised, the data summary will be
+                printed together with the error
+
+        -   Changed: Specifying FIT Global ID via -g/--global-id no
+            longer requires --verbose to print values.
+
+        -   Changed: Data summary table is now sorted on numerical FIT
+            Global ID.
+
+    -   match
+
+        -   Fixed: match should now be considerably faster.
+
+-   v1.0
+
+    -   Initial release
 
 Introduction
 
@@ -632,7 +676,7 @@ Reducing the number of coordinates with --downsample
     number of points logged by the GPS, it will be set to the largest
     applicable value (resulting in a single point for the entire
     recording as opposed to none at all). Extreme values may also affect
-    the result in unexpected ways, depending on gaps in the GPS-data.`
+    the result in unexpected ways, depending on gaps in the GPS-data.
 
 If cam2eaf or eaf2geo return errors
 
@@ -640,10 +684,10 @@ If cam2eaf or eaf2geo return errors
     rare for a FIT-file to be corrupt, if it does occur it may still be
     that data can be partially extracted or even in full. If an error
     was returned, try re-running, but also add --force. While --force
-    may overcome some errors it could have unpredictable results so only
-    use in the event the normal procedure fails. Also try the check
-    sub-command on corrupt FIT-files, and you may get a brief
-    description of the error.
+    may overcome some errors it could also have unpredictable results.
+    Only use in the event the normal procedure fails. Before using
+    --force, try the check sub-command on corrupt FIT-files first, since
+    you may get a brief description of the error.
 
   -- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
      GeoELAN will never overwrite existing files without permission. Should you accidentally delete the generated ELAN-file, just re-run the cam2eaf sub-command. It will automatically skip concatenating videos, but still generate a new ELAN-file.
@@ -886,6 +930,20 @@ Options
     |    |          |                  |       |                  | -e or |
     |    |          |                  |       |                  | -u    |
     +----+----------+------------------+-------+------------------+-------+
+
+Selecting an ELAN-tier to geo-reference
+
+    Found the following tiers:
+        1: geo                                   1647 annotations. Tokenized: false
+        2: default                                  7 annotations. Tokenized: false
+    Select feature tier:
+
+It is possible to geo-reference annotations on a dependent (or
+"referring") tier, with the caveat that it cannot be a tokenized tier,
+nor can any of its parents. Tokenization is there to help with glossing,
+but the individual tokenized annotations have no temporal connection to
+the media on their own. When selecting a tier this is noted, together
+with the number of annotations in the available tiers.
 
 Example
 
@@ -1202,9 +1260,6 @@ Flags
     | -s  | --select       | Select UUID from a list of all UUIDs present  |
     |     |                | in the FIT-file                               |
     +-----+----------------+-----------------------------------------------+
-    |     | --verbose      | Print FIT-data to screen, --global-id sets    |
-    |     |                | this automatically                            |
-    +-----+----------------+-----------------------------------------------+
 
 Options
 
@@ -1339,6 +1394,8 @@ Flags
     | Sh  | Long           | Description                                   |
     | ort |                |                                               |
     +=====+================+===============================================+
+    |     |                | Print full plain text version to screen       |
+    +-----+----------------+-----------------------------------------------+
     |     | --pdf          | Save the full manual as a PDF to current      |
     |     |                | directory                                     |
     +-----+----------------+-----------------------------------------------+
@@ -1376,4 +1433,4 @@ ELAN (Version 5.9) [Computer software]. 2020. Nijmegen: Max Planck
 Institute for Psycholinguistics. Retrieved from
 https://archive.mpi.nl/tla/elan
 
-Last updated 2021-01-25 13:13:16 +0100
+Last updated 2021-03-07 18:18:11 +0100

@@ -1,4 +1,4 @@
-//! GeoElan is a tool that geo-references ELAN annotations for Garmin VIRB footage
+//! [GeoELAN](https://gitlab.com/rwaai/geoelan) is a tool that geo-references [ELAN](https://archive.mpi.nl/tla/elan) annotations for Garmin VIRB footage.
 use chrono::Local;
 use clap::{App, AppSettings, Arg, SubCommand};
 
@@ -10,16 +10,17 @@ mod fitmatch;
 
 // local - support
 mod ffmpeg;
+mod files;
 mod geo;
 mod kml;
 mod manual;
-mod files;
-mod virb;
 mod structs;
+mod text;
+mod virb;
 
 fn main() -> std::io::Result<()> {
     let about = format!(
-        "{}
+        "Build: {}
 
 GeoElan is a tool for geo-referencing ELAN-annotations (https://archive.mpi.nl/tla/elan)
 of Garmin VIRB footage. Additional functionality includes inspecting the contents
@@ -41,7 +42,7 @@ PUBLICATION:
         Local::now().format("%Y-%m-%d").to_string()
     );
     let args = App::new("geoelan")
-        .version("1.0.0")
+        .version("1.1.0")
         .author("Jens Larsson")
         .about(&about[..])
         .setting(AppSettings::ArgRequiredElseHelp)
@@ -276,11 +277,11 @@ PUBLICATION:
                 .long("kml"))
             .arg(Arg::with_name("debug")
                 .help("Print FIT definitions and data while parsing")
-                // .hidden(true)
+                .conflicts_with("debug-unchecked")
                 .long("debug"))
             .arg(Arg::with_name("debug-unchecked")
                 .help("Print FIT definitions and data while parsing, but strings are also unchecked UTF-8")
-                // .hidden(true)
+                .conflicts_with("debug")
                 .long("debug-unchecked"))
             .arg(Arg::with_name("downsample-factor")
                 .help("Downsample factor for coordinates. Must be a positive value.")

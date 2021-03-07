@@ -1,11 +1,30 @@
 use crate::{
     errors::{FitError, ParseError},
     structs::{
-        CameraEvent, DataMessage, FieldDescriptionMessage, FitData, GpsMetadata,
+        CameraEvent, DataMessage, FieldDescriptionMessage, FitFile, GpsMetadata,
         ThreeDSensorCalibration, ThreeDSensorData, ThreeDSensorType, TimestampCorrelation,
     },
 };
-use nalgebra::{Matrix3, Matrix3x1}; // for three_d_sensor_calibration
+use nalgebra::{Matrix3, Matrix3x1};
+use rayon::prelude::*; // for three_d_sensor_calibration
+
+/// Currently not used for anything, relates to the optional u16 crc
+/// Directly translated - possibly incorrectly - from FIT SDK documentation
+// fn fit_crc16(mut crc: u16, byte: u8) -> u16 {
+//     let crc_table: [u16; 16] = [
+//         0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401, 0xA001, 0x6C00, 0x7800,
+//         0xB401, 0x5000, 0x9C01, 0x8801, 0x4400,
+//     ];
+//     // compute checksum of lower four bits of byte
+//     let tmp = crc_table[crc as usize & 0xF];
+//     crc = (crc >> 4) & 0x0FFF;
+//     crc = crc ^ tmp ^ crc_table[byte as usize & 0xF];
+//     // now compute checksum of upper four bits of byte tmp = crc_table[crc & 0xF];
+//     crc = (crc >> 4) & 0x0FFF;
+//     crc = crc ^ tmp ^ crc_table[(byte >> 4) as usize & 0xF];
+
+//     crc
+// }
 
 pub fn field_description_message(
     data_message: &DataMessage,
@@ -50,13 +69,11 @@ pub fn field_description_message(
             3 => {
                 field_name = field
                     .data
-                    .clone()
                     .get_string(global_id, field.field_definition_number)
             }
             8 => {
                 units = field
                     .data
-                    .clone()
                     .get_string(global_id, field.field_definition_number)
             }
             // OPTIONAL?
@@ -64,7 +81,6 @@ pub fn field_description_message(
             5 => {
                 components = field
                     .data
-                    .clone()
                     .get_string(global_id, field.field_definition_number)
             }
             6 => scale = field.data.get_u8(global_id, field.field_definition_number),
@@ -72,13 +88,11 @@ pub fn field_description_message(
             9 => {
                 bits = field
                     .data
-                    .clone()
                     .get_string(global_id, field.field_definition_number)
             }
             10 => {
                 accumulate = field
                     .data
-                    .clone()
                     .get_string(global_id, field.field_definition_number)
             }
             13 => fit_base_unit_id = field.data.get_u16(global_id, field.field_definition_number),
@@ -94,92 +108,42 @@ pub fn field_description_message(
         fit_base_type_id: fit_base_type_id?[0],
         field_name: field_name?,
         // OPTIONAL? NOT IN WAHOO RIVAL FIT
-        units: match units {
-            Ok(v) => Some(v),
-            Err(_) => None,
-        },
+        units: units.ok(),
         // OPTIONAL? Hence Option<>, but ugly re-pack...
-        array: match array {
-            Ok(v) => Some(v[0]),
-            Err(_) => None,
-        },
-        components: match components {
-            Ok(v) => Some(v),
-            Err(_) => None,
-        },
-        scale: match scale {
-            Ok(v) => Some(v[0]),
-            Err(_) => None,
-        },
-        offset: match offset {
-            Ok(v) => Some(v[0]),
-            Err(_) => None,
-        },
-        bits: match bits {
-            Ok(v) => Some(v),
-            Err(_) => None,
-        },
-        accumulate: match accumulate {
-            Ok(v) => Some(v),
-            Err(_) => None,
-        },
-        fit_base_unit_id: match fit_base_unit_id {
-            Ok(v) => Some(v[0]),
-            Err(_) => None,
-        },
-        native_mesg_num: match native_mesg_num {
-            Ok(v) => Some(v[0]),
-            Err(_) => None,
-        },
-        native_field_num: match native_field_num {
-            Ok(v) => Some(v[0]),
-            Err(_) => None,
-        },
+        array: array.map_or(None, |v| Some(v[0])),
+        components: components.ok(),
+        scale: scale.map_or(None, |v| Some(v[0])),
+        offset: offset.map_or(None, |v| Some(v[0])),
+        bits: bits.ok(),
+        accumulate: accumulate.ok(),
+        fit_base_unit_id: fit_base_unit_id.map_or(None, |v| Some(v[0])),
+        native_mesg_num: native_mesg_num.map_or(None, |v| Some(v[0])),
+        native_field_num: native_field_num.map_or(None, |v| Some(v[0])),
     })
 }
 
-pub fn parse_fielddescription(
-    // fitdata: &std::collections::HashMap<u16, Vec<DataMessage>>,
-    fitdata: &FitData,
-) -> Result<Vec<FieldDescriptionMessage>, FitError> {
+pub fn parse_fielddescription(fitfile: &FitFile) -> Result<Vec<FieldDescriptionMessage>, FitError> {
     let global_id = 206_u16;
 
-    // let data = match fitdata.get(&global_id) {
-    //     Some(d) => d,
-    //     None => return Err(FitError::Fatal(ParseError::NoDataForMessageType(global_id))),
-    // };
-    let data = fitdata.filter(global_id);
+    let data = fitfile.filter(global_id);
     if data.is_empty() {
         return Err(FitError::Fatal(ParseError::NoDataForMessageType(global_id)));
     }
 
-    let mut fdesc: Vec<FieldDescriptionMessage> = Vec::new();
+    let fdesc: Result<Vec<_>, _> = data
+        .par_iter()
+        .map(|m| field_description_message(m))
+        .collect();
 
-    for message in data.iter() {
-        match field_description_message(&message) {
-            Ok(m) => {
-                fdesc.push(m);
-            }
-            Err(e) => return Err(FitError::Fatal(e)),
-        }
+    match fdesc {
+        Ok(d) => Ok(d),
+        Err(e) => Err(e.into()),
     }
-
-    Ok(fdesc)
 }
 
-pub fn parse_timestampcorrelation(
-    // fitdata: &std::collections::HashMap<u16, Vec<DataMessage>>,
-    // fitdata: &Vec<DataMessage>,
-    fitdata: &FitData,
-) -> Result<TimestampCorrelation, FitError> {
+pub fn parse_timestampcorrelation(fitdata: &FitFile) -> Result<TimestampCorrelation, FitError> {
     let global_id = 162_u16;
 
-    // let data = match fitdata.get(&global_id) {
-    // let data = match fitdata.get(global_id) {
-    //     Some(d) => d,
-    //     None => return Err(FitError::Fatal(ParseError::NoDataForMessageType(global_id))),
-    // };
-    // let data = fitdata.get(global_id);
     let data = fitdata.filter(global_id);
     if data.is_empty() {
         return Err(FitError::Fatal(ParseError::NoDataForMessageType(global_id)));
@@ -194,7 +158,6 @@ pub fn parse_timestampcorrelation(
     let mut system_timestamp_ms: Result<Vec<u16>, _> =
         Err(ParseError::ErrorAssigningFieldValue(global_id, 5));
 
-    // for message in data.iter() {
     for message in data.iter() {
         for datafield in message.fields.iter() {
             match datafield.field_definition_number {
@@ -236,15 +199,17 @@ pub fn parse_timestampcorrelation(
 }
 
 pub fn parse_cameraevent(
-    // fitdata: &std::collections::HashMap<u16, Vec<DataMessage>>,
-    // fitdata: &Vec<DataMessage>,
-    fitdata: &FitData,
+    fitfile: &FitFile,
+    uuid: Option<&String>,
 ) -> Result<Vec<CameraEvent>, FitError> {
     let global_id = 161_u16;
 
     let mut cam = Vec::new();
 
-    let data = fitdata.filter(global_id);
+    let data = match uuid {
+        Some(u) => fitfile.filter_session(&u, Some(global_id)),
+        None => fitfile.filter(global_id),
+    };
     if data.is_empty() {
         return Err(FitError::Fatal(ParseError::NoDataForMessageType(global_id)));
     }
@@ -281,7 +246,6 @@ pub fn parse_cameraevent(
                 2 => {
                     camera_file_uuid = datafield
                         .data
-                        .clone()
                         .get_string(global_id, datafield.field_definition_number);
                 }
                 3 => {
@@ -306,13 +270,15 @@ pub fn parse_cameraevent(
 }
 
 pub fn parse_gpsmetadata(
-    // fitdata: &std::collections::HashMap<u16, Vec<DataMessage>>,
-    // fitdata: &Vec<DataMessage>,
-    fitdata: &FitData,
+    fitfile: &FitFile,
+    uuid: Option<&String>,
 ) -> Result<Vec<GpsMetadata>, FitError> {
     let global_id = 160_u16; // gps_metadata
 
-    let data = fitdata.filter(global_id);
+    let data = match uuid {
+        Some(u) => fitfile.filter_session(&u, Some(global_id)),
+        None => fitfile.filter(global_id),
+    };
     if data.is_empty() {
         return Err(FitError::Fatal(ParseError::NoDataForMessageType(global_id)));
     }
@@ -407,13 +373,12 @@ pub fn parse_gpsmetadata(
 }
 
 // Record/20, alternative gps log
-// fn parse_record(fit: &mut File, uuid: &Option<String>, global_id: u16) -> Result<Vec<crate::structs::ThreeDSensorData>, FitError> {
+// fn parse_record(fit: &mut File, uuid: Option<&String>, global_id: u16) -> Result<Vec<crate::structs::ThreeDSensorData>, FitError> {
 
 // }
 
 pub fn parse_threedsensordata(
-    // fitdata: &std::collections::HashMap<u16, Vec<DataMessage>>,
-    fitdata: &FitData,
+    fitfile: &FitFile,
     three_d_sensor_type: ThreeDSensorType,
 ) -> Result<Vec<ThreeDSensorData>, FitError> {
     // gyroscope_data global id = 164, 1
@@ -426,11 +391,7 @@ pub fn parse_threedsensordata(
         ThreeDSensorType::Magnetometer => 208_u16,
     };
 
-    // let data = match fitdata.get(&global_id) {
-    //     Some(c) => c,
-    //     None => return Err(FitError::Fatal(ParseError::NoDataForMessageType(global_id))),
-    // };
-    let data = fitdata.filter(global_id);
+    let data = fitfile.filter(global_id);
     if data.is_empty() {
         return Err(FitError::Fatal(ParseError::NoDataForMessageType(global_id)));
     }
@@ -501,8 +462,7 @@ pub fn parse_threedsensordata(
 }
 
 pub fn parse_threedsensorcalibration(
-    // fitdata: &std::collections::HashMap<u16, Vec<DataMessage>>,
-    fitdata: &FitData,
+    fitfile: &FitFile,
     three_d_sensor_type: ThreeDSensorType,
 ) -> Result<Vec<ThreeDSensorCalibration>, FitError> {
     // gyroscope_data: id=164, sensor type=1
@@ -517,11 +477,7 @@ pub fn parse_threedsensorcalibration(
         ThreeDSensorType::Magnetometer => 2_u8,
     };
 
-    // let data = match fitdata.get(&global_id) {
-    //     Some(c) => c,
-    //     None => return Err(FitError::Fatal(ParseError::NoDataForMessageType(global_id))),
-    // };
-    let data = fitdata.filter(global_id);
+    let data = fitfile.filter(global_id);
     if data.is_empty() {
         return Err(FitError::Fatal(ParseError::NoDataForMessageType(global_id)));
     }
@@ -606,9 +562,19 @@ pub fn parse_threedsensorcalibration(
     Ok(three_d_sensor_calibration)
 }
 
-pub fn calibrate_threedsensordata(
-    // fitdata: &std::collections::HashMap<u16, Vec<DataMessage>>,
-    fitdata: &FitData,
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+//
+// WARNING: calibrate_sensordata() is not well tested
+//          and may return incorrect results
+//
+//          use index_filter() and use original indeces for comparison,
+//          rather than timestamps?
+//
+//////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////
+pub fn calibrated_threedsensordata(
+    fitfile: &FitFile,
     three_d_sensor_type: ThreeDSensorType,
 ) -> Result<Vec<ThreeDSensorData>, FitError> {
     let mut calibrated_sensor_data: Vec<ThreeDSensorData> = Vec::new();
@@ -618,26 +584,28 @@ pub fn calibrate_threedsensordata(
     // Magnetometer: global 208, type: 2
 
     // Compile input data: raw sensor data + calibration values
-    let sensor_data = match parse_threedsensordata(&fitdata, three_d_sensor_type) {
-        Ok(data) => data,
-        Err(err) => return Err(err),
-    };
-    let sensor_calibration = match parse_threedsensorcalibration(&fitdata, three_d_sensor_type) {
-        Ok(data) => data,
-        Err(err) => return Err(err),
-    };
+    let sensor_data = parse_threedsensordata(&fitfile, three_d_sensor_type)?;
+    let sensor_calibration = parse_threedsensorcalibration(&fitfile, three_d_sensor_type)?;
 
-    let mut calibration_index = 0; // index into "calibration", value +1 each time a data values timestamp reaches calibration timestamp with index "calibration_index"
+    let mut calibration_index = 0; // index into "sensor_calibration"
 
     for mut msg in sensor_data.into_iter() {
         // Determine correct sensor calibration value (the first one preceding sensor data message)
         for (idx_cal, cal) in sensor_calibration.iter().enumerate() {
-            if msg.timestamp * 1000 + msg.timestamp_ms as u32 > cal.timestamp * 1000 {
-                calibration_index = idx_cal;
+            if cal.timestamp * 1000 > (msg.timestamp * 1000 + msg.timestamp_ms as u32) {
+                // need to go back one so cal precedes sensor data
+                // hopefully it exists...
+                calibration_index = idx_cal - 1;
+                break;
             }
-            // could else {break} but fairly few cal messages in a fit
         }
+
         let cal = &sensor_calibration[calibration_index]; // no need for .get() + err handling?
+
+        // uncomment to check which calibration value was used for first sensor message
+        // println!("{:#?}", msg);
+        // println!("{:#?}", cal);
+        // std::process::exit(0);
 
         // ORIENTATION MATRIX
         // create normalised (?) float vec for orientation matrix (see FIT SDK)
@@ -645,7 +613,7 @@ pub fn calibrate_threedsensordata(
         let orientation_matrix = Matrix3::from_row_slice(
             &cal.orientation_matrix
                 .clone()
-                // NOTE 201028 in fit sdk pdf these values are already divided by u16::MAX (?)
+                // NOTE 201028 in fit sdk pdf these values seem already divided by u16::MAX
                 // not so for virb data, but should perhaps test -sqrt(3) < 'i' < sqrt(3)
                 // before dividing
                 .into_iter()
@@ -670,7 +638,6 @@ pub fn calibrate_threedsensordata(
         for i in 0..len_sens {
             let sample =
                 Matrix3x1::from_column_slice(&[msg.x[i] as f64, msg.y[i] as f64, msg.z[i] as f64]);
-            // TODO 201104 check that calibrated_sample is indeed a 3x1 x,y,z matrix
             let calibrated_sample = cal_factor
                 * orientation_matrix
                 * (sample
@@ -680,6 +647,8 @@ pub fn calibrate_threedsensordata(
                         cal.level_shift as f64,
                     ])
                     - offset_cal);
+            // TODO 201104 check that calibrated_sample is indeed a 3x1 x,y,z matrix
+            // assert_eq!(calibrated_sample.len(), 3); // enough?
             calibrated_x.push(calibrated_sample[0]);
             calibrated_y.push(calibrated_sample[1]);
             calibrated_z.push(calibrated_sample[2]);

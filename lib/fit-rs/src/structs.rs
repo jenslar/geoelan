@@ -1,38 +1,24 @@
-//! Various structs for parsed FIT data. Fields are named according to FIT SDK
+//! Various structs and methods FIT-files and parsed FIT data.
+//! Where possible, fields are named according to FIT SDK Profiles.xlsx.
 #![allow(dead_code)]
 use chrono::prelude::*;
+use rayon::prelude::*;
+use std::fmt;
 use std::fs::File;
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::Path, path::PathBuf};
 
 use crate::{
-    errors::FitError,
-    errors::{self, ParseError},
+    errors::{FitError, ParseError},
     parse_fit, process,
 };
 
-/// Currently not used for anything, relates to the optional u16 crc
-/// Directly translated - possibly incorrectly - from FIT SDK documentation
-fn fit_crc16(mut crc: u16, byte: u8) -> u16 {
-    let crc_table: [u16; 16] = [
-        0x0000, 0xCC01, 0xD801, 0x1400, 0xF001, 0x3C00, 0x2800, 0xE401, 0xA001, 0x6C00, 0x7800,
-        0xB401, 0x5000, 0x9C01, 0x8801, 0x4400,
-    ];
-    // compute checksum of lower four bits of byte
-    let tmp = crc_table[crc as usize & 0xF];
-    crc = (crc >> 4) & 0x0FFF;
-    crc = crc ^ tmp ^ crc_table[byte as usize & 0xF];
-    // now compute checksum of upper four bits of byte tmp = crc_table[crc & 0xF];
-    crc = (crc >> 4) & 0x0FFF;
-    crc = crc ^ tmp ^ crc_table[(byte >> 4) as usize & 0xF];
-
-    crc
-}
-
-/// FIT Base Type
-/// The data types that may occur in a FIT-file, see FIT SDK
+/// FIT Base Type.
+/// The data types that may occur in a FIT-file, see FIT SDK.
+/// Non-String values are returned as `Enum(Vec<T>)` for performance
+/// and code verbosity reasons.
 #[derive(Debug, Clone)]
 pub enum BaseType {
-    STRING(String), // borrow issues
+    STRING(String),
     BYTE(Vec<u8>),
     ENUM(Vec<u8>),
     UINT8(Vec<u8>),
@@ -52,8 +38,10 @@ pub enum BaseType {
 }
 
 /// Unpack BaseTypes.
-/// As a pre-caution every type has its own unack fn,
+/// As a pre-caution every type has its own unpack fn,
 /// even when they are of the same primal type.
+/// Possibly not a good implementation, but allows for
+/// tracking down specific errors.
 impl BaseType {
     pub fn get_enum(&self, global: u16, field_def: u8) -> Result<Vec<u8>, ParseError> {
         match self {
@@ -85,10 +73,9 @@ impl BaseType {
             _ => Err(ParseError::ErrorParsingField(global, field_def)),
         }
     }
-    pub fn get_string(self, global: u16, field_def: u8) -> Result<String, ParseError> {
-        // no borrow + deref for string... fix or ok?
+    pub fn get_string(&self, global: u16, field_def: u8) -> Result<String, ParseError> {
         match self {
-            BaseType::STRING(val) => Ok(val),
+            BaseType::STRING(val) => Ok(val.into()),
             _ => Err(ParseError::ErrorParsingField(global, field_def)),
         }
     }
@@ -160,321 +147,238 @@ impl BaseType {
     }
 }
 
-/// Expected and actually read size in bytes, for error handling
+/// Expected and actually read size in bytes. For error handling.
 #[derive(Debug, Copy, Clone)]
 pub struct DataSize {
     pub expected: usize,
     pub read: usize,
 }
 
-/// The available sensor types as specified in FIT SDK
+/// The available 3D sensor types as specified in FIT SDK
 #[derive(Debug, Copy, Clone)]
 pub enum ThreeDSensorType {
-    Gyroscope,     // id: 164
-    Accelerometer, // id: 165
-    Magnetometer,  // id: 208
+    /// FIT global ID: 164
+    Gyroscope,
+    /// FIT global ID: 165
+    Accelerometer,
+    /// FIT global ID: 208
+    Magnetometer,
 }
 
-/// Used to specify transformation values for raw FIT-values to common variants
-/// e.g. semicircle to centigrades for coordinates
-// #[derive(Debug, Copy, Clone)]
-// pub struct Transform {
-//     message_type: u16, // Message Name, mesg_num, u16
-//     field_definition_number: u8,// Field Def u8 -> Field Name String
-//     scale: u32, // Scale
-//     offset: Option<u32>, // Offset -> unwrap_or(1)
-//     // Units Field Type    Array    Components
-// }
-
-// pub struct VirbSession {
-//     uuid: Vec<String>
-// }
+/// Used in FitFile as a flag to indicate
+/// whether all records were parsed or not.
+#[derive(Debug, Clone, Copy)]
+pub enum ParseMethod {
+    /// Set if `FitFile::parse()` was used.
+    /// `FitFile.records` contains all/partial records, depending on errors.
+    Full,
+    /// Set if `FitFile::parse_filter()` was used.
+    /// `FitFile.records` contains only records with specified global id.
+    Filter(u16),
+    /// Set if `FitFile::debug()` was used.
+    /// `FitFile.records` contains all/partial records. If an error is
+    /// raised, only `FitError::Fatal(err)` will be returned as `Err(err)`.
+    /// `FitError::Partial(err, data)` returns extracted data only.
+    Debug,
+}
 
 /// FitFile struct
 #[derive(Debug)]
 pub struct FitFile {
     pub path: PathBuf,
+    pub header: FitHeader,
+    pub records: Vec<DataMessage>, // all records ordered as logged
+    pub crc: Option<u16>,
+    pub parse: ParseMethod,
 }
 
 impl FitFile {
-    /// Creates new FitFile struct
-    pub fn new(path: &PathBuf) -> FitFile {
-        FitFile {
-            path: path.to_owned(),
+    /// Parses the FIT-file in full and returns a FitFile struct, returning
+    /// a FitError for most errors.
+    /// `partial_return_on_error` returns partially extracted
+    /// data up until an error was raised, discarding the
+    /// error. Fatal errors (i.e. not able to parse the FIT-file
+    /// at all) are still returned.
+    /// Sets `FitFile.parse` to `ParseMethod::Full`
+    pub fn parse(path: &Path, partial_return_on_error: bool) -> Result<FitFile, FitError> {
+        if partial_return_on_error {
+            match parse_fit(path, None, false, false) {
+                Ok(d) => Ok(d),
+                Err(FitError::Partial(_, d)) => Ok(d),
+                Err(e @ FitError::Fatal(_)) => return Err(e),
+            }
+        } else {
+            parse_fit(path, None, false, false)
         }
     }
-    /// Parse the FIT-file returning all messages in a FitData struct.
-    /// For VIRB data it's also possible to filter a specific session via UUID.
-    pub fn parse(
-        &self,
-        global_id: &Option<u16>,
-        uuid: &Option<String>,
-    ) -> Result<FitData, crate::errors::FitError> {
-        parse_fit(&self.path, global_id, uuid, false, false, false)
+
+    /// Similar to `FitFile::parse()`, but only returns FitFile
+    /// records with the specified `global_id`. Developer data
+    /// will be discarded. If further filtering is required
+    /// use `parse()`. `parse_filter()` is intended
+    /// for faster repeated parsing of a specific message type.
+    /// Sets `FitFile.parse` to `ParseMethod::Filter(global_id)`
+    pub fn parse_filter(
+        path: &Path,
+        global_id: u16,
+        partial_return_on_error: bool,
+    ) -> Result<FitFile, FitError> {
+        if partial_return_on_error {
+            match parse_fit(path, Some(&global_id), false, false) {
+                Ok(d) => Ok(d),
+                Err(FitError::Partial(_, d)) => Ok(d),
+                Err(e @ FitError::Fatal(_)) => return Err(e),
+            }
+        } else {
+            parse_fit(path, Some(&global_id), false, false)
+        }
     }
 
     /// Parse the FIT-file returning all messages in a FitData struct.
-    /// "Debug" version of FitFile.parse().
     /// Will print data as it is being parsed. Filtering on UUID not possible.
-    /// `unchecked_string` = true means BaseType::STRING will be parsed with std::str::from_utf8_unchecked()
-    pub fn debug(&self, unchecked_string: bool) -> Result<FitData, crate::errors::FitError> {
-        parse_fit(&self.path, &None, &None, false, true, unchecked_string)
-    }
-
-    /// FIT-file size
-    pub fn len(&self) -> std::io::Result<u64> {
-        Ok(File::open(&self.path)?.metadata()?.len())
-    }
-
-    // The following also exist as impl FitData.
-    // FitFile method returns Result<>
-    // FitData method returns Option<>
-
-    /// VIRB only.
-    /// Returns all unique uuids for VIRB action camera FIT-files.
-    /// `force_partial_on_error` will forward partial data,
-    /// but return ParseError::NoDataForMessageType
-    /// if no camera_event/161 can be parsed.
-    pub fn uuid(&self, uuid_start: &Option<String>, force_partial_on_error: bool) -> Result<Vec<String>, errors::FitError> {
-        let data = match force_partial_on_error {
-            true => {
-                match self.parse(&Some(161_u16), uuid_start) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        match e {
-                            FitError::Fatal(_) => return Err(e),
-                            FitError::Partial(_, d) => d // want partial data
-                        }
-                    }
-                }
-            },
-            false => self.parse(&Some(161_u16), uuid_start)?
-        };
-        let cam = process::parse_cameraevent(&data)?;
-        let mut uuids: Vec<String> = Vec::new();
-        for evt in cam.into_iter() {
-            uuids.push(evt.camera_file_uuid);
-        }
-        uuids.dedup();
-        Ok(uuids)
-    }
-
-    /// VIRB only.
-    /// Returns unique uuids for VIRB action camera FIT-files,
-    /// grouped into sessions.
-    /// `force_partial_on_error` will forward partial data,
-    /// but return ParseError::NoDataForMessageType
-    /// if no camera_event/161 can be parsed.
-    pub fn sessions(&self, force_partial_on_error: bool) -> Result<Vec<Vec<String>>, errors::FitError> {
-        let data = match force_partial_on_error {
-            true => {
-                match self.parse(&Some(161_u16), &None) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        match e {
-                            FitError::Fatal(_) => return Err(e),
-                            FitError::Partial(_, d) => d // want partial data
-                        }
-                    }
-                }
-            },
-            false => self.parse(&Some(161_u16), &None)?
-        };
-        let cam = process::parse_cameraevent(&data)?;
-        let mut sessions: Vec<Vec<String>> = Vec::new();
-        let mut session: Vec<String> = Vec::new();
-        for evt in cam.into_iter() {
-            if evt.camera_event_type == 6 {
-                // also last in session, succeeds 2
-                continue;
+    /// `unchecked_string` = true means BaseType::STRING will be parsed
+    /// with `unsafe {std::str::from_utf8_unchecked()}`.
+    /// Sets `FitFile.parse` to `ParseMethod::Debug`
+    pub fn debug(path: &Path, unchecked_string: bool) -> Result<FitFile, FitError> {
+        match parse_fit(path, None, true, unchecked_string) {
+            Ok(d) => Ok(d),
+            Err(FitError::Partial(e, d)) => {
+                println!("Aborted at error: {}", e);
+                Ok(d)
             }
-            session.push(evt.camera_file_uuid);
-            if evt.camera_event_type == 2 {
-                session.dedup(); // enough to keep only unique items, since uuids logged in order
-                sessions.push(session.to_owned());
-                session.clear();
-            }
+            Err(e @ FitError::Fatal(_)) => Err(e),
         }
-        Ok(sessions)
     }
 
-    /// VIRB only. (?)
-    /// Return the absolute timestamp for the start of the FIT-file
-    /// Only valid if timestamp_correlation is logged.
-    /// `force_partial_on_error` will forward partial data,
-    /// but return ParseError::NoDataForMessageType
-    /// if no timestamp_correlation/162 can be parsed.
-    pub fn t0(&self, offset: i64, force_partial_on_error: bool) -> std::result::Result<DateTime<Utc>, FitError> {
-        let data = match force_partial_on_error {
-            true => {
-                match self.parse(&Some(162_u16), &None) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        match e {
-                            FitError::Fatal(_) => return Err(e),
-                            FitError::Partial(_, d) => d // want partial data
-                        }
-                    }
-                }
-            },
-            false => self.parse(&Some(162_u16), &None)?
-        };
-        let tc = process::parse_timestampcorrelation(&data)?; // ...then fail here if no 162
-
-        Ok(Utc.ymd(1989, 12, 31).and_hms_milli(0, 0, 0, 0)
-        + chrono::Duration::hours(offset) // not encoded as proper timezone in output
-        + chrono::Duration::seconds(
-            tc.timestamp as i64 - tc.system_timestamp as i64)
-        + chrono::Duration::milliseconds(
-            tc.timestamp_ms as i64 - tc.system_timestamp_ms as i64))
-    }
-
-    /// VIRB only.
-    /// Returns formatted gps_metadata/160.
-    /// Some devices may have gps_metadata, but not necessarily all fields
-    /// present in VIRB data.
-    /// `force_partial_on_error` will forward partial data,
-    /// but return ParseError::NoDataForMessageType
-    /// if no gps_metadata/160 can be parsed.
-    pub fn gps(&self, uuid: &Option<String>, force_partial_on_error: bool) -> Result<Vec<GpsMetadata>, FitError> {
-        let data = match force_partial_on_error {
-            true => {
-                match self.parse(&Some(160_u16), uuid) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        match e {
-                            FitError::Fatal(_) => return Err(e),
-                            FitError::Partial(_, d) => d // want partial data
-                        }
-                    }
-                }
-            },
-            false => self.parse(&Some(160_u16), uuid)?
-        };
-        process::parse_gpsmetadata(&data)
-    }
-
-    /// VIRB only.
-    /// Returns formatted camera_event/161.
-    /// Some devices may have gps_metadata, but not necessarily all fields
-    /// present in VIRB data.
-    /// `force_partial_on_error` will forward partial data,
-    /// but return ParseError::NoDataForMessageType
-    /// if no gps_metadata/160 can be parsed.
-    pub fn cam(&self, uuid: &Option<String>, force_partial_on_error: bool) -> Result<Vec<CameraEvent>, FitError> {
-        let data = match force_partial_on_error {
-            true => {
-                match self.parse(&Some(161_u16), uuid) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        match e {
-                            FitError::Fatal(_) => return Err(e),
-                            FitError::Partial(_, d) => d // want partial data
-                        }
-                    }
-                }
-            },
-            false => self.parse(&Some(161_u16), uuid)?
-        };
-        process::parse_cameraevent(&data)
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct FitData {
-    pub header: FitHeader,
-    pub records: Vec<DataMessage>, // all records ordered as logged
-                                   // pub crc: Option<u16> // check crc not implemented
-}
-
-impl FitData {
-    /// Get specific message type by specifying FIT Global ID for full parses.
-    /// Also possible to use FitFile.parse(GLOBAL_ID, UUID)
-    /// See Profile.xslx in FIT SDK for message type descriptions and global id.
+    /// Filters FIT records on FIT Global ID
     pub fn filter(&self, global_id: u16) -> Vec<DataMessage> {
         self.records
-            .clone() // better way?
-            .into_iter()
+            .par_iter()
             .filter(|m| m.global == global_id)
+            .map(|v| v.to_owned())
             .collect::<Vec<DataMessage>>()
     }
 
-    /// Sort records according to message type into HashMap.
-    /// Key is numerical FIT global id.
-    pub fn group(&self) -> HashMap<u16, Vec<DataMessage>> {
-        let mut sorted_records: HashMap<u16, Vec<DataMessage>> = HashMap::new();
-        for msg in self.records.clone().into_iter() {
-            // possible not to clone()?
-            sorted_records
-                .entry(msg.global)
-                .or_insert(Vec::new())
-                .push(msg);
+    /// Filters FIT records on FIT Global ID, but also return
+    /// their indeces in the original Vec<DataMessage>
+    pub fn index_filter(&self, global_id: u16) -> Vec<(usize, DataMessage)> {
+        self.records
+            .par_iter()
+            .enumerate()
+            .filter(|(_, m)| m.global == global_id)
+            .map(|(i, v)| (i, v.to_owned()))
+            .collect()
+    }
+
+    /// Garmin VIRB only.
+    /// Filters records on specific recording session by specifying its first UUID.
+    /// Optionally also filters on FIT global ID to get e.g. gps_metadata/160
+    /// for a specific recording session.
+    pub fn filter_session(&self, uuid_start: &str, global_id: Option<u16>) -> Vec<DataMessage> {
+        // Find boundary indeces for session by determining first/last camera_event
+        // for the session
+        // println!("session, uuid: {}", uuid_start);
+        let mut uuid_found = false;
+        let mut idx1: Option<usize> = None; // start boundary
+        let mut idx2: Option<usize> = None; // end boundary
+        let indexed_cam = self.index_filter(161);
+        for (i, cam) in indexed_cam.iter() {
+            // must be executed in order
+            for field in cam.fields.iter() {
+                match field.field_definition_number {
+                    1 => {
+                        if let BaseType::ENUM(s) = &field.data {
+                            if uuid_found {
+                                if idx1.is_none() && s[0] == 0 {
+                                    // camera_event 0 = recording session start
+                                    idx1 = Some(*i);
+                                }
+                                if idx1.is_some() && idx2.is_none() && s[0] == 2 {
+                                    // camera_event 2 = recording session end
+                                    idx2 = Some(*i + 1);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    2 => {
+                        if let BaseType::STRING(s) = &field.data {
+                            if uuid_start == s && !uuid_found {
+                                uuid_found = true;
+                            }
+                        }
+                    }
+                    _ => (),
+                }
+            }
         }
-        sorted_records
+
+        // Uncomment to check if sliced correctly
+        // println!("idx1: {:?}, idx2: {:?}", idx1, idx2);
+
+        match (idx1, idx2) {
+            (Some(i1), Some(i2)) => match global_id {
+                Some(g) => self.records[i1..i2]
+                    .par_iter()
+                    .filter(|r| r.global == g)
+                    .map(|v| v.to_owned())
+                    .collect(),
+                None => self.records[i1..i2].to_owned(),
+            },
+            (_, _) => Vec::new(), // if any idx hasn't been set the filter is incorrect
+        }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.records.is_empty()
+    /// Group FitFile.records into message types.
+    /// Key is FIT global ID.
+    pub fn group(&self) -> HashMap<u16, Vec<DataMessage>> {
+        let mut grouped_records: HashMap<u16, Vec<DataMessage>> = HashMap::new();
+        self.records
+            .iter() // par_iter() not possible due to borrow in closure
+            .for_each(|r| {
+                grouped_records
+                    .entry(r.global)
+                    .or_insert(Vec::new())
+                    .push(r.to_owned())
+            });
+        grouped_records
     }
 
-    /// Returns total number of records
+    /// FIT-file size
+    pub fn file_size(&self) -> std::io::Result<u64> {
+        Ok(File::open(&self.path)?.metadata()?.len())
+    }
+
+    /// Total number of records
     pub fn len(&self) -> usize {
         self.records.len()
     }
 
-    // The following also exist as impl FitFile:
-    // - FitFile method returns Result<>
-    // - FitData method returns Option<>
+    /// Returns true if FitFile contains no records.
+    pub fn is_empty(&self) -> bool {
+        self.records.is_empty()
+    }
 
-    /// VIRB only.
-    /// Returns all unique uuids for VIRB action camera FIT-files
-    /// Cannot filter on UUID and returns Option<T> instead of Result<T>,
-    /// compared to FitFile method.
-    pub fn uuid(&self) -> Option<Vec<String>> {
-        let cam = process::parse_cameraevent(&self).ok()?;
-        let mut uuids: Vec<String> = Vec::new();
-        for evt in cam.into_iter() {
-            uuids.push(evt.camera_file_uuid);
-        }
-        uuids.dedup();
-        Some(uuids)
+    pub fn uuid(&self) -> Result<Vec<String>, FitError> {
+        // Returning error to see if/what field was not assigned
+        let cam = process::parse_cameraevent(&self, None)?;
+        let mut uuids: Vec<String> = cam
+            .par_iter()
+            .map(|evt| evt.camera_file_uuid.to_owned())
+            .collect();
+        uuids.dedup(); // duplicate uuids are grouped together
+        Ok(uuids)
     }
 
     /// VIRB only.
-    /// Returns unique uuids for VIRB action camera FIT-files,
-    /// grouped into sessions
-    /// Cannot filter on UUID and returns Option<T> instead of Result<T>,
-    /// compared to FitFile method.
-    pub fn sessions(&self) -> Option<Vec<Vec<String>>> {
-        let cam = process::parse_cameraevent(&self).ok()?;
-        let mut sessions: Vec<Vec<String>> = Vec::new();
-        let mut session: Vec<String> = Vec::new();
-        for evt in cam.into_iter() {
-            if evt.camera_event_type == 6 {
-                // also last in session, succeeds 2
-                continue;
-            }
-            session.push(evt.camera_file_uuid);
-            if evt.camera_event_type == 2 {
-                session.dedup(); // enough to keep only unique items, since uuids logged in order
-                sessions.push(session.to_owned());
-                session.clear();
-            }
-        }
-        Some(sessions)
-    }
+    /// Derives start time of FIT-file via timestamp_correlation/162
+    /// with added time offset in hours as DateTime object.
+    pub fn t0(&self, offset: i64) -> Result<DateTime<Utc>, FitError> {
+        let tc = process::parse_timestampcorrelation(&self)?;
 
-    /// VIRB only. (?)
-    /// Return the absolute timestamp for the start of the FIT-file
-    /// Only valid if timestamp_correlation is logged.
-    /// Cannot filter on UUID and returns Option<T> instead of Result<T>,
-    /// compared to FitFile method.
-    pub fn t0(&self, offset: i64) -> Option<DateTime<Utc>> {
-        let tc = process::parse_timestampcorrelation(&self).ok()?;
-
-        Some(
-            Utc.ymd(1989, 12, 31).and_hms_milli(0, 0, 0, 0)
-        + chrono::Duration::hours(offset) // not encoded as proper timezone in output
+        Ok(
+            Utc.ymd(1989, 12, 31).and_hms_milli(0, 0, 0, 0) // FIT start time
+        + chrono::Duration::hours(offset) // NOTE: means offset is not encoded as proper timezone
         + chrono::Duration::seconds(
             tc.timestamp as i64 - tc.system_timestamp as i64)
         + chrono::Duration::milliseconds(
@@ -483,23 +387,48 @@ impl FitData {
     }
 
     /// VIRB only.
-    /// Returns formatted gps_metadata/160.
-    /// Some devices may have gps_metadata, but not necessarily all fields
-    /// present in VIRB data.
-    /// Cannot filter on UUID and returns Option<T> instead of Result<T>,
-    /// compared to FitFile method.
-    pub fn gps(&self, _uuid: &Option<String>) -> Option<Vec<GpsMetadata>> {
-        process::parse_gpsmetadata(&self).ok()
+    /// Returns unique uuids for VIRB action camera FIT-files,
+    /// grouped into sessions.
+    /// `force_partial_on_error` will forward partial data,
+    /// but return ParseError::NoDataForMessageType
+    /// if no camera_event/161 can be parsed.
+    pub fn sessions(&self) -> Result<Vec<Vec<String>>, FitError> {
+        let cam = process::parse_cameraevent(&self, None)?;
+        let mut sessions: Vec<Vec<String>> = Vec::new();
+        let mut session: Vec<String> = Vec::new();
+        for evt in cam.iter() {
+            if evt.camera_event_type == 6 {
+                // also last in session, succeeds 2
+                continue;
+            }
+            session.push(evt.camera_file_uuid.to_owned());
+            if evt.camera_event_type == 2 {
+                session.dedup(); // uuids logged in order
+                sessions.push(session.to_owned());
+                session.clear();
+            }
+        }
+        Ok(sessions)
     }
 
     /// VIRB only.
     /// Returns formatted gps_metadata/160.
     /// Some devices may have gps_metadata, but not necessarily all fields
     /// present in VIRB data.
-    /// Cannot filter on UUID and returns Option<T> instead of Result<T>,
-    /// compared to FitFile method.
-    pub fn cam(&self) -> Option<Vec<CameraEvent>> {
-        process::parse_cameraevent(&self).ok()
+    /// `force_partial_on_error` will forward partial data,
+    /// but return ParseError::NoDataForMessageType
+    /// if no gps_metadata/160 can be parsed.
+    pub fn gps(&self, uuid: Option<&String>) -> Result<Vec<GpsMetadata>, FitError> {
+        process::parse_gpsmetadata(&self, uuid)
+    }
+
+    /// VIRB only.
+    /// Returns formatted camera_event/161.
+    /// `force_partial_on_error` will forward partial data,
+    /// but return ParseError::NoDataForMessageType
+    /// if no gps_metadata/160 can be parsed.
+    pub fn cam(&self, uuid: Option<&String>) -> Result<Vec<CameraEvent>, FitError> {
+        process::parse_cameraevent(&self, uuid)
     }
 }
 
@@ -521,6 +450,17 @@ pub struct FitHeader {
     pub crc: Option<u16>,
 }
 
+// impl fmt::Display for FitHeader {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         write!(f, "headersize: {:4}\nprotocol:   {:4}\nprofile:    {:4} {:?}",
+//             self.headersize,
+//             self.protocol,
+//             self.units.as_ref().map_or("N/A", |u| u),
+//             self.data, // not the prettiest for fields with large arrays, i.e 3d sensor data
+//         )
+//     }
+// }
+
 /// FIT definition message
 /// Specifies the structure of data structure it precedes, can be overwritten
 /// DefintionField is used for both predefined data in Profile.xslx and developer data
@@ -528,17 +468,18 @@ pub struct FitHeader {
 pub struct DefinitionField {
     /// Byte 0: Defined in the Global FIT profile for the specified FIT message
     pub field_definition_number: u8,
-    /// byte 1, Size (in bytes) of the specified FIT message’s field
+    /// Byte 1, Size (in bytes) of the specified FIT message’s field
     pub size: u8,
-    /// byte 2, Base type of the specified FIT message’s field
+    /// Byte 2, Base type of the specified FIT message’s field
     pub base_type: u8,
-    /// Field description
-    /// See Profile.xsls for predefined data or field_description message (global 206) for developer data
     pub field_name: String,
-    /// Currently only for developer data defintions
-    /// Extracted from global id 206/field description
+    // Below is FieldDescription content
+    // See Profile.xsls for predefined data or field_description message (global 206) for developer data
+    /// `units`, extracted from field_description/206
     pub units: Option<String>,
+    /// `scale`, extracted from field_description/206
     pub scale: Option<u8>,
+    /// `offset`, extracted from field_description/206
     pub offset: Option<i8>,
 }
 
@@ -549,7 +490,7 @@ pub struct DeveloperField {
     pub field_number: u8,
     /// Byte 1: Size (in bytes) of the specified FIT message’s field
     pub size: u8,
-    /// Byte 2: Maps to the developer_data_index of a developer_data_id in a field_description data message (global 206)
+    /// Byte 2: Maps to the developer_data_index of a developer_data_id in a field_description/206 data message
     pub developer_data_index: u8,
 }
 
@@ -557,7 +498,6 @@ pub struct DeveloperField {
 /// Describes the structure for custom data
 #[derive(Debug, Clone)]
 pub struct FieldDescriptionMessage {
-    // Required? Specified in SDK
     pub developer_data_index: u8, // id: 0, uint8 1 byte, Index of the developer that this message maps to
     pub field_definition_number: u8, // id: 1, uint8 1 byte Field Number that maps to this message
     pub fit_base_type_id: u8,     // id: 2 Base type of the field
@@ -599,6 +539,20 @@ pub struct DataField {
     pub units: Option<String>, // currently only for dev data
     pub data: BaseType,      // 201127 now BaseType(Vec<T>), instead of Vec<Basetype>
 }
+
+impl fmt::Display for DataField {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{:4} {:22} {:20} {:?}",
+            self.field_definition_number,
+            self.description,
+            self.units.as_ref().map_or("N/A", |u| u),
+            self.data, // not the prettiest for fields with large arrays, i.e 3d sensor data
+        )
+    }
+}
+
 /// FIT data message
 #[derive(Debug, Clone)]
 pub struct DataMessage {
@@ -609,6 +563,53 @@ pub struct DataMessage {
     pub dev_fields: Vec<DataField>, // developer data "converted" to DataField via field_description/206
 }
 
+impl fmt::Display for DataMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "Global ID: {0} | Message type: {1} | Header: {2:?}/{2:#010b}",
+            self.global, self.description, self.header,
+        )?;
+        for fld in self.fields.iter() {
+            writeln!(f, "    {}", fld)?
+        }
+        for fld in self.dev_fields.iter() {
+            writeln!(f, "DEV {}", fld)?
+        }
+        Ok(())
+    }
+}
+
+/// FIT Message Type, from Messages sheet in Profile.xlsx
+pub struct FitMessageType {
+    pub name: String,   // first column in Profile.xlsx Messages
+    pub global_id: u16, // mesg_num in Profile.xlsx Types
+    pub field_types: HashMap<u8, FitMessageFieldType>, // k: field_def_no
+}
+
+// impl FitMessageTypes {
+//     fn new(global_id: u16) -> FitMessageTypes {
+//         // crate::messages2
+//     }
+// }
+
+/// FIT Message Field Type, from Messages sheet in Profile.xlsx
+pub struct FitMessageFieldType {
+    pub field_def_no: u8, // numerical, some are unfortunately strings in Profile.xlsx
+    pub field_name: String,
+    pub field_type: String,
+    pub array: Option<String>, // e.g. [N] or [3]
+    pub components: Option<String>,
+    pub scale: Option<String>,  // numerical
+    pub offset: Option<String>, // numerical
+    pub units: Option<String>,
+    pub bits: Option<String>,       // numerical
+    pub accumulate: Option<String>, // comma separated numericals
+    pub ref_field_name: Option<String>,
+    pub ref_field_value: Option<String>,
+}
+
+/// VIRB only.
 /// Parsed `timestamp_correlation` data message, global id 162
 /// Important: presumably loggaed at satellite sync,
 /// but does NOT always precede the first gps_metadata (160) message
@@ -620,6 +621,7 @@ pub struct TimestampCorrelation {
     pub system_timestamp_ms: u16,
 }
 
+/// VIRB only.
 /// Parsed `camera_event` data message, global id 161
 /// Contains UUID for the corresponding clip
 #[derive(Debug)]
@@ -631,6 +633,7 @@ pub struct CameraEvent {
     pub camera_orientation: u8,   // 3: camera_orientation
 }
 
+/// VIRB only. (message type may exist on other devices, but not all fields)
 /// Parsed `gps_metadata` data message, global id 160
 /// 10Hz GPS log for Garmin VIRB Ultra 30
 /// Note: Garmin VIRB Ultra 30 logs additional data not documented in the FIT SDK, ignored here.
@@ -649,34 +652,38 @@ pub struct GpsMetadata {
                             // pub unknown: [u16;5] // id:8-12 not in Profile.xlsx, exists in definition message
 }
 
-#[derive(Debug, Copy, Clone)]
+/// For converting gps_metadata/161 to decimal values.
+#[derive(Debug, Clone)]
 pub struct Point {
-    pub time: crate::Duration,
     pub latitude: f64,  // id:1
     pub longitude: f64, // id:2
-    pub altitude: f32,  // id:3
-    pub speed: f32,     // id:4
-    pub heading: f32,   // id:5
+    pub altitude: f64,  // id:3 f32?
+    pub speed: f64,     // id:4 f32?
+    // pub velocity: f64,     // id:4
+    pub heading: f64, // id:5 f32?
+    pub time: crate::Duration,
+    pub text: Option<String>,
 }
 
 impl GpsMetadata {
     /// Convert gps_metadata basetype values to decimal degrees etc
-    pub fn point(&self) -> Point {
+    pub fn to_point(&self) -> Point {
         Point {
+            latitude: (self.latitude as f64) * (180.0 / 2.0_f64.powi(31)),
+            longitude: (self.longitude as f64) * (180.0 / 2.0_f64.powi(31)),
+            altitude: (self.altitude as f64 / 5.0) - 500.0,
+            speed: self.speed as f64 / 1000.0,
+            heading: self.heading as f64 / 100.0, // scale 100
             time: {
                 chrono::Duration::seconds(self.timestamp as i64)
                     + chrono::Duration::milliseconds(self.timestamp_ms as i64)
             },
-            latitude: (self.latitude as f64) * (180.0 / 2.0_f64.powi(31)),
-            longitude: (self.longitude as f64) * (180.0 / 2.0_f64.powi(31)),
-            altitude: (self.altitude as f32 / 5.0) - 500.0,
-            speed: self.speed as f32 / 1000.0,
-            heading: self.heading as f32 / 100.0, // scale 100
+            text: None,
         }
     }
 }
 
-/// Parsed `record` data message, global id 20
+/// Parsed `record` data message, global id 20. Developer data will be discarded.
 /// Partial spatial data is logged here, less frequently than gps_metadata.
 // Based on fields in FIT SDK + Wahoo Elemnt Bolt
 #[derive(Debug)]
@@ -690,10 +697,11 @@ pub struct Record {
     pub speed: u16,               // id:6
     pub grade: i16,               // id: 9, in wahoo bolt
     pub velocity: Vec<i16>, // used Vec::with_capacity(3) id:7 x, y, z velocity values, use vector sum [NOTE: WAS u16]
-    pub temperature: Option<i8>, // id: 13, in wahoo bolt
+    pub temperature: Option<i8>, // id: 13, in wahoo bolt, IGNORE?
     pub gps_accuracy: Option<u8>, // id: 31, in wahoo bolt fit
 }
 
+/// VIRB only. (?)
 /// Parsed 3D sensor data message
 /// gyrometer_data, global id = 164
 /// accelerometer_data, global id = 165
@@ -712,6 +720,7 @@ pub struct ThreeDSensorData {
     pub calibrated_z: Vec<f64>, // id:7 calibrated_gyro_z, calibrated_acc_z, calibrated_mag_z
 }
 
+/// VIRB only. (?)
 /// Parsed `three_d_sensor_calibration` message, global id 167
 /// Contains calibration values for global id 164, 165, 208
 /// Accelerometer/165 = sensor type 0

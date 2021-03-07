@@ -1,15 +1,20 @@
-use fit::structs::FitFile;
-use std::collections::HashMap;
-use walkdir::WalkDir;
-use std::path::{Path, PathBuf};
-use std::io::Write; // for .flush()
 use crate::structs::{SessionTimeSpan, VirbFile, VirbFiles};
+use fit_rs::structs::{CameraEvent, FitFile};
+use std::collections::HashMap;
+use std::io::{stdin, stdout, Write}; // for .flush()
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 /// Advise command for checking whether specified data exist in FIT-file
-pub fn advise_check(path: &PathBuf, global_id: u16, uuid: &Option<String>, verbose: bool) -> String {
+pub fn advise_check(
+    path: &PathBuf,
+    global_id: u16,
+    uuid: Option<&String>,
+    verbose: bool,
+) -> String {
     let uuid_opt = match uuid {
         Some(u) => format!(" -u {}", u),
-        None => String::from("")
+        None => String::from(""),
     };
     return format!(
         "geoelan check -f '{}' -g {}{}{}",
@@ -20,15 +25,14 @@ pub fn advise_check(path: &PathBuf, global_id: u16, uuid: &Option<String>, verbo
     );
 }
 
-
 /// Select session from those present in FIT-file
 /// by returning UUID for first clip in session
 pub fn select_session(fitfile: &FitFile) -> std::io::Result<String> {
-    let sessions = fitfile.sessions(true)?;
+    let sessions = fitfile.sessions()?;
     if sessions.is_empty() {
         println!(
             "No UUIDs in specified file. Try running {}",
-            advise_check(&fitfile.path.to_owned(), 162, &None, true)
+            advise_check(&fitfile.path.to_owned(), 162, None, true)
         );
         std::process::exit(1)
     }
@@ -49,9 +53,9 @@ pub fn select_session(fitfile: &FitFile) -> std::io::Result<String> {
 
     loop {
         print!("Select session: ");
-        std::io::stdout().flush()?;
+        stdout().flush()?;
         let mut select = String::new();
-        std::io::stdin()
+        stdin()
             .read_line(&mut select)
             .expect("(!) Failed to read input");
         let num = match select.trim().parse::<usize>() {
@@ -72,8 +76,8 @@ pub fn select_session(fitfile: &FitFile) -> std::io::Result<String> {
 }
 
 pub fn session_timespan(
-    camera_events: &[fit::structs::CameraEvent],
-    uuid: &Option<String>,
+    camera_events: &[CameraEvent],
+    uuid: Option<&String>,
     single_clip: bool, // not yet implemented
 ) -> Option<SessionTimeSpan> {
     // TODO 200319: add custom camera_event_type for start/end to support single clips
@@ -117,11 +121,10 @@ pub fn session_timespan(
 }
 
 pub fn compile_virbfiles(
-    // -> match_virbfiles
     dir_start: &Path,
-    // uuid_start: &Option<String>, // first uuid in session
-    verbose: bool,
+    _verbose: bool,
     duplicate_types: bool,
+    partial_return_on_error: bool,
 ) -> std::io::Result<VirbFiles> {
     // NOTE need Vec<String> for uuids to keep record of them in order
     let mut uuid: HashMap<String, Vec<VirbFile>> = HashMap::new(); // k: uuid, v: files with uuid
@@ -134,14 +137,12 @@ pub fn compile_virbfiles(
         let path = match file {
             Ok(f) => f.path().to_owned(),
             Err(e) => {
-                if verbose {
-                    println!("[SKIP]     Skipping path: {}", e)
-                };
+                println!("[SKIP]     Skipping path: {}", e);
                 continue;
             }
         };
 
-        if let Some(virbfile) = VirbFile::new(&path) {
+        if let Some(virbfile) = VirbFile::new(&path, partial_return_on_error) {
             virb_file_count += 1;
 
             let filetype = virbfile.type_to_str();
@@ -149,51 +150,38 @@ pub fn compile_virbfiles(
             // log filetypes
             *filetypes.entry(filetype.into()).or_insert(0) += 1;
 
-            if verbose {
-                print!(
-                    "[{:04}] {} {} ",
-                    virb_file_count,
-                    filetype,
-                    virbfile.path.display()
-                );
-                std::io::stdout().flush()?;
-            }
+            println!(
+                "[{:04}] {} {} ",
+                virb_file_count,
+                filetype,
+                virbfile.path.display()
+            );
+            stdout().flush()?;
 
-            // log first uuid in session + uuid for entire session
-            if let Some(sessions) = virbfile.sessions.to_owned() {
-                for s in sessions.into_iter() {
-                    session.insert(s[0].to_owned(), s);
+            if virbfile.is_fit() {
+                for s in virbfile.uuid.iter() {
+                    session.insert(s[0].to_owned(), s.to_owned());
                 }
             }
 
-            // log uuid + file
-            if let Some(uuids) = virbfile.uuid.to_owned() {
-                for u in uuids.into_iter() {
-                    let mut insert = false;
-                    if duplicate_types {
-                        insert = true;
-                    } else {
-                        // let mut insert = false;
-                        match &uuid.get(&u) {
-                            Some(files) => {
-                                if !files.iter().any(|f| f.filetype == virbfile.filetype) {
-                                    insert = true;
-                                }
+            for u in virbfile.uuid.iter().flatten() {
+                let mut insert = false;
+                if duplicate_types {
+                    insert = true;
+                } else {
+                    match uuid.get(u) {
+                        Some(files) => {
+                            if !files.iter().any(|f| f.filetype == virbfile.filetype) {
+                                insert = true;
                             }
-                            None => insert = true,
                         }
-                    }
-                    if insert {
-                        uuid.entry(u).or_insert(vec![]).push(virbfile.to_owned());
+                        None => insert = true,
                     }
                 }
-
-                if verbose {
-                    println!("[ OK ]");
-                }
-            } else {
-                if verbose {
-                    println!("[NONE]");
+                if insert {
+                    uuid.entry(u.to_owned())
+                        .or_insert(vec![])
+                        .push(virbfile.to_owned());
                 }
             }
         }

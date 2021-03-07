@@ -1,4 +1,67 @@
-# 200125
+# UNRELEASED v1.1 210307
+- Functionality:
+    - General
+        - Fixed various typos and re-formatted some output.
+    - `eaf2geo`
+        - Added geo-referencing for annotations on dependent tiers, with the caveat that the tier can not be tokenized, nor can any of its parents. See notes below.
+        - Added number of annotations and whether tier is tokenized, when selecting tier to geo-reference.
+        - Added colour coding for polylines according to annotation value. Annotated events with the same annotation value will have the same color.
+    - `check`
+        - Changed: reporting of errors should be clearer (FIT parsing error and user input errors)
+            - If recoverable error raised, the data summary will be printed together with the error
+        - Changed: Specifying FIT Global ID via `-g`/`--global-id` no longer requires `--verbose` to print values.
+        - Changed: Data summary table is now sorted on numerical FIT Global ID.
+    - `match`
+        - Fixed: `match` should now be considerably faster.
+- Internal:
+    - Code clean-up.
+    - Trying [rayon](https://github.com/rayon-rs/rayon) for parallel iterators when filtering, but this is probably overkill and may even [induce a small performance loss](https://github.com/rayon-rs/rayon/issues/648), due to the fairly low amount of records in FIT-files.
+    - Changed many function arguments from `&Option<T>` to `Option<&T>` resulting in less cloning.
+    - `eaf-rs`
+        - Added `EafFile` struct: Better represents the full EAF-file, and allows for easier access to EAF XML-sections for future releases.
+            - `Linguistic Type` added as `EafFile.linguistic_types: Vec<LinguisticType>`.
+            - `Constraint` added as `EafFile.constraints: Vec<Constraint>`.
+        - Changed most parse functions to methods for `EafFile`.
+        - Added `EafFile` method `derive_timestamps(tier: &Tier, err_on_tokenized: bool)` to derive time stamps for annotations in a dependent tier.
+            - If a main tier is specified it will be returned unchanged.
+            - `err_on_tokenized == true`, returns `EafError::TokenizedTier` if any parent tier is tokenized.
+        - Added known Tier attributes as `Tier.attributes: TierAttributes`.
+        - Added check for tokenized Tiers as `Tier.tokenized: bool`.
+        - Added known Annotation attributes as `Annotation.attributes: AnnotationAttributes` to be consistent with `Tier`.
+        - Changed: `Annotation.attributes.time_stamp_value1/2` are now `Option<u64>` due to no timeslot references in dependent tiers.
+        - Added error handling. Most functions and methods now return `Result<T, EafError>`.
+    - `fit-rs`:
+        - Removed `FitData` struct. Operating on FIT records now use methods implemented on the `FitFile` struct instead.
+        - Changed filtering on `uuid` (VIRB only) as a method on `FitFile`.
+        - Added method for full parse, `FitFile::parse()`. Supports Developer data.
+        - Added method for filtered parse, `FitFile::parse_filter(global_id: u16)`. Discards Developer data. Only returns records with the specified FIT global ID for much faster immediate filter when only a specific message type is required, such as `camera_event/161` for the `match` sub-command.
+        - Added `FitFile.parse: ParseMethod` enum member, denoting which parse method was used:
+            - `.parse()` -> `ParseMethod::Full`
+            - `.parse_filter()` -> `ParseMethod::Filter(global_id)`
+            - `.debug()` -> `ParseMethod::Debug`
+        - Removed verbose code for many `Result` -> `Option` conversions/returns in `process.rs`.
+        - Added `From` conversions for `Mp4Error` and error handling for `get_video_uuid()`
+        - Fixed: `process.rs` `calibrate_sensordata()` did not get the correct calibration data. WARNING: needs more testing.
+        - Changed: `ParseError::UnknownFieldDescription` now returns both `field_definition_number` and `developer_data_index`
+        - Added: implemented `Display` for `DataMessage` + `DataField`. Long arrays still wrap.
+        - Added `.to_point() -> Point` method for `GpsMetadata`.
+    - `geo`
+        - removed duplicate `point_cluster_average` fn:s in `geo.rs`
+## Known issues
+- Since this release is focused on fixing/changing internals some issues from initial relese still remain.
+- General:
+    - Plain-text manual still has very long lines for ornaments/"qoute boxes".
+- `eaf2geo`:
+    - Still requires specifying FIT-file.
+- Internal:
+    - Windows UNC paths still not properly handled
+    - XML (EAF/KML) is still built with strings, which will hopefully change in the future, using [QuickXML's Writer](https://docs.rs/quick-xml/0.22.0/quick_xml/#writer).
+    - `fit-rs`
+        - Compressed Timestamp Headers are still not supported. They are detected, but not further parsed. If encountered `FitError::Partial(err, data)` is returned, containing parsed data up until the point the compressed timestamp header was encountered, together with an `UnsupportedFeature(CompressedTimestampHeader)`error.
+## Notes
+- Tokenized tiers and timestamps: Explicit time values will make no sense for a dependent tier with a tokenized parent. All annotations of a dependent tier corresponding to the same tokenized annotation cluster would get the timestamps of the full length annotation that was tokenized. Possible to do an ugly "split main annotation time stamps evenly" if absolutely necessary, but these timestamps will not correspond in a meaningful way to events within the timespan of the annotated event. There is also no such connection in the EAF-file.
+- If anyone uses `fit-rs` separately, note that `calibrated_threedsensordata()` is not well-tested at this point.
+# v1.0, 210125
 - Initial release
 ## Known issues and comments
 - General
@@ -10,6 +73,7 @@
         - Not yet setting automatically via EAF-header if present in `<PROPERTY>`.
 - `manual`
     - Viewing the plain-text manual via `geoelan manual` results in very long lines for some Asciidoc box ornamnets. This is from converting from Asciidoc -> HTML -> plain-text. (`asciidoctor` + `pandoc`)
+    - Some awkward formatting in tables due to lack of font size setting for monospaces fonts in `asciidoctor-pdf`
 - Windows build
     - UNC paths, Rust and ELAN
         - `canonicalize()` produces [UNC paths](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-dfsc/149a3039-98ce-491a-9268-2f5ddef08192) on Windows: <https://github.com/rust-lang/rust/issues/42869>
