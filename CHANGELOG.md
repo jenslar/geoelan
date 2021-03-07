@@ -14,39 +14,15 @@
     - `match`
         - Fixed: `match` should now be considerably faster.
 - Internal:
-    - Code clean-up.
+    - Code clean-up, many structural changes not noted below.
     - Trying [rayon](https://github.com/rayon-rs/rayon) for parallel iterators when filtering, but this is probably overkill and may even [induce a small performance loss](https://github.com/rayon-rs/rayon/issues/648), due to the fairly low amount of records in FIT-files.
-    - Changed many function arguments from `&Option<T>` to `Option<&T>` resulting in less cloning.
     - `eaf-rs`
         - Added `EafFile` struct: Better represents the full EAF-file, and allows for easier access to EAF XML-sections for future releases.
-            - `Linguistic Type` added as `EafFile.linguistic_types: Vec<LinguisticType>`.
-            - `Constraint` added as `EafFile.constraints: Vec<Constraint>`.
         - Changed most parse functions to methods for `EafFile`.
-        - Added `EafFile` method `derive_timestamps(tier: &Tier, err_on_tokenized: bool)` to derive time stamps for annotations in a dependent tier.
-            - If a main tier is specified it will be returned unchanged.
-            - `err_on_tokenized == true`, returns `EafError::TokenizedTier` if any parent tier is tokenized.
-        - Added known Tier attributes as `Tier.attributes: TierAttributes`.
-        - Added check for tokenized Tiers as `Tier.tokenized: bool`.
-        - Added known Annotation attributes as `Annotation.attributes: AnnotationAttributes` to be consistent with `Tier`.
-        - Changed: `Annotation.attributes.time_stamp_value1/2` are now `Option<u64>` due to no timeslot references in dependent tiers.
-        - Added error handling. Most functions and methods now return `Result<T, EafError>`.
+        - Added `EafFile` method `derive_timestamps()` to derive time stamps for annotations in a dependent tier.
     - `fit-rs`:
-        - Removed `FitData` struct. Operating on FIT records now use methods implemented on the `FitFile` struct instead.
-        - Changed filtering on `uuid` (VIRB only) as a method on `FitFile`.
         - Added method for full parse, `FitFile::parse()`. Supports Developer data.
-        - Added method for filtered parse, `FitFile::parse_filter(global_id: u16)`. Discards Developer data. Only returns records with the specified FIT global ID for much faster immediate filter when only a specific message type is required, such as `camera_event/161` for the `match` sub-command.
-        - Added `FitFile.parse: ParseMethod` enum member, denoting which parse method was used:
-            - `.parse()` -> `ParseMethod::Full`
-            - `.parse_filter()` -> `ParseMethod::Filter(global_id)`
-            - `.debug()` -> `ParseMethod::Debug`
-        - Removed verbose code for many `Result` -> `Option` conversions/returns in `process.rs`.
-        - Added `From` conversions for `Mp4Error` and error handling for `get_video_uuid()`
-        - Fixed: `process.rs` `calibrate_sensordata()` did not get the correct calibration data. WARNING: needs more testing.
-        - Changed: `ParseError::UnknownFieldDescription` now returns both `field_definition_number` and `developer_data_index`
-        - Added: implemented `Display` for `DataMessage` + `DataField`. Long arrays still wrap.
-        - Added `.to_point() -> Point` method for `GpsMetadata`.
-    - `geo`
-        - removed duplicate `point_cluster_average` fn:s in `geo.rs`
+        - Added method for filtered parse, `FitFile::parse_filter(global_id: u16)`. Discards Developer data.
 ## Known issues
 - Since this release is focused on fixing/changing internals some issues from initial relese still remain.
 - General:
