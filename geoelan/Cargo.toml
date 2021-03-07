@@ -5,7 +5,7 @@ authors = ["Jens Larsson, jens.larsson@humlab.lu.se"]
 edition = "2018"
 description = "GeoElan is a command-line tool for geo-referencing ELAN annotations of Garmin VIRB footage"
 license = "Apache-2.0"
-# repository = "GITLAB_URL"
+repository = "https://gitlab.com/rwaai/geoelan"
 
 [dependencies]
 clap = "^2"
