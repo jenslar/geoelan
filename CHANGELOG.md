@@ -1,5 +1,6 @@
 # GeoELAN v2.1
 - Support for printing MP4 atom structure, similar to [AtomicParsley](https://atomicparsley.sourceforge.net)
+- Support for extracting GPMF from GoPro JPEG-files
 - Bug and typo fixes
 
 # GeoELAN v2.0
