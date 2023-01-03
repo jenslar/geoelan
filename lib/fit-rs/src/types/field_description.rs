@@ -1,3 +1,5 @@
+//! FIT field description message (global ID 206). Contains definitions for custom developer data.
+
 use std::ops::Range;
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -45,7 +47,7 @@ pub struct FieldDescriptionMessage {
 }
 
 impl FieldDescriptionMessage {
-    /// Returns a single field_description_message/206 in a more accessible form.
+    /// Returns a `FieldDescriptionMessage`/206 from a restructured `DataMessage`.
     /// Error handling is for determining if a required field could not be assigned
     /// , i.e. was not present in input data.
     pub fn new(data_message: &DataMessage) -> Result<FieldDescriptionMessage, FitError> {

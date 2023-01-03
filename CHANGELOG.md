@@ -1,3 +1,7 @@
+# GeoELAN v2.1
+- Support for printing MP4 atom structure, similar to [AtomicParsley](https://atomicparsley.sourceforge.net)
+- Bug and typo fixes
+
 # GeoELAN v2.0
 - GoPro Hero 5 Black and later is now supported.
 - With the added of GoPro support some commands have been changed and/or tweaked, refer to the manual if GeoELAN no longer works as expected.

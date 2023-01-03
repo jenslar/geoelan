@@ -1,3 +1,6 @@
+//! FIT sensor calibration message/s.
+//! Covers `one_d_sensor_calibration`/210, `three_d_sensor_calibration`/167 messages.
+
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::{fit::DataMessage, FitError, Fit};
@@ -5,7 +8,8 @@ use crate::{fit::DataMessage, FitError, Fit};
 use super::SensorType;
 
 /// VIRB only. (?)
-/// Parsed `one_d_sensor_calibration`/210, `three_d_sensor_calibration`/167 message.
+/// Parsed `one_d_sensor_calibration`/210,
+/// `three_d_sensor_calibration`/167 messages.
 /// FIT SDK Profile.xslx does not include any "2D sensor data" types.
 /// Contains calibration values for global id 164, 165, 208
 /// Accelerometer/165 = sensor type 0
@@ -95,6 +99,7 @@ impl SensorCalibration {
         })
     }
 
+    /// Returns sensor type as a `SensorType` enum.
     pub fn sensor_type(&self) -> Option<SensorType> {
         SensorType::from_u8(self.sensor_type)
     }

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use fit_rs::{Fit, FitSessions, SensorType, VirbFile};
+use mp4iter::Mp4;
 
 use crate::files::{affix_file_name, writefile};
 use crate::files::virb::select_session;
@@ -15,10 +16,72 @@ use crate::geo::kml_gen::{kml_point, kml_from_placemarks, kml_to_string};
 pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     let fit_path: Option<&PathBuf> = args.get_one("fit");
-
     let video: Option<&PathBuf> = args.get_one("video");
-
+    let print_atoms = *args.get_one::<bool>("atoms").unwrap();
     let print_meta = *args.get_one::<bool>("meta").unwrap(); // clap: false if not present
+    let debug = *args.get_one::<bool>("debug").unwrap();
+
+    if debug {
+        if let Some(path) = fit_path {
+            let fit = Fit::debug(path, None);
+        }
+    }
+
+    if print_atoms {
+        if let Some(path) = video {
+
+            let mp4 = match Mp4::new(&path) {
+                Ok(f) => f,
+                Err(err) => {
+                    eprintln!("(!) Failed to parse MP4-file {}: {err}", path.display());
+                    std::process::exit(1)
+                }
+            };
+            
+            // print atom fourcc, size, offsets
+            // container_size contains 'atom size - 8' since 8 byte header is already read
+            // each value will decrease until it's 0 which flags that it shold be removed
+            // last value is last added and will be removed first as it indicates
+            // the container atom is child to another container atom
+            let mut sizes: Vec<u64> = Vec::new();
+            for atom in mp4.into_iter() {
+                let mut pop = false;
+                let indent = sizes.len();
+                let is_container = atom.is_container();
+                for size in sizes.iter_mut() {
+                    if is_container {
+                        *size -= 8;
+                    } else {
+                        *size -= atom.size;
+                    }
+                    if size == &mut 0 {
+                        pop = true;
+                    }
+                }
+                println!("{}{} @{} size: {}",
+                    "    ".repeat(indent as usize),
+                    atom.name.to_str(),
+                    atom.offset,
+                    atom.size,
+                );
+                if is_container {
+                    sizes.push(atom.size - 8);
+                }
+                if pop {
+                    loop {
+                        match sizes.last() {
+                            Some(&0) => {_ = sizes.pop()},
+                            _ => break
+                        }
+                    }
+                }
+            }
+        } else {
+            println!("(!) No video specified");
+        }
+
+        std::process::exit(0)
+    }
 
     // Print UUID in MP4 then exit if no FIT specified
     if fit_path.is_none() {
@@ -31,10 +94,12 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
                     }
 
                     if print_meta {
+                        println!("Meta (MP4 udta atom):");
                         match virb.meta() {
-                            Ok(meta) => {
-                                for field in meta.udta.iter() {
-                                    println!("{:?}", field);
+                            Ok(udta) => {
+                                for udta_field in udta.fields.iter() {
+                                    println!("  {} SIZE: {}", udta_field.name.to_str(), udta_field.size);
+                                    println!("     RAW: {:?}", udta_field.data.get_ref());
                                 }
                             },
                             Err(err) => {
@@ -94,7 +159,7 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
         }
         None => None,
     };
-    let fit_session = if Some(&true) == args.get_one::<bool>("session") {
+    let mut fit_session = if Some(&true) == args.get_one::<bool>("session") {
         match select_session(&fit) {
             Ok(s) => Some(s),
             Err(err) => {
@@ -282,11 +347,12 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
     println!("{}", ".".repeat(51));
     println!("{:36}Total:{:8} ", " ", count);
 
-    if let Some(session) = &fit_session {
+    if let Some(session) = &mut fit_session {
+        if let Err(err) = session.derive() {
+            println!("(!) Failed to derive session: {err}");
+        };
         if let Ok((start, end)) = session.datetime(None, true) {
-            // if let (first_pt, last_pt) = points.as_deref().map(|pts| (pts.first(), pts.last())) {
-
-            // };
+            println!("Session time span:");
             println!("  Start:    {}", start.to_string());
             println!("  End:      {}", end.to_string());
             let duration = end - start;

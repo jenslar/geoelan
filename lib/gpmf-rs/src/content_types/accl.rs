@@ -1,4 +1,7 @@
-// use crate::{fourcc::FourCC, strm::Strm};
+//! UNIMPLEMENTED
+//! 
+//! Process accelerometer data.
+
 use crate::{FourCC, Stream};
 
 // [DEVC: 24 | DVID: 1 | DVNM: HERO9 Black | SIZE: 2172 | DUR: Some(400)] | TS: Some(23000) | 392/408] STRM SIZE: 532, NAME: Some("Accelerometer")

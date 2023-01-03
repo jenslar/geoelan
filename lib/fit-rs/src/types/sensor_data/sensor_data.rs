@@ -1,3 +1,17 @@
+//! FIT sensor data. Please note that while the calibration returns correct results
+//! for sample data it is otherwise untested.
+//! 
+//! Covers:
+//! 1D sensors:
+//! - calibration: `one_d_sensor_calibration`, id = 210
+//! - `barometer_data`, id = 209
+//! 
+//! 3D sensors:
+//! - calibration: `three_d_sensor_calibration`, id = 167
+//! - `gyrometer_data`, id = 164
+//! - `accelerometer_data`, id = 165
+//! - `magnetometer_data`, id = 208
+
 use std::ops::Range;
 
 use nalgebra::{Matrix3, Matrix3x1};

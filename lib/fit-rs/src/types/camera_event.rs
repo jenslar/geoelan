@@ -1,3 +1,5 @@
+//! FIT camera event (global ID 161). VIRB only.
+
 use std::ops::Range;
 use time::Duration;
 // use std::time::Duration;
@@ -26,6 +28,7 @@ pub struct CameraEvent {
 }
 
 impl CameraEvent {
+    /// Returns a `CameraEvent`/161 from a restructured `DataMessage`.
     pub fn new(data_message: &DataMessage) -> Result<CameraEvent, FitError> {
         let global_id = 161_u16;
 
@@ -83,48 +86,10 @@ impl CameraEvent {
             .collect()
     }
 
+    /// Converts `timestamp` and `timestamp_ms`
+    /// fields into a single `time::Duration` object.
     pub fn to_duration(&self) -> Duration {
         Duration::seconds(self.timestamp as i64)
         + Duration::milliseconds(self.timestamp_ms as i64)
     }
 }
-
-// /// VIRB only.
-// /// Transforms all `DataMessage`s that correspond to camera_event/161 into a more accessible form.
-// /// Error handling is for determining if a required field could not be assigned,
-// /// i.e. was not present in input data.
-// pub fn into_cameraevent(
-//     fitfile: &Fit,
-//     range: Option<&Range<usize>>, // slice indeces for session
-// ) -> Result<Vec<CameraEvent>, FitError> {
-//     let global = 161_u16;
-
-//     let range = range.cloned().unwrap_or(0 .. fitfile.len());
-
-//     fitfile.records[range].par_iter()
-//         .filter(|rec| rec.global == global)
-//         .map(CameraEvent::new)
-//         .collect()
-// }
-
-// pub fn session_indeces(cam: &[CameraEvent], uuid: &str) -> Option<Range<usize>> {
-//     let mut start = None;
-//     let mut end = None;
-
-//     for c in cam.iter() {
-//         // Find start of session
-//         if c.camera_file_uuid == uuid && c.camera_event_type == 0 {
-//             start = Some(c.index);
-//         // Find end of session
-//         } else if start.is_some() && c.camera_event_type == 2 {
-//             end = Some(c.index + 1); // +1 since used as index with exclusive upper limit
-//             break // break early or risk re-assigning 'end' with UUID from other session
-//         }
-//     }
-    
-//     if let (Some(s), Some(e)) = (start, end) {
-//         Some(s..e)
-//     } else {
-//         None
-//     }
-// }

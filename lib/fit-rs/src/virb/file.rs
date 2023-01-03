@@ -1,11 +1,13 @@
+//! Representation of a Garmin VIRB video clip with a matched FIT file.
+
 use std::path::{Path, PathBuf};
 
-use mp4iter::Mp4;
+use mp4iter::{Mp4, Udta};
 
-use crate::{FitError, files::match_extension, Fit};
+use crate::{FitError, files::has_extension};
 
-use super::meta::VirbMeta;
-
+/// Represents a VIRB video clip (high and/or low-resolution)
+/// and its corresponding FIT-file.
 #[derive(Debug, Clone, Default)]
 pub struct VirbFile {
     /// High resolution MP4
@@ -19,6 +21,7 @@ pub struct VirbFile {
 }
 
 impl VirbFile {
+    /// New `VirbFile` from path to MP4-clip.
     pub fn new(path: &Path, uuid: Option<&str>) -> Result<Self, FitError> {
         let mut virbfile = VirbFile::default();
         virbfile.set_path(path);
@@ -27,29 +30,32 @@ impl VirbFile {
         Ok(virbfile)
     }
 
-    pub fn meta(&self) -> Result<VirbMeta, FitError> {
+    /// Returns data for the MP4 user data atom `udta`
+    /// from either the low or high resolution video files.
+    pub fn meta(&self) -> Result<Udta, FitError> {
         let path = match (self.mp4(), self.glv()) {
             (Some(mp4), _) => mp4.to_owned(),
             (_, Some(glv)) => glv.to_owned(),
             (None, None) => return Err(FitError::MissingVideo)
         };
         
-        VirbMeta::new(&path)
+        let mut mp4 = Mp4::new(&path)?;
+        mp4.udta().map_err(|e| e.into())
     }
 
     /// Sets path by checking extention.
     /// Does nothing if not a `.mp4`, `.glv`, or `.fit`.
     /// Case agnostic.
     pub fn set_path(&mut self, path: &Path) {
-        if match_extension(path, "mp4") {
+        if has_extension(path, "mp4") {
             // self.uuid = Self::uuid_mp4(path).map_err(|_| FitError::InvalidVirbMp4)?;
             self.mp4 = Some(path.to_owned());
         }
-        if match_extension(path, "glv") {
+        if has_extension(path, "glv") {
             // self.uuid = Self::uuid_mp4(path).map_err(|_| FitError::InvalidVirbMp4)?;
             self.glv = Some(path.to_owned());
         }
-        if match_extension(path, "fit") {
+        if has_extension(path, "fit") {
             self.fit = Some(path.to_owned());
         }
     }
@@ -84,7 +90,7 @@ impl VirbFile {
         self.fit.as_deref()
     }
 
-    /// Attempts to extract Garmin VIRB UUID
+    /// Extract Garmin VIRB UUID
     /// as a string from an MP4-file.
     pub fn uuid_mp4(mp4_path: &Path) -> Result<String, FitError> {
         let mut mp4 = Mp4::new(&mp4_path)?;
@@ -116,7 +122,7 @@ impl VirbFile {
         None
     }
 
-    /// Returns `true` only if a FIT-file and
+    /// Returns `true` if a FIT-file and
     /// at least one corresponding video file
     /// is set (`.GLV` or `.MP4`).
     pub(crate) fn matched(&self) -> bool {

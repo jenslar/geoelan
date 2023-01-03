@@ -1,3 +1,5 @@
+//! Various GoPro related structs and methods.
+
 pub mod device_name;
 pub mod device_id;
 pub mod file;

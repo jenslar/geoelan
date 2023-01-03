@@ -1,3 +1,7 @@
+//! UNIMPLEMENTED
+//! 
+//! Process gravity data.
+
 // Gravity vector
 // pub fn gravity(&self) {
 //     let streams = self.filter(&StreamType::GravityVector);

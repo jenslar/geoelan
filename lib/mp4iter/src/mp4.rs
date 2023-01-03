@@ -1,43 +1,76 @@
 //! Core MP4 struct and methods.
-//! Note on hdlr and finding "component name" "GoPro MET": starts after 8 32-bit fields.
-//! Is a counted string: first byte specifies number of bytes, e.g. "0x0b" = 11, followed by the string.
-//! All GoPro component names end in 0x20 so far: ' ':
-//! ASCII/Unicode U+0020 (category Zs: Separator, space), so just read as utf-8 read_to_string after counter byte and strip whitespace?
+//! 
+//! Note on `hdlr` atom and finding "component name"
+//! (this crate was developed with the need for parsing GoPro MP4 files, hence the examples below):
+//! - The component name is a counted string:
+//!     - first byte specifies number of bytes, e.g. "0x0b" = 11, followed by the string.
+//!     - For e.g. GoPro the component name for GPMF data "GoPro MET": starts after 8 32-bit fields.
+//!     - All GoPro component names end in 0x20 so far: ' ':
+//!     - ASCII/Unicode U+0020 (category Zs: Separator, space), so just read as utf-8 read_to_string after counter byte and strip whitespace?
+//! 
+//! ```rs
+//! use mp4iter::Mp4;
+//! //! use std::path::Path;
+//! 
+//! fn main() -> std::io::Result<()> {
+//!     let mp4 = Mp4::new(Path::new("VIDEO.MP4"))?;
+//!     
+//!     // Iterate over atoms. Currently returns `None` on error.
+//!     for atom in mp4.into_iter() {
+//!         println!("{atom:?}")
+//!     }
+//!
+//!     println!("{:?}", mp4.duration());
+//! 
+//!     Ok(())
+//! }
+//! ```
 
-use std::{io::{SeekFrom, Cursor, Read, Seek}, fs::{Metadata, File}, path::Path, borrow::BorrowMut};
+use std::{
+    io::{SeekFrom, Cursor, Read, Seek},
+    fs::{Metadata, File},
+    path::Path, borrow::BorrowMut
+};
 
-use binread::{BinReaderExt, BinResult};
+use binread::{
+    BinReaderExt,
+    BinResult
+};
 use time::ext::NumericalDuration;
 
-use crate::{errors::Mp4Error, atom::Atom, fourcc::FourCC, Offset, Stts, Stsz, Stco, Hdlr, Udta};
-
-// If the atom is a "container",
-// it's nested and contains more atoms,
-// within its specified, total size.
-const CONTAINER: [&'static str; 9] = [
-    "moov", // offset tables, timing, metadata, telemetry
-    "udta", // moov -> udta, custom user data
-    "trak", // moov -> trak
-    "tref", // moov -> trak -> tref
-    "edts", // moov -> trak -> edts
-    "mdia", // moov -> trak -> mdia
-    "minf", // moov -> trak -> mdia -> minf
-    "dinf", // moov -> trak -> mdia -> minf -> dinf
-    // "dref", // moov -> trak -> mdia -> minf -> dinf -> dref
-    "stbl", // moov -> trak -> mdia -> minf -> stbl, contains timing (stts), offsets (stco)
-    // "stsd", // moov -> trak -> mdia -> minf -> stbl -> stsd
-];
+use crate::{
+    errors::Mp4Error,
+    atom::Atom,
+    fourcc::FourCC,
+    Offset,
+    Stts,
+    Stsz,
+    Stco,
+    Hdlr,
+    Udta, AtomHeader, CONTAINER
+};
 
 /// Mp4 file.
 pub struct Mp4{
-    /// Open file.
+    /// Open MP4 file.
     file: File,
     /// Current byte offset, while parsing.
     /// Must always be the start of an atom.
-    pub offset: u64, // is self.seek() enough?
+    pub offset: u64, // is File::seek()/self.seek() enough?
     /// Offset for last branch/container atom
-    branch_offset: Option<u64>,
+    // branch_offset: Option<u64>,
     pub len: u64
+}
+
+impl Iterator for Mp4 {
+    type Item = AtomHeader;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let atom_header = self.header().ok()?;
+        let _ = self.next().ok()?;
+
+        Some(atom_header)
+    }
 }
 
 impl Mp4 {
@@ -50,7 +83,7 @@ impl Mp4 {
         Ok(Self{
             file,
             offset: 0,
-            branch_offset: None,
+            // branch_offset: None,
             len
         })
     }
@@ -143,32 +176,18 @@ impl Mp4 {
     /// starting from current offset.
     /// Sets `Mp4.offset` to derived offset,
     /// and returns new offset.
+    /// 
+    /// Note that `next()` currently does not find nested atoms
+    /// that do not begin immediately after the header.
+    /// Try e.g. [AtomicParsley](https://atomicparsley.sourceforge.net) for this.
     pub fn next(&mut self) -> Result<u64, Mp4Error> {
         let size = self.size()?; // byte 0-3 for each atom
-        // let name = self.name()?; // byte 4-7
-        // println!(".atom() size: {size}");
-        // self.offset += size;
 
         // TODO need to be able to backtrack if checking container/size when branching
         let iter_size = if self.is_container()? {
-            // if nested, new atom after 8 byte header (size + Four CC)
-            // Set offset for current branch
-            self.branch_offset = Some(self.offset);
-            // Go past header of container
+            // Go past 8 bytes header of container
             8
         } else {
-            // match self.branch_offset {
-            //     Some(o) => 0, // already at correct offset for next
-            // }
-            // if self.branch_offset.is_some() {
-            //     self.branch_offset = None;
-            //     0 // already at correct offset for next atom
-            // } else {
-            //     size
-            // }
-            if self.branch_offset.is_some() {
-                self.branch_offset = None;
-            }
             size
         };
 
@@ -176,17 +195,6 @@ impl Mp4 {
         // self.seek(size as i64)?;
 
         Ok(self.offset)
-    }
-
-    // pub fn iter(&self) -> impl iter
-
-    pub fn tree(&mut self) -> Result<(), Mp4Error> {
-        self.reset()?;
-        while let Ok(_) = self.next() {
-            // let atom = self.atom()?; // DO NOT DO THIS, mdat will be read into memory
-            // println!("{:?}@{}, SIZE {:10}", atom.name, atom.offset, atom.size);
-        }
-        Ok(())
     }
 
     /// Returns total size of atom at current offset.
@@ -228,18 +236,25 @@ impl Mp4 {
         Ok(name)
     }
 
+    /// Return atom header at current offset.
+    pub fn header(&mut self) -> Result<AtomHeader, Mp4Error> {
+        Ok(AtomHeader {
+            size: self.size()?,
+            name: FourCC::from_str(&self.name()?),
+            offset: self.offset,
+        })
+    }
+
     /// Read data for atom at current offset as a single chunk.
     /// Note that e.g. the `mdat` atom may be many GB in size,
     /// and that raw data is read into memory as `Cursor<Vecu8>>`.
     pub fn atom(&mut self) -> Result<Atom, Mp4Error> {
-        let size = self.size()?;
-        let name = FourCC::from_str(&self.name()?);
+        let header = self.header()?;
+        let cursor = self.read_at(self.offset + 8, header.size - 8)?;
 
         Ok(Atom{
-            size,
-            name,
-            offset: self.offset,
-            cursor: self.read_at(self.offset + 8, size - 8)?
+            header,
+            cursor
         })
     }
 

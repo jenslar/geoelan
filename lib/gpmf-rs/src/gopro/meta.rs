@@ -1,13 +1,17 @@
+//! GoPro MP4 metadata logged in the user data atom `udta`.
+//! 
+//! GoPro embeds undocumented GPMF streams in the `udta` atom
+//! that is also extracted.
+
 use std::path::{Path, PathBuf};
 
-use mp4iter::{
-    self,
-    Mp4,
-    UdtaField,
-};
+use mp4iter::{FourCC, Mp4, UdtaField};
 
 use crate::{Stream, GpmfError};
 
+/// Parsed MP4 `udta` atom.
+/// GoPro cameras embed an undocumented
+/// GPMF stream in the `udta` atom.
 #[derive(Debug, Default)]
 pub struct GoProMeta {
     pub path: PathBuf,
@@ -25,7 +29,8 @@ impl GoProMeta {
         let mut meta = Self::default();
         meta.path = path.to_owned();
 
-        let fourcc_gpmf = mp4iter::FourCC::Custom(String::from("GPMF"));
+        // MP4 FourCC, not GPMF FourCC
+        let fourcc_gpmf = FourCC::from_str("GPMF");
 
         for field in udta.fields.iter_mut() {
             if fourcc_gpmf == field.name {

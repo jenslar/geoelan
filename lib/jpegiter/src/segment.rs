@@ -19,4 +19,8 @@ impl Segment {
             data: Cursor::default()
         }
     }
+
+    pub fn seek(&mut self, pos: u64) {
+        self.data.set_position(pos)
+    }
 }

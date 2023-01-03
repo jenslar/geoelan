@@ -160,7 +160,6 @@ impl Tier {
     /// Returns tuples in the form
     /// (Annotation Index, Tier ID, Annotation ID, Annotation value, Ref Annotation ID).
     /// where index corresponds to annotation order in the EAF-file.
-    /// TODO regular expressions
     pub fn query(&self, pattern: &str, ignore_case: bool) -> Vec<(usize, String, String, String, Option<String>)> {
         self.iter()
             .enumerate()

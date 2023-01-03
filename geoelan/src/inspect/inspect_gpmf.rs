@@ -2,30 +2,24 @@
 
 use std::path::PathBuf;
 
-use gpmf_rs::{Gpmf, ContentType, GoProSession};
+use gpmf_rs::{Gpmf, ContentType, GoProSession, FourCC};
+use mp4iter::Mp4;
 
 use crate::{
     geo::{
         point::Point,
-        kml_gen::{
-            kml_point,
-            kml_from_placemarks,
-            kml_to_string
-        },
-        json_gen::{
-            geojson_point,
-            geojson_from_features
-        }
+        kml_gen::{kml_point, kml_from_placemarks, kml_to_string},
+        json_gen::{geojson_point, geojson_from_features}
     },
-    files::{
-        affix_file_name,
-        writefile
-    }
+    files::{affix_file_name, writefile, has_extension}
 };
 
 pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     let path: &PathBuf = args.get_one("gpmf").unwrap();  // clap: required arg
+    // let gpmf_path: &PathBuf = args.get_one("gpmf").unwrap();  // clap: required arg
+    // let video_path: &PathBuf = args.get_one("video").unwrap();  // clap: required arg
+    // let jpeg_path = args.get_one::<PathBuf>("jpeg");  // clap: required arg
 
     // match Gpmf::from_jpg(path) {
     //     Ok(_) => std::process::exit(0),
@@ -36,6 +30,7 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
     let debug = *args.get_one::<bool>("debug").unwrap();       // clap: conflicts with verbose, gps
     let print_gps = *args.get_one::<bool>("gps").unwrap();     // clap: conflicts with debug, verbose
     let print_meta = *args.get_one::<bool>("meta").unwrap();     // clap: conflicts with debug, verbose
+    let print_atoms = *args.get_one::<bool>("atoms").unwrap();     // clap: conflicts with debug, verbose
     let (save_kml, indexed_kml) = (
         *args.get_one::<bool>("kml").unwrap() ||
         *args.get_one::<bool>("indexed-kml").unwrap(), *args.get_one::<bool>("indexed-kml").unwrap()
@@ -47,9 +42,87 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     let timer_gpmf = std::time::Instant::now();
 
+    if has_extension(&path, "jpg") {
+    // if let Some(path) = jpeg_path {
+        let gpmf = match Gpmf::from_jpg(&path) {
+            Ok(g) => g,
+            Err(err) => {
+                eprintln!("(!) Failed to parse GPMF data in {}: {err}", path.display());
+                std::process::exit(1)
+            }
+        };
+
+        if verbose {
+            gpmf.print();
+        }
+
+        println!("SUMMARY");
+        println!("  Found {} DEVC streams (no descriptions in GoPro JPEG)", gpmf.len());
+        print!("  Device:           ");
+        if let Some(stream) = gpmf.find(&FourCC::MINF) {
+            println!("{:?}", stream.values())
+        } else {
+            println!("{}", gpmf.device_name().join(", "));
+        }
+
+        println!("Done");
+        std::process::exit(0)
+    }
+
     println!("Locating GoPro-files and parsing GPMF-data...");
 
     // TODO 220813 REGRESSION CHECK: DONE. GoProSession::from_path 2-3x slower with new code if parsing immediately. Code change to only parse when files in the same session have been matched. Only Stream::new/compile remains as performance issue now (20-30ms slower with new code on M1)
+
+    if print_atoms {
+        let mp4 = match Mp4::new(&path) {
+            Ok(f) => f,
+            Err(err) => {
+                eprintln!("(!) Failed to parse MP4-file {}: {err}", path.display());
+                std::process::exit(1)
+            }
+        };
+        
+        // print atom fourcc, size, offsets
+        // container_size contains 'atom size - 8' since 8 byte header is already read
+        // each value will decrease until it's 0 which flags that it shold be removed
+        // last value is last added and will be removed first as it indicates
+        // the container atom is child to another container atom
+        let mut sizes: Vec<u64> = Vec::new();
+        for atom in mp4.into_iter() {
+            let mut pop = false;
+            let indent = sizes.len();
+            let is_container = atom.is_container();
+            for size in sizes.iter_mut() {
+                if is_container {
+                    *size -= 8;
+                } else {
+                    *size -= atom.size;
+                }
+                if size == &mut 0 {
+                    pop = true;
+                }
+            }
+            println!("{}{} @{} size: {}",
+                "    ".repeat(indent as usize),
+                atom.name.to_str(),
+                atom.offset,
+                atom.size,
+            );
+            if is_container {
+                sizes.push(atom.size - 8);
+            }
+            if pop {
+                loop {
+                    match sizes.last() {
+                        Some(&0) => {_ = sizes.pop()},
+                        _ => break
+                    }
+                }
+            }
+        }
+
+        std::process::exit(0)
+    }
     
     // Compile GoPro files, parse GPMF-data
     let mut gopro_session_result = GoProSession::from_path(&path, !session, true, debug);
@@ -69,8 +142,6 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
         }
     }
 
-    // let timer_merge = std::time::Instant::now();
-    // let gpmf = gopro_session.gpmf();
     let gpmf = match &mut gopro_session_result {
         Ok(gopro_session) => {
             println!("Merging GPMF-data for {} files...", gopro_session.len());
@@ -118,11 +189,11 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     if let Ok(gopro_session) = &gopro_session_result {
         if print_meta {
-            println!("PRINT META");
+            println!("Meta (MP4 udta atom):");
             for meta in gopro_session.meta().iter() {
-                println!("{}", meta.path.display());
                 for udta_field in meta.udta.iter() {
-                    println!("  UDTA: {:?}", udta_field)
+                    println!("  {} SIZE: {}", udta_field.name.to_str(), udta_field.size);
+                    println!("     RAW: {:?}", udta_field.data.get_ref());
                 }
                 for stream in meta.gpmf.iter() {
                     stream.print(None, None)

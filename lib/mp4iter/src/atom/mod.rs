@@ -7,7 +7,7 @@ mod udta;
 mod hdlr;
 mod atom;
 
-pub use atom::Atom;
+pub use atom::{Atom, AtomHeader};
 pub use stts::Stts;
 pub use stsz::Stsz;
 pub use stco::Stco;

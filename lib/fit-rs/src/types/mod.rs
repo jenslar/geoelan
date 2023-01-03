@@ -1,3 +1,6 @@
+//! A few conversions from raw data into easier to use forms and (sometimes) units, such as GPS and sensor data.
+//! Please note that automatic conversion is only covered for the message types covered here.
+
 pub mod field_description;
 pub mod gps_metadata;
 pub mod record_virb;

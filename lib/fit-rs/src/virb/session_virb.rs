@@ -1,13 +1,13 @@
 use std::{path::{PathBuf, Path}, ops::Range, collections::HashMap};
 
+use mp4iter::Udta;
 use time::{PrimitiveDateTime, Duration};
 use walkdir::WalkDir;
 
-use crate::{FitError, files::match_extension, Fit, GpsMetadata};
+use crate::{FitError, files::has_extension, Fit, GpsMetadata};
 use super::{
     {FitSession, FitSessions},
     VirbFile,
-    VirbMeta
 };
 
 #[derive(Debug, Clone, Default)]
@@ -30,7 +30,7 @@ pub struct VirbSession{
 impl VirbSession {
     /// Determine recording sessions in `dir` (recursive).
     /// Does not parse FIT-files if located, only paths are set.
-    pub fn sessions_from_path(dir: &Path, verbose: bool) -> Vec<VirbSession> {
+    pub fn sessions_from_path(dir: &Path, verbose: bool) -> Vec<Self> {
         let mut uuid2virbfile: HashMap<String, VirbFile> = HashMap::new();
         // let mut fit2sessions: HashMap<PathBuf, FitSessions> = HashMap::new();
         let mut fit_sessions_vec: Vec<FitSessions> = Vec::new();
@@ -44,8 +44,11 @@ impl VirbSession {
                 Err(_) => continue
             };
 
+            // let ext = path.extension()
+            //     .and_then(|s| s.to_str());
+
             // Ignoring errors for now
-            if match_extension(&path, "mp4") {
+            if has_extension(&path, "mp4") {
                 if let Ok(vf) = VirbFile::new(&path, None) {
                     if verbose {
                         count += 1;
@@ -54,7 +57,7 @@ impl VirbSession {
                     uuid2virbfile.entry(vf.uuid.to_owned())
                         .or_insert(vf).mp4 = Some(path.to_owned()); // sets path twice...
                 }
-            } else if match_extension(&path, "glv") {
+            } else if has_extension(&path, "glv") {
                 if let Ok(vf) = VirbFile::new(&path, None) {
                     if verbose {
                         count += 1;
@@ -63,7 +66,7 @@ impl VirbSession {
                     uuid2virbfile.entry(vf.uuid.to_owned())
                         .or_insert(vf).glv = Some(path.to_owned()); // sets path twice...
                 }
-            } else if match_extension(&path, "fit") {
+            } else if has_extension(&path, "fit") {
                 if let Ok(fit_sessions) = FitSessions::new(&path) {
                     if verbose {
                         count += 1;
@@ -84,13 +87,13 @@ impl VirbSession {
         }
 
         // 2. Match and group files into VirbSessions via FitSession UUIDs.
-        let mut virb_sessions: Vec<VirbSession> = Vec::new();
+        let mut virb_sessions: Vec<Self> = Vec::new();
         
         for fit_sessions in fit_sessions_vec.iter() {
             
             for fit_session in fit_sessions.iter() {
 
-                let mut virb_session = VirbSession::default();
+                let mut virb_session = Self::default();
 
                 let virb: Vec<VirbFile> = fit_session.iter()
                     .filter_map(|uuid| uuid2virbfile.get(uuid))
@@ -100,7 +103,8 @@ impl VirbSession {
                 virb_session.virb = virb;
                 virb_session.fit = fit_session.to_owned();
 
-                // Ensures a FIT-file with at least one corresponding video file was found (.GLV or .MP4)
+                // Ensures a FIT-file with at least one corresponding
+                // video file was found (.GLV or .MP4)
                 if virb_session.matched() {
                     virb_sessions.push(virb_session);
                 }
@@ -111,8 +115,8 @@ impl VirbSession {
         virb_sessions
     }
 
-    /// Returns `true` if all files in session
-    /// have a FIT-file and at least one corresponding video file.
+    /// Returns `true` if each file in session
+    /// has a FIT-file and at least one corresponding video file.
     fn matched(&self) -> bool {
         if self.virb.is_empty() {
             return false
@@ -131,9 +135,8 @@ impl VirbSession {
         }
     }
 
-    /// Derives all files for the recording session `mp4_path`
-    /// is part of. `dir` is used as starting
-    /// point to search recursively for matches.
+    /// Search `dir` to match all files for the recording session
+    /// `mp4_path` is part of.
     pub fn from_mp4(mp4_path: &Path, dir: &Path, verbose: bool) -> Option<Self> {
         let virbfile = VirbFile::new(mp4_path, None).ok()?;
 
@@ -154,7 +157,7 @@ impl VirbSession {
         None
     }
 
-    pub fn get_from_index(sessions: &[Self], index: usize, offset_hours: Option<i64>) -> Result<Self, FitError> {
+    fn get_from_index(sessions: &[Self], index: usize, offset_hours: Option<i64>) -> Result<Self, FitError> {
         if let Some(session) = sessions.get(index) {
             let mut session = session.to_owned();
             if !session.processed {
@@ -165,7 +168,7 @@ impl VirbSession {
         Err(FitError::NoSuchSession)
     }
 
-    pub fn get_from_uuid(sessions: &[Self], uuid: &str, offset_hours: Option<i64>) -> Result<Self, FitError> {
+    fn get_from_uuid(sessions: &[Self], uuid: &str, offset_hours: Option<i64>) -> Result<Self, FitError> {
         // .contains() does not accept &str, only &String, see: https://github.com/rust-lang/rust/issues/42671
         // .find(|session| session.uuid().contains(uuid))
         if let Some(session) = sessions.iter().find(|session| session.uuid().iter().any(|u| u == uuid)) {
@@ -178,7 +181,10 @@ impl VirbSession {
         Err(FitError::NoSuchSession)
     }
 
-    pub fn meta(&self) -> Vec<VirbMeta> {
+    /// Extracts MP4 `udta` atom.
+    /// The `udta` data fields are
+    /// returned as raw bytes.
+    pub fn meta(&self) -> Vec<Udta> {
         self.virb.iter()
             .filter_map(|v| v.meta().ok())
             .collect()
@@ -200,24 +206,25 @@ impl VirbSession {
     }
 
     /// Returns FIT-data if set.
-    /// Run `VirbSession::process()` if `None` is returned.
     pub fn fit(&self) -> Option<&Fit> {
         self.fit.fit.as_ref()
     }
 
+    /// Returns path for high-resolution MP4 if set.
     pub fn mp4(&self) -> Vec<PathBuf> {
         self.virb.iter()
             .filter_map(|v| v.mp4().map(|p| p.to_path_buf()))
             .collect()
     }
 
+    /// Returns path for low-resolution MP4 if set.
     pub fn glv(&self) -> Vec<PathBuf> {
         self.virb.iter()
             .filter_map(|v| v.glv().map(|p| p.to_path_buf()))
             .collect()
     }
 
-    /// Returns `Vec<GpsMetadata>` filtered on session timespan.
+    /// Returns all GPS data filtered on session timespan.
     pub fn gps(&self) -> Result<Vec<GpsMetadata>, FitError> {
         if let Some(fit) = self.fit.fit.as_ref() {
             return fit.gps(Some(&self.range()))
@@ -272,15 +279,9 @@ impl VirbSession {
         Ok(())
     }
 
-    /// Returns duration derived from summed video duration.
+    /// Returns total session duration
+    /// by summing durations for all video clips in session.
     pub fn video_duration(&self) -> Option<time::Duration> {
-        // if let (Some(v1), Some(v2)) = (self.virb.first(), self.virb.last()) {
-        //     if self.virb.len() == 1 {
-        //         return v1.duration()
-        //     } else {
-        //         return Some(v2.duration()? - v1.duration()?)
-        //     }
-        // }
         if self.virb.len() == 1 {
             self.virb.first().and_then(|s| s.duration())
         } else {
@@ -295,7 +296,8 @@ impl VirbSession {
         // None
     }
 
-    /// Returns duration derived from FIT camera events.
+    /// Returns total session duration
+    /// derived from FIT camera events.
     /// May differ slightly from video duration.
     pub fn fit_duration(&self) -> Option<time::Duration> {
         if let (Some(start), Some(end)) = (self.start, self.end) {

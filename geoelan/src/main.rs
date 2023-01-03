@@ -423,6 +423,10 @@ PUBLICATION:
                 .help("[GoPro/VIRB] Print additional information, such as the FIT header and custom metadata (udta) for GoPro MP4-files.")
                 .action(ArgAction::SetTrue)
                 .long("meta"))
+            .arg(Arg::new("atoms")
+                .help("[GoPro/VIRB] Print MP4 atom information if specified file is a video.")
+                .action(ArgAction::SetTrue)
+                .long("atoms"))
                 // .conflicts_with_all(&["verbose", "debug", "data-type"])) // gps always prints points
             .arg(Arg::new("debug")
                 .help("[GoPro/VIRB] Print debug info for all data while parsing.")

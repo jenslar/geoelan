@@ -1,3 +1,6 @@
+//! Partial representation of record (global ID 20) as logged by the Garmin VIRB.
+//! Other devices may or may not have the fields covered, resulting in possible errors.
+
 use std::ops::Range;
 use time::Duration;
 
@@ -30,7 +33,10 @@ pub struct Record {
 }
 
 impl Record {
-    /// Return only GPS fields in FIT `record`/20.
+    /// Returns a limited `TimestampCorrelation`/20
+    /// from a restructured `DataMessage`.
+    /// 
+    /// Covers only GPS fields in FIT `record`/20 as logged by Garmin VIRB.
     pub fn new(data_message: &DataMessage) -> Result<Self, FitError> {
         let global_id = 20_u16; // record
 

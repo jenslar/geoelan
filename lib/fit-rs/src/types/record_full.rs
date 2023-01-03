@@ -1,3 +1,7 @@
+//! UNIMPLEMENTED
+//! 
+//! Full record (global ID 20).
+
 /// Full `record`/20 message as per Profile.xlsx in official FIT SDK.
 pub struct RecordFull {
     /// 253, timestamp, date_time

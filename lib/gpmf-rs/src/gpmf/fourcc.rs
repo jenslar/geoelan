@@ -164,6 +164,9 @@ pub enum FourCC {
     /// MP4 `udta` unknown
     GUMI,
 
+    // JPEG GPMF FourCC
+    MINF,
+
     /// Mainly for checking and invalidating 0-padding
     /// in MP4 `udta` GPMF data.
     Invalid,
@@ -281,6 +284,9 @@ impl FourCC {
             b"BCID" => Ok(FourCC::BCID),
             b"GUMI" => Ok(FourCC::GUMI),
 
+            // JPEG GPMF FourCC
+            b"MINF" => Ok(FourCC::MINF),
+
             // GoPro MP4 udta atom contains undocumented
             // GPMF data that is zero padded,
             // used as check for breaking parse loop
@@ -373,6 +379,9 @@ impl FourCC {
             "BCID" => FourCC::BCID,
             "GUMI" => FourCC::GUMI,
 
+            // JPEG GPMF FourCC
+            "MINF" => FourCC::MINF,
+
             // Undocumented FourCC
             _ => FourCC::Other(fourcc.to_owned()),
         }
@@ -453,6 +462,9 @@ impl FourCC {
             FourCC::HMMT => "HMMT",
             FourCC::BCID => "BCID",
             FourCC::GUMI => "GUMI",
+
+            // JPEG GPMF FourCC
+            FourCC::MINF => "MINF",
 
             // FourCC if [0, 0, 0, 0, ...] detected
             // (MP4 udta atom padding)

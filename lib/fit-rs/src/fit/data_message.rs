@@ -1,3 +1,5 @@
+//! FIT data message.
+
 use std::fmt;
 use std::io::Cursor;
 
@@ -6,14 +8,12 @@ use crate::errors::FitError;
 use super::definition_message::DefinitionMessage;
 use super::data_field::DataField;
 
-use super::value::Value;
-
 #[derive(Debug, Clone)]
-/// FIT message, containing data.
+/// FIT data message. Contains raw data.
 pub struct DataMessage {
     /// FIT global identifier.
     pub global: u16,
-    /// Name in FIT SDK Profil.xlsx.
+    /// Name in FIT SDK `Profile.xlsx`.
     /// Optionally set after initial parse.
     pub name: Option<String>,
     /// Data fields.
@@ -25,6 +25,8 @@ pub struct DataMessage {
 }
 
 impl DataMessage {
+    /// New FIT data message. `cursor` represents the full FIT file data load,
+    /// but its offset must be at the start of a data message.
     pub fn new(
         cursor: &mut Cursor<Vec<u8>>,
         definition: &DefinitionMessage,
@@ -33,66 +35,13 @@ impl DataMessage {
         
         let arch = definition.architecture;
         
-        // let mut fields = Vec::new();
-        // for field_def in definition.fields.iter() {
-        //     // SLOWER
-        //     // fields.push(DataField::new(cursor, field_def, arch)?)
-        //     // FASTER
-        //     fields.push(DataField{
-        //         definition: field_def.to_owned(),
-        //         attributes: None, // <- reason for performance difference?
-        //         data: Value::new(cursor, field_def, arch)?
-        //     })
-        // }
-
-        // let mut dev_fields = Vec::new();
-        // for dev_field_def in definition.dev_fields.iter() {
-        //     // SLOWER
-        //     // dev_fields.push(DataField::new(cursor, dev_field_def, arch)?)
-        //     // FASTER
-        //     dev_fields.push(DataField{
-        //         definition: dev_field_def.to_owned(),
-        //         attributes: dev_field_def.attributes.to_owned(),
-        //         data: Value::new(cursor, dev_field_def, arch)?
-        //     })
-        // }
-
         let fields = definition.fields.iter()
-            .map(|field_def| {
-                // SLOWER
-                // fields.push(DataField::new(cursor, field_def, arch)?)
-                // FASTER
-                // DataField{
-                //     definition: field_def.to_owned(),
-                //     attributes: None, // <- reason for performance difference?
-                //     data: Value::new(cursor, field_def, arch)?
-                // }
-                DataField::new(cursor, field_def, arch)
-            })
+            .map(|def| DataField::new(cursor, def, arch)) // slightly slower than direct init
             .collect::<Result<Vec<DataField>, FitError>>()?;
 
         let dev_fields = definition.dev_fields.iter()
-            .map(|dev_field_def| {
-                // SLOWER
-                // dev_fields.push(DataField::new(cursor, dev_field_def, arch)?)
-                // FASTER
-                // dev_fields.push(DataField{
-                //     definition: dev_field_def.to_owned(),
-                //     attributes: dev_field_def.attributes.to_owned(),
-                //     data: Value::new(cursor, dev_field_def, arch)?
-                // })
-                DataField::new(cursor, dev_field_def, arch)
-            })
+            .map(|dev_def| DataField::new(cursor, dev_def, arch)) // slightly slower than direct init
             .collect::<Result<Vec<DataField>, FitError>>()?;
-
-        // SLOWER
-        // let fields = definition.fields.iter()
-        //     .map(|def| DataField::new(cursor, def, arch))
-        //     .collect::<Result<Vec<_>, FitError>>()?;
-        // SLOWER
-        // let dev_fields = definition.dev_fields.iter()
-        //     .map(|def| DataField::new(cursor, def, arch))
-        //     .collect::<Result<Vec<_>, FitError>>()?;
 
         Ok(Self {
             global: definition.global,
@@ -103,6 +52,8 @@ impl DataMessage {
         })
     }
 
+    /// Returns name/message type if set,
+    /// and defaults to `UNKNOWN_TYPE_<ID>` if not.
     pub fn name(&self) -> String {
         self.name
             .as_ref()

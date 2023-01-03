@@ -13,6 +13,7 @@ use crate::model::CameraModel;
 pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let timer = Instant::now();
 
+    // required arg
     let indir: PathBuf = args.get_one::<PathBuf>("input-directory")
         .unwrap().canonicalize()?;
     
@@ -51,7 +52,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     println!("---");
     for (i1, session) in sessions.iter().enumerate() {
-        println!("Session {}", i1+1);
+        println!("[ Session {} ]", i1+1);
         for (i2, file) in session.iter().enumerate() {
             println!("  {}. {}", i2+1, file.mp4_path.display());
         }

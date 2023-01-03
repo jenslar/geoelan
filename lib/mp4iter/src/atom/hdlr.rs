@@ -1,3 +1,5 @@
+//! Media handler atom (`hdlr`).
+
 /// Media handler atom.
 #[derive(Debug, Default)]
 pub struct Hdlr {

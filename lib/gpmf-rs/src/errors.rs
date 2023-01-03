@@ -7,6 +7,8 @@ use std::{fmt, path::PathBuf};
 pub enum GpmfError {
     /// Error parsing MP4.
     Mp4Error(mp4iter::errors::Mp4Error),
+    /// Error parsing JPEG.
+    JpegError(jpegiter::JpegError),
     /// Failed to locate GoPro offsets in MP4.
     NoMp4Offsets,
     /// Converted `BinResult` error.
@@ -56,6 +58,7 @@ impl fmt::Display for GpmfError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GpmfError::Mp4Error(err) => write!(f, "{err}"),
+            GpmfError::JpegError(err) => write!(f, "{err}"),
             GpmfError::NoMp4Offsets => write!(f, "Failed to locate GoPro GPMF offsets in MP4."),
             GpmfError::BinReadError(err) => write!(f, "{err}"),
             GpmfError::TimeError(err) => write!(f, "{err}"),

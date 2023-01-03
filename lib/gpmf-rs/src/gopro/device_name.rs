@@ -1,4 +1,4 @@
-//! GoPro device name (DVNM).
+//! GoPro device name (`DVNM`).
 
 /// GoPro camera model. Set in GPMF struct for convenience.
 /// Does not yet include all previous models, hence `Other<String>`
@@ -53,7 +53,7 @@ impl DeviceName {
         }
     }
 
-    // Get documented sample frequence for a specific device
+    // Get documented sample frequency for a specific device
     // pub fn freq(&self, fourcc: FourCC) {
     //     match self {
 

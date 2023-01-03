@@ -53,7 +53,7 @@ This section describes an example of how GeoELAN can be used to geo-reference EL
 
 As noted below, some of the commands differ slightly between GoPro and VIRB due to differences in file and data structures.
 
-![Annotating in ELAN](img/elan.jpg "Annotating in ELAN")
+![Annotating in ELAN](doc/img/elan.jpg "Annotating in ELAN")
 
 The basic steps are:
 
@@ -209,10 +209,10 @@ The relevant command is `eaf2geo`. By specifying an ELAN-file (`--eaf`) and the 
 If the proces fails for VIRB footage, the user will be presented with a list of recording sessions present in the FIT-file (see _The FIT-format and the Garmin VIRB_). GoPro MP4-files lack the appropriate metadata to display such as list.
 
 Annotating placename utterances recorded on-site
-![Annotating placename utterances in ELAN](img/elan_placename.jpg "Annotating placename utterances recorded on-site")
+![Annotating placename utterances in ELAN](doc/img/elan_placename.jpg "Annotating placename utterances recorded on-site")
 
 Using GeoELAN to geo-reference ELAN annotations
-![Using GeoELAN to geo-reference ELAN annotations](img/map_placename.jpg "Using GeoELAN to geo-reference ELAN annotations")
+![Using GeoELAN to geo-reference ELAN annotations](doc/img/map_placename.jpg "Using GeoELAN to geo-reference ELAN annotations")
 
 If the proces fails for VIRB footage, the user will be presented with a list of recording sessions present in the FIT-file (see _The FIT-format and the Garmin VIRB_). GoPro MP4-files lack the appropriate metadata to display such as list.
 

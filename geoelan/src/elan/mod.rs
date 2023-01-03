@@ -117,14 +117,14 @@ pub fn select_tier(eaf: &AnnotationDocument, no_tokenized: bool) -> std::io::Res
                 match eaf.tiers.get(i-1) {
                     // check if selected tier or any parent tier is tokenized
                     Some(t) => if eaf.is_tokenized(&t.tier_id, true) && no_tokenized {
-                        println!("(!) '{}' or one of its parents is tokenized.", t.tier_id);
+                        println!("(!) '{}' or one of its parents is tokenized. ['ctrl + c' to exit]", t.tier_id);
                     } else {
                         return Ok(t.to_owned())
                     },
-                    None => println!("(!) No such tier.")
+                    None => println!("(!) No such tier. ['ctrl + c' to exit]")
                 }
             },
-            Err(_) => println!("(!) Not a number.")
+            Err(_) => println!("(!) Not a number. ['ctrl + c' to exit]")
         }
     }
 }

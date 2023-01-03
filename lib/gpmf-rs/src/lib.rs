@@ -1,10 +1,13 @@
-//! Parse GoPro GPMF data. Returned in unprocessed form.
-//! Processing of sensor data into more common forms will added gradually.
-//! ```
+//! Parse GoPro GPMF data. Returned in unprocessed form for most data types.
+//! Processing of GPS data is supported,
+//! whereas processing of sensor data into more common forms will be added gradually.
+//! 
+//! ```rs
 //! use gpmf_rs::Gpmf;
 //! use std::path::Path;
+//! 
 //! fn main() -> std::io::Result<()> {
-//!     let path = Path::new("PATH/TO/GOPRO.MP4");
+//!     let path = Path::new("GOPRO_VIDEO.MP4");
 //!     let gpmf = Gpmf::new(&path)?;
 //!     Ok(())
 //! }

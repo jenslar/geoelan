@@ -46,8 +46,8 @@ impl FitSession {
         Ok(())
     }
 
-    /// Derives FIT indeces for session, if session
-    /// already has UUIDs set.
+    /// Derives FIT indeces for session,
+    /// if UUIDs are set.
     pub fn derive(&mut self) -> Result<(), FitError> {
         self.parse()?;
 
@@ -124,7 +124,7 @@ impl FitSession {
 
 // TODO perhaps add fit: Option<Fit> to FitSessions rather than single session?
 #[derive(Debug, Default)]
-pub struct FitSessions{
+pub struct FitSessions {
     path: PathBuf,
     fit: Option<Fit>,
     filtered: Option<u16>,

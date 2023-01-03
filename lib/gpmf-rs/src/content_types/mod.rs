@@ -1,3 +1,6 @@
+//! Processing and conversion of various kinds of sensor data.
+//! Currently only GPS is supported. The rest will be added gradually.
+
 use time::{PrimitiveDateTime, format_description};
 
 use crate::GpmfError;

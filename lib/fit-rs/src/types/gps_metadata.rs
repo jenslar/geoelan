@@ -1,3 +1,6 @@
+//! FIT `gps_metadata` message (global ID 160). Only VIRB logs all described fields.
+//! Other devices may return an error if `gps_metadata` exists.
+
 use std::ops::Range;
 use time::Duration;
 
@@ -6,7 +9,6 @@ use crate::{
     Fit,
     fit::DataMessage,
 };
-// use chrono::Duration;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 /// VIRB only (message type may exist on other devices, but not all fields).
@@ -37,6 +39,7 @@ pub struct GpsMetadata {
 }
 
 impl GpsMetadata {
+    /// Create new `GpsMetadata` struct from a `DataMessage`.
     pub fn new(data_message: &DataMessage) -> Result<Self, FitError> {
         let global_id = 160_u16; // gps_metadata
 
@@ -133,10 +136,6 @@ impl GpsMetadata {
                 Duration::seconds(self.timestamp as i64)
                     + Duration::milliseconds(self.timestamp_ms as i64)
             },
-            // time: {
-            //     chrono::Duration::seconds(self.timestamp as i64)
-            //         + chrono::Duration::milliseconds(self.timestamp_ms as i64)
-            // },
             text: None,
         }
     }
@@ -147,7 +146,7 @@ impl GpsMetadata {
         [
             (self.latitude as f64) * semi2deg,
             (self.longitude as f64) * semi2deg,
-            (self.altitude as f64 / 5.0) - 500.0
+            (self.altitude as f64 / 5.0) - 500.0 // FIT SDK: scale 5, offset 500
         ]
     }
 }

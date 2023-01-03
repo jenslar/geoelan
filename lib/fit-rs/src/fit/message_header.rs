@@ -1,3 +1,5 @@
+//! FIT message header.
+
 use binread::BinRead;
 
 use crate::Fit;
@@ -8,6 +10,7 @@ pub enum MessageType {
     Data
 }
 
+/// FIT message header.
 #[derive(Debug, Copy, Clone, BinRead)]
 pub struct MessageHeader(u8);
 
@@ -28,6 +31,7 @@ impl MessageHeader {
     /// Note that while `id()` supports compressed
     /// timestamp headers the rest of `fit-rs` does not.
     pub fn id(&self) -> u8 {
+        // check for compressed time stamp header
         match self.comp_time() {
             Some(_) => (0b0110_0000 & self.0) >> 5,
             None => 0b0000_1111 & self.0

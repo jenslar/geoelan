@@ -1,3 +1,5 @@
+//! FIT field data attributes as described in Profile.xlsx in the [FIT SDK](https://developer.garmin.com/fit/).
+
 use std::fmt;
 
 use crate::types::FieldDescriptionMessage;

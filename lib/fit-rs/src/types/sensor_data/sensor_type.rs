@@ -1,3 +1,27 @@
+//! FIT sensor type.
+//! 
+//! Covers:
+//! - Accelerometer
+//!     - 3D sensor
+//!     - FIT global ID 165
+//!     - Sensor type enum 0.
+//!     - Calibration message `three_d_calibration`/167
+//! - Gyroscope
+//!     - 3D sensor
+//!     - FIT global ID 164
+//!     - Sensor type enum 1.
+//!     - Calibration message `three_d_calibration`/167
+//! - Magnetometer
+//!     - 3D sensor
+//!     - FIT global ID 208
+//!     - Sensor type enum 2.
+//!     - Calibration message `three_d_calibration`/167
+//! - Barometer
+//!     - 1D sensor
+//!     - FIT global ID 209
+//!     - Sensor type enum 3.
+//!     - Calibration message `one_d_calibration`/210
+
 /// The available 1D, and 3D sensor types as specified in FIT SDK.
 #[derive(Debug, Copy, Clone)]
 pub enum SensorType {

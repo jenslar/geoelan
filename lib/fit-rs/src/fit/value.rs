@@ -1,3 +1,5 @@
+//! FIT core data types, such as string and numerical values.
+
 use std::io::Cursor;
 
 use binread::{BinRead, BinReaderExt};
@@ -16,16 +18,21 @@ pub enum Value {
     /// rather than single u8) occasionally
     /// in some FIT-files (firmware bug?)
     /// causing offset issues if not fully read.
-    Enum(Vec<u8>), // 0
-    Sint8(Vec<i8>), // 1
-    Uint8(Vec<u8>), // 2
-    Sint16(Vec<i16>), // 3
-    Uint16(Vec<u16>), // 4
-    Sint32(Vec<i32>), // 5
-    Uint32(Vec<u32>), // 6
-    // /// String as binread::strings::NullString
-    // /// Null terminated string that consumes,
-    // /// but does not include, null byte
+    /// 
+    /// Base type: 0
+    Enum(Vec<u8>),
+    /// Base type: 1
+    Sint8(Vec<i8>),
+    /// Base type: 2
+    Uint8(Vec<u8>),
+    /// Base type: 3
+    Sint16(Vec<i16>),
+    /// Base type: 4
+    Uint16(Vec<u16>),
+    /// Base type: 5
+    Sint32(Vec<i32>),
+    /// Base type: 6
+    Uint32(Vec<u32>),
     // binread NullString does not work for FIT...
     // perhaps since there
     // may be more than one 0? i.e. if
@@ -33,16 +40,26 @@ pub enum Value {
     // 0-padding is not consumed?
     // #[br(align_before = 0xA)]
     // String(NullString), // 7,
-    String(String), // 7,
-    Float32(Vec<f32>), // 8
-    Float64(Vec<f64>), // 9
-    Uint8z(Vec<u8>), // 10 Z = ?
-    Uint16z(Vec<u16>), // 11 Z = ?
-    Uint32z(Vec<u32>), // 12 Z = ?
-    Byte(Vec<u8>), // 13
-    Sint64(Vec<i64>), // 14
-    Uint64(Vec<u64>), // 15
-    Uint64z(Vec<u64>), // 16 Z = ?
+    /// Base type: 7
+    String(String),
+    /// Base type: 8
+    Float32(Vec<f32>),
+    /// Base type: 9
+    Float64(Vec<f64>),
+    /// Base type: 10
+    Uint8z(Vec<u8>),
+    /// Base type: 11
+    Uint16z(Vec<u16>),
+    /// Base type: 12
+    Uint32z(Vec<u32>),
+    /// Base type: 13
+    Byte(Vec<u8>),
+    /// Base type: 14
+    Sint64(Vec<i64>),
+    /// Base type: 15
+    Uint64(Vec<u64>),
+    /// Base type: 16
+    Uint64z(Vec<u64>),
 }
 
 impl AsRef<Value> for Value {
@@ -210,11 +227,6 @@ impl Value {
         architecture: u8
     ) -> Result<Self, FitError> {
 
-        // if architecture > 1 {
-        //     // arch must be 0 (little endian) or 1 (bigendian)
-        //     return Err(FitError::InvalidArchitecture{arch: architecture, pos: cursor.position()})
-        // }
-
         let base_len = field_def.base_type.base_len()?;
         // TODO add alignment check? e.g. if size % len != 0 -> Err()
         let repeats = field_def.size / base_len;
@@ -231,6 +243,7 @@ impl Value {
             5 => Ok(Self::Sint32(Self::read::<i32>(cursor, architecture, repeats)?)),
             6 => Ok(Self::Uint32(Self::read::<u32>(cursor, architecture, repeats)?)),
             // Parsing bytes as lossy utf8 due to corrupt (?) strings in some fit files.
+            // May be a user option in a later version.
             7 => Ok(Self::String(Self::from_utf8(cursor, architecture, repeats, true)?)),
             8 => Ok(Self::Float32(Self::read::<f32>(cursor, architecture, repeats)?)),
             9 => Ok(Self::Float64(Self::read::<f64>(cursor, architecture, repeats)?)),

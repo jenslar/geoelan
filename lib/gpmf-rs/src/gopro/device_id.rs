@@ -1,9 +1,10 @@
-//! GoPro device ID (DVID).
+//! GoPro device ID (`DVID`).
 
 use crate::FourCC;
 
+/// GoPro device ID.
 /// For older devices (Hero5, Fusion?) it seems
-/// DVID can be either a u32 or a FourCC? Or just parse as BaseType...?
+/// DVID can be either a `u32` or a `FourCC` (?).
 #[derive(Debug, Clone)]
 pub enum Dvid {
     Uint32(u32),

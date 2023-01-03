@@ -1,3 +1,5 @@
+GeoELAN v2.1 2023-01-03
+
 This is the manual for GeoELAN, a tool for annotating action-camera GPS
 logs via the ELAN annotation software.
 
@@ -24,23 +26,23 @@ et al 2021. In other words, GeoELAN is used for annotating action camera
 GPS logs with the help of ELAN.
 
 By annotating a section representing an on-site utterance, a plant that
-is in view, or anything else that was captured, it can be automatically
-linked to the corresponding coordinates. The nature of the workflow also
-means consultants not physically present at the the time of recording
-may evaluate observed phenomena to be geo-referenced post-collection. As
-the name implies, the free ELAN annotation software plays a central role
-and is required to annotate events. The final output can be points,
-polylines, or polygons (circles), in the form of annotated KML and
-GeoJSON-files. Henceforth, "GoPro" refers to a GoPro Hero 5 Black or
-later, and "VIRB" to the Garmin VIRB Ultra 30. Note that while GeoELAN
-functionality differs slightly between Garmin and GoPro due to
-differences in formats and file structure, its main purpose is intact
-for either brand.
+is in view, or anything else that was captured, the annotation can be
+automatically linked to the corresponding coordinates. The nature of the
+workflow also means consultants not physically present at the the time
+of recording may evaluate observed phenomena to be geo-referenced
+post-collection. As the name implies, the free ELAN annotation software
+plays a central role and is required to annotate events. The final
+output can be points, polylines, or polygons (circles), in the form of
+annotated KML and GeoJSON-files. Henceforth, "GoPro" refers to a GoPro
+Hero 5 Black or later, and "VIRB" to the Garmin VIRB Ultra 30. Note that
+while GeoELAN functionality differs slightly between Garmin and GoPro
+due to differences in formats and file structure, the general workflow
+and the final output are the same.
 
   GeoELAN is multi-functional tool that can
 
   -   geo-reference ELAN-annotations of GoPro and VIRB footage (i.e.
-      annotate GPS logs) and output these as annotated points, lines. or
+      annotate GPS logs) and output these as annotated points, lines, or
       circles.
   -   inspect the content of your GoPro GPMF data, or Garmin FIT-files.
   -   locate and match all relevant files belonging to the same
@@ -68,9 +70,9 @@ Installation
 
 Compile and install from source
 
-If you wish, you can compile GeoELAN yourself. Depending on your
-operating system, this may require installing additional software, and a
-basic understanding of working in a terminal. The basic steps are:
+You can also compile GeoELAN from source. Depending on your operating
+system, this may require installing additional software, and a basic
+understanding of working in a terminal. The basic steps are:
 
 1.  Install the Rust toolchain
 2.  Get the GeoELAN source from https://gitlab.com/rwaai/geoelan (via
@@ -117,7 +119,7 @@ Device compatibility
 -   GoPro: Only "main line" Hero cameras with GPS have been tested, but
     Max and Fusion cameras may still work.
 
-GPS and the VIRB
+GPS
 
 -   Make sure the GPS is turned on and in reach of a satellite. This
     make take a couple of minutes or longer, especially if you have not
@@ -133,7 +135,8 @@ Annotating in ELAN
 -   ...to keep e.g. place names and plant sightings within the same
     ELAN-file make a separate tier for each (see the example walkthrough
     in the next section). Then you can just re-run GeoELAN on the same
-    ELAN-file and select another tier to geo-reference.
+    ELAN-file and select another tier to geo-reference along with other
+    output options.
 
 Example walkthrough
 
@@ -239,10 +242,10 @@ low-resolution video will be linked in the ELAN-file. If not, the
 concatenated high-resolution video will be linked instead.
 
 GeoELAN defaults to not insert a tier with geo-data in the ELAN-file due
-to the effect this may have on performance. To do so, see Geo-data in
-ELAN. The result, including the FIT-file (VIRB), is copied to a folder
-named after the first clip in the session under the specified output
-directory (--outdir).
+to the effect this may have on performance. To do so, use the --geotier
+flag (see Geo-data in ELAN). The result, including the FIT-file (VIRB),
+is copied to a folder named after the first clip in the session under
+the specified output directory (--outdir).
 
   TIP: For longer recording sessions, resulting in many video clips,
   step 1 is usually much faster if --indir and --outdir is not on the
@@ -393,7 +396,7 @@ display such as list.
 
 Commands
 
-Six commands are available:
+There are six commands:
 
     Command    Alias  Description                                                          Camera Model
   ----------- ------- ------------------------------------------------------------------- --------------
@@ -403,6 +406,8 @@ Six commands are available:
     locate       l    Locate and match video clips and/or FIT-files                        GoPro, VIRB
     inspect      i    Inspect the contents of a GoPro MP4-file or any Garmin FIT-file      GoPro, VIRB
     manual       m    View or save this manual to disk                                          -
+
+To see help for a specific command, run geoelan <COMMAND> --help.
 
 The most relevant commands are probably gopro2eaf/virb2eaf and eaf2geo.
 locate is there to help with locating and matching video clips and/or
@@ -422,15 +427,15 @@ will add seven hours to all timestamps.
 
 Reducing the number of coordinates with --downsample
 
-For the commands gopro2eaf/virb2eaf, eaf2geo, and inspect, the output
-may contain coordinates in some form (a KML/GeoJSON-file or a geo-tier
-in an ELAN-file). Since the VIRB GPS logs at 10Hz, the resulting files
-may become too heavy to work with in some cases, such as loading a
-KML-file in Google Earth. GoPro logs at 10 or 18Hz depending on model,
-but saves points as a cluster each second. Since it is only the cluster
-that gets timestamped, and not the individual points, GeoELAN averages
-these to a single, timestamped point at the same interval the cluster
-was logged originally (roughly once/second).
+For the commands gopro2eaf/virb2eaf, and eaf2geo, the output may contain
+coordinates in some form (a KML/GeoJSON-file or as annotations in an
+ELAN-file). Since the VIRB GPS logs at 10Hz, the resulting files may
+become too heavy to work with in some cases, such as loading a KML-file
+in Google Earth. GoPro logs at 10 or 18Hz depending on model, but saves
+points as a cluster each second. Since it is only the cluster that gets
+timestamped, and not the individual points, GeoELAN averages these to a
+single, timestamped point at the same interval the cluster was logged
+originally (roughly once/second).
 
 --downsample can be used for both ELAN and KML/GeoJSON output to reduce
 the number of coordinates that are imported/exported. It is especially
@@ -502,7 +507,7 @@ Options
    Short  Long            Description                          Default      Required
   ------- --------------- ----------------------------------- --------- -----------------
           --ffmpeg        Custom path to FFmpeg                ffmpeg   
-    -f    --fit           VIRB FIT-file                                  unless -u or -v
+    -g    --gpmf          GoPro MP4-file                                 unless -u or -v
     -i    --indir         Input path for locating files                        yes
     -o    --outdir        Output path for resulting files      OUTPUT   
     -d    --downsample    Downsample factor for coordinates       1     
@@ -512,12 +517,12 @@ Options
 Example 1
 
   --------- ----------- ----------------- ----------------- ------------------ ------------------------
-   geoelan   gopro2eaf   -v GH010026.MP4      -i INDIR/         -o OUTDIR/            --geotier
+   geoelan   gopro2eaf   -g GH010026.MP4      -i INDIR/         -o OUTDIR/            --geotier
               command    clip in session   input directory   output directory   insert coordinate tier
   --------- ----------- ----------------- ----------------- ------------------ ------------------------
 
 Result: Locates all clips for the recording session containing the clip
-GH010026.MP4 (-v) in the input directory INDIR/ (-i). These will be
+GH010026.MP4 (-g) in the input directory INDIR/ (-i). These will be
 concatenated, and the audio track exported as a WAV for use in ELAN. The
 resulting files are then copied to the output directory OUTDIR/ (-o).
 The generated ELAN-file will also have synchronised coordinates inserted
@@ -535,8 +540,8 @@ virb2eaf locates and concatenates all clips for the specified recording
 session found in the input directory (--indir) and exports a
 concatenated WAV-file. An ELAN-file is then generated with the media
 files pre-linked. The result is copied together with the corresponding
-FIT-file to the specified output directory (--outdir). By specifying the
-first clip in the relevant session (via --video, --uuid or --fit), the
+FIT-file to the specified output directory (--outdir). By specifying any
+clip in the relevant session (via --video, --uuid or --fit), the
 remaining files will be automatically located. Optionally, the
 high-resolution clips can also be copied to the output directory as-is
 (--copy).
@@ -831,7 +836,7 @@ circle-2d, circle-3d
 
 circle-2d, circle-3d works almost exactly like point-single with the
 difference that a circle is generated around the calculated average
-point. It is mostly for visual flair and its shape is currently not
+point. It is mostly a visual flair and its shape is currently not
 affected by annotation values. circle-2d is flat against the ground,
 whereas circle-3d can take a height value to become a cylindrical 3D
 shape (only applies to KML, not GeoJSON). If circle output is specified,
@@ -874,7 +879,6 @@ Flags
   ------- -------------- -------------------------------------------
            --duplicates  Include duplicate files in match results
              --quiet     Do not print file-by-file search progress
-              --csv      Write result to CSV plain-text file
 
 Options
 
@@ -887,14 +891,13 @@ Options
 
   Example 1
 
-    --------- ------------- ----------------- --------------------
-     geoelan     locate         -i INDIR/            --csv
-               sub-command   input directory   save result as CSV
-    --------- ------------- ----------------- --------------------
+    --------- ------------- ----------------- ---------------------------
+     geoelan     locate         -i INDIR/            --kind gopro
+               sub-command   input directory   only look for GoPro files
+    --------- ------------- ----------------- ---------------------------
 
-  Result: Returns paths to all VIRB clips found in INDIR/ (-i) together
-  with their corresponding FIT-file. The result is saved as a CSV-file
-  to the current directory (--csv).
+  Result: Locates all GoPro clips in INDIR/ (-i) and groups them in
+  recording sessions.
 
   Example 2
 
@@ -903,8 +906,8 @@ Options
                sub-command   search directory   first clip in session
     --------- ------------- ------------------ -----------------------
 
-  Result: Returns paths to all clips found in INDIR/ (-i) for the
-  session starting with VIRB0001-1.MP4 (-v) together with the
+  Result: Locates all VIRB clips in INDIR/ (-i) for the recording
+  session that contains VIRB0001-1.MP4 (-v) together with the
   corresponding FIT-file.
 
 inspect
@@ -926,24 +929,29 @@ log coordinates. Optionally, a KML-file can also be generated.
 
 Flags
 
-   Short  Long                Description
-  ------- ------------------- ---------------------------------------------------------------
-          --debug             Print FIT definitions and data while parsing
-          --debug-unchecked   Same as --debug, but strings are also unchecked UTF-8
-          --kml               Generate a KML-file
-    -s    --select            VIRB: Select session from a list. GoPro: Merges session data.
+   Short  Long        Description
+  ------- ----------- ---------------------------------------------------------------
+          --debug     Print FIT definitions and data while parsing
+          --kml       Generate a KML-file
+          --ikml      Generate an indexed KML-file
+          --json      Generate a GeoJSON-file.
+          --verbose   Print raw data
+          --gps       Print processed GPS data
+          --meta      Print MP4 custom user data (udta atom)
+          --atoms     Print MP4 atoms: FourCC, offset, size
+    -s    --session   VIRB: Select session from a list. GoPro: Merges session data.
 
 Options
 
-   Short  Long           Description                          Default   Required
-  ------- -------------- ----------------------------------- --------- ----------
-    -f    --fit          FIT-file                                         yes
-    -g    --global-id    FIT data type (see FIT SDK)                   
-    -d    --downsample   Downsample factor for coordinates       1     
-    -u    --uuid         UUID, first in session                        
-    -v    --video        VIRB video clip, first in session             
+   Short  Long      Description                                   Default   Required
+  ------- --------- -------------------------------------------- --------- ----------
+    -f    --fit     FIT-file                                                  yes
+    -g    --gpmf    GoPro-file (MP4 or raw GPMF-file)                         yes
+    -t    --type    Data type (VIRB: numerical, GoPro: string)             
+    -u    --uuid    UUID, first in session (VIRB)                          
+    -v    --video   VIRB video clip                                        
 
-Inspecting telemetry data
+Inspecting telemetry
 
 inspect will mostly print raw values that require further processing to
 be of use. The exact nature of this data differs between GoPro and
@@ -956,6 +964,15 @@ If a GoPro MP4 or a Garmin FIT-file can not be properly parsed, GeoELAN
 will often return an error message that may hint at the issue. Try
 inspect on files that raise errors with the other commands.
 
+MP4-files have a few options, besides inspecting embedded GoPro GPMF
+data. The --meta flag will show raw (i.e. bytes) content for the
+so-called udta atom. GoPro also embeds undocumented GPMF data in the
+udta atom which will also be listed, whereas Garmin embeds a unique
+identifier (UUID). The --atoms flag will show MP4 atom FourCC, offset.
+To most users these will not be of much use, but may provide technical
+context for troubleshooting. If --atoms is not enough, try the command
+line tool AtomicParsley.
+
 GoPro
 
 GoPro logs and embeds all telemetry within the MP4-files. In contrast to
@@ -967,8 +984,8 @@ To list all data types logged in a GoPro MP4-file, run:
 
     geoelan inspect --gpmf GOPROVIDEO.MP4
 
-This will return a list like this (DEVC is an internal container of
-sorts that holds the data listed):
+This will list all data streams (DEVC is an internal container of sorts
+that holds the data listed):
 
     Unique data stream types (1018 DEVC streams in total):
         Accelerometer
@@ -1004,19 +1021,28 @@ Generate a KML-file with:
 
     geoelan inspect --gpmf GOPROVIDEO.MP4 --kml
 
+Images
+
+If you have original JPEG-images snapped with a GoPro camera, these can
+also be inspected, but will contain much less GPMF data than the
+MP4-files. They are currently not used elsewhere in GeoELAN's workflow.
+So far no named data streams have been found so use
+geoelan inspect --gpmf GOPROIMAGE.JPG --verbose to print the raw data.
+
 Garmin FIT
 
 The FIT-format is quite different to GoPro's GPMF, apart from being a
 separate file. There is among other things, additional information about
 VIRB recording sessions. The VIRB starts logging to a FIT-file the
-second the camera is turned on, and only stops when it is turned off.
+moment the camera is turned on, and only stops when it is turned off.
 This means that a single FIT-file may contain data corresponding to
-multiple recording sessions and also logs data between recordings.
+multiple recording sessions. For as long as the camera is turned on,
+data is logged continuously - even between recordings.
 
-Inside a FIT-file, data is identified by a numerical id. For example,
-GPS data is 160, also referred to as gps_metadata in the FIT Software
-Development Kit (FIT SDK). inspect lists both identifiers in the summary
-table.
+Inside a FIT-file, data is identified by a numerical identifier. For
+example, GPS data is 160, also referred to as gps_metadata in the FIT
+Software Development Kit (FIT SDK). inspect lists both identifiers in
+the summary table.
 
 To list all data types logged in a VIRB FIT-file, run:
 
@@ -1049,9 +1075,8 @@ This will return a table:
     ...................................................
                                         Total:  133948
 
-The find the data type you wish to inspect further in the list and note
-the number in the "Global ID" columns. To print GPS data in its "raw"
-form, run:
+Find the data type you wish to inspect further in the list and take note
+note of the "Global ID". To print GPS data in its "raw" form, run:
 
     geoelan inspect --fit FITFILE.FIT --type 160
 
@@ -1357,8 +1382,8 @@ ELAN is a completely free, advanced application for time-aligned
 annotations of audiovisual media developed by the The Language Archive,
 Max Planck Institute for Psycholinguistics in Nijmegen. While it is
 well-known in academia and particularly the humanities for transcribing
-recordings, its use goes well beyond this since anything observed can be
-annotated, and thus time-aligned (GeoELAN is but one example). Since
+recordings, its use goes well beyond this, since anything observed can
+be annotated, and thus time-aligned (GeoELAN is but one example). Since
 annotations are kept aligned in parallel on separate tiers - as many as
 required, similar to multi-track audio editors - the possibilites are
 almost endless. The ELAN Annotation Format is XML-based which makes it
@@ -1400,58 +1425,9 @@ Three crates were developed for GeoELAN:
 Data extracted with both gpmf-rs and fit-rs will mostly require further
 processing. Support for this is built-in for some data types (e.g. GPS
 data, since this is fundamental for GeoELAN), but for others you will
-have to develop and expand this yourself. A first pass, extracting and
-parsing data, should always work for both crates. GeoELAN's inspect
+have to develop and expand on this yourself. A first pass, extracting
+and parsing data, should always work for both crates. GeoELAN's inspect
 command with the --verbose flag prints data in this "raw" form.
-
-GeoELAN A4 Guide, v2.0, 2022-11-05
-
-Jens Larsson jens.larsson@humlab.lu.se
-
-  ------------------------ --------------------------------------------------------
-  geoelan --help           General help
-  geoelan COMMAND --help   Help for specific COMMAND, e.g. geoelan eaf2geo --help
-  ------------------------ --------------------------------------------------------
-
-------------------------------------------------------------------------
-
-       Workflow                                                           Example
-  ---- ------------------------------------------------------------------ ---------------------------------------------------------------------------------
-  1.   Concatenate media files, generate ELAN-file                        geoelan virb2eaf --video VIRB0001-1.MP4 --indir DIR_TO_SEARCH/ --outdir OUTDIR/
-  2.   Annotate the generated ELAN-file. One tier for each event type.    
-  3.   Geo-reference annotations on selected tier. Outputs KML/GeoJSON.   geoelan eaf2geo --eaf VIRB0001-1.eaf --fit FITFILE.fit --geoshape point-single
-
-------------------------------------------------------------------------
-
-  Command     Description                                       Example
-  ----------- ------------------------------------------------- ------------------------------------------------------------------------
-  gopro2eaf   [GoPro] Generate ELAN-file with geo-tier          geoelan gopro2eaf -v VIDEO.MP4 -i INDIR/ -o OUTDIR/ --geo-tier
-  virb2eaf    [VIRB] Generate ELAN-file with geo-tier           geoelan virb2eaf -v VIDEO.MP4 -i INDIR/ -o OUTDIR/ --geo-tier
-  eaf2geo     Geo-reference annotations and generate KML-file   geoelan eaf2geo -e ELANFILE.eaf -f FITFILE.fit --geoshape point-single
-  locate      Locate and match MP4 and/or FIT-files             geoelan locate -i INDIR/ --csv
-  inspect     Print the contents of a FIT/GPMF-file             geoelan inspect -f FITFILE.fit --verbose
-                                                                geoelan inspect -g GOPRO_VIDEO.mp4 --verbose
-  manual      View or save manual as PDF                        geoelan manual --pdf
-
-------------------------------------------------------------------------
-
-  Argument       Description                                                 Applicable to                           Possible values
-  -------------- ----------------------------------------------------------- --------------------------------------- --------------------------------------------
-  --downsample   Point output divisor (e.g. 10: 7200 points -> 720 points)   gopro2eaf, virb2eaf, eaf2geo, inspect   1 (default) to max number of logged points
-  --geoshape     Point/s or line/s in output KML                             eaf2geo                                 See table below
-  --cdata        Extended information bubble in Google Earth                 eaf2geo                                 
-
-------------------------------------------------------------------------
-
-  geoshape value   Description                                                      Shape              Note
-  ---------------- ---------------------------------------------------------------- ------------------ ----------------------
-  point-all        Points intersecting with an annotation will gain a description   Points             
-  point-multi      Points intersecting with an annotation will be exported          Points             
-  point-single     Each annotation will be averaged to a single point               Points             Ignores --downsample
-  line-all         Points intersecting with an annotation will gain a description   Line, continuous   
-  line-multi       Each annotation will be exported as a line                       Line, broken-up    
-  circle-2d        Each annotation will generate a circle (c.f. point-single)       Circle             Ignores --downsample
-  circle-3d        Each annotation will generate a cylinder (c.f. point-single)     Circle             Ignores --downsample
 
 References
 
@@ -1461,6 +1437,6 @@ geospatial data on the timeline: towards new dimensions of analysis.
 International Journal of Social Research Methodology. doi:
 10.1080/13645579.2020.1763705
 
-ELAN (Version 6.3) [Computer software]. 2022. Nijmegen: Max Planck
+ELAN (Version 6.4) [Computer software]. 2022. Nijmegen: Max Planck
 Institute for Psycholinguistics. Retrieved from
 https://archive.mpi.nl/tla/elan

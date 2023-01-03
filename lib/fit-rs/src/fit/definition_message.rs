@@ -1,3 +1,6 @@
+//! FIT definition message.
+//! Holds definitions for data messages documented in [FIT SDK](https://developer.garmin.com/fit).
+
 use std::{io::Cursor, collections::HashMap};
 
 use binread::BinReaderExt;
@@ -8,22 +11,26 @@ use crate::{errors::FitError, types::FieldDescriptionMessage};
 
 use super::definition_field::DefinitionField;
 
-// #[derive(Debug, BinRead)]
+/// FIT definition message.
 #[derive(Debug)]
 pub struct DefinitionMessage {
-    // pub header: u8,                              // byte 0
-    // pub header: MessageHeader,                   // byte 0
-    pub reserved: u8,                            // byte 1
-    pub architecture: u8,                        // byte 2: 0=LE, 1=BE
-    pub global: u16,                             // bytes 3-4
-    // #[br(default)]
-    pub fields: Vec<DefinitionField>, // definition fields, incl devfields (3 bytes/each)
-    // #[br(default)]
-    pub dev_fields: Vec<DefinitionField>, // definition fields, incl devfields (3 bytes/each)
-    // pub data_message_length: usize, // CHANGE FROM usize TO u32? total message length incl dev
+    /// Reserved. Byte 0.
+    pub reserved: u8,
+    /// Architecture/Endianess. Byte 1.
+    /// Possible values: 0=LE, 1=BE
+    pub architecture: u8,
+    /// FIT global message ID. Bytes 2-3.
+    pub global: u16,
+    /// Definition fields. Bytes 3.. (varying length)
+    pub fields: Vec<DefinitionField>,
+    /// Developer definition fields (3 bytes/each).
+    pub dev_fields: Vec<DefinitionField>,
 }
 
 impl DefinitionMessage {
+    /// New definition message from cursor.
+    /// Cursor position must be just after message header
+    /// (this is mostly to avoid reading the header twice).
     pub fn new(
         cursor: &mut Cursor<Vec<u8>>,
         header: &MessageHeader,
@@ -33,6 +40,11 @@ impl DefinitionMessage {
         // required to read global u16 with correct endianess...
         let reserved: u8 = cursor.read_ne()?;
         let architecture: u8 = cursor.read_ne()?;
+        // TODO 230102 force LE, if unimplemented `debug` parameter is passed
+        // let mut architecture: u8 = cursor.read_ne()?;
+        // if architecture > 1 {
+        //     architecture = 0; // Little Endian
+        // }
         
         // Any multi-byte data must use architecture to determine endianess
         let global: u16 = Fit::read(cursor, architecture)?;
@@ -57,7 +69,6 @@ impl DefinitionMessage {
                 
                 // Augment existing field def with field description
                 dev_field.augment(&field_descr);
-                // println!("{dev_field:#?}"); // augments/prints ok here but still only prints "UNKNOWN" in main/inspect_fit?
 
                 dev_fields.push(dev_field);
             }

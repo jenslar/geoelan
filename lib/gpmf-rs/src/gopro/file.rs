@@ -1,3 +1,6 @@
+//! GoPro "file", representing an original, unedited video clip of high and/or low resolution,
+//! together with derived sequential number and other attributes.
+//!
 //! Structs for locating and working with MP4-files belonging to the same recording session.
 
 use std::path::{Path, PathBuf};
@@ -12,9 +15,7 @@ use super::{
     GoProMeta
 };
 
-/// Represents an original, unedited GoPro MP4-file,
-/// or a raw, binary file of GPMF-data extracted
-/// from a GoPro Mp4-file with e.g. FFmpeg.
+/// Represents an original, unedited GoPro MP4-file.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GoProFile {
     /// High-resolution MP4 path
@@ -24,12 +25,7 @@ pub struct GoProFile {
     pub sequence: u8,
     pub recording_type: RecordingType,
     pub file_id: Option<String>,
-    /// MP4 `udta` container.
-    /// Contains custom fields for GoPro MP4-files,
-    /// and GPMF-data.
     pub gpmf: Gpmf, // should just use Option<Gpmf>
-    // pub meta: Option<Udta>, // single MP4 files only
-    // pub muid: Option<>, 
     pub(crate) parsed: bool
 }
 
@@ -83,14 +79,16 @@ impl GoProFile {
         let filestem: Vec<char> = match ext.as_deref() {
             Some("mp4") => {
                 path.file_stem()
-                .and_then(|s| s.to_str())
-                .map(|s| s.chars().collect::<Vec<_>>())
-                .unwrap_or_default()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.chars().collect::<Vec<_>>())
+                    .unwrap_or_default()
             },
             _ => Vec::new(),
         };
 
-        let (mut sequence, mut file_id, mut recording_type) = (u8::default(), None, RecordingType::Unknown);
+        let mut sequence = u8::default();
+        let mut file_id = None;
+        let mut recording_type = RecordingType::Unknown;
 
         if filestem.len() == 8 {
             match filestem[2..4].iter().collect::<String>().parse::<u8>() {
@@ -101,7 +99,7 @@ impl GoProFile {
                     file_id = Some(filestem[4..8].iter().collect::<String>()); // e.g. "1234"
                     recording_type = RecordingType::Chaptered;
                 },
-                // Looping video
+                // Looping video:
                 // GHAA0001 -> AA = id, 0001 = loop nr
                 Err(_) => {
                     sequence = filestem[4..8].iter().collect::<String>().parse::<u8>()?;

@@ -1,3 +1,27 @@
+//! Core FIT functionality.
+//!
+//! ```rs
+//! use crate::fit_rs::Fit;
+//! use std::path::Path;
+//! 
+//! fn main -> std::io::Result<()> {
+//!     // Parse a FIT-file.
+//!     let fit_path = Path::new("FITFILE.fit");
+//!     let fit = Fit::new(&fit_path)?;
+//! 
+//!     for record in fit.records.iter() {
+//!         println!("{record:?}");
+//!     }
+//! 
+//!     // Extract UUID from Garmin VIRB action camera.
+//!     let mp4_path = PathBuf::from("VIRB_MP4FILE.MP4");
+//!     let uuid = Fit::uuid_mp4(&mp4_path)?;
+//!     println!("{uuid}");
+//! 
+//!     Ok(())
+//! }
+//! ```
+
 use std::{path::{PathBuf, Path}, io::Cursor, collections::HashMap, ops::Range};
 
 use binread::{BinReaderExt, BinRead};
@@ -59,7 +83,7 @@ impl Fit {
 
         let data_size = fitheader.data_size(len) as u64;
 
-        // Simple index for data messages,
+        // Simple incremental index for data messages,
         // that can be used to sort in e.g. chronological order,
         // even after filtering on type
         let mut data_index = 0;
@@ -77,8 +101,11 @@ impl Fit {
 
                 MessageType::Definition => {
 
-                    // TODO 220812 REGRESSION CHECK on 20mb virb fit, new code similar or slightly faster
-                    let definition = DefinitionMessage::new(&mut cursor, &header, &field_descriptions)?;
+                    let definition = DefinitionMessage::new(
+                        &mut cursor,
+                        &header,
+                        &field_descriptions
+                    )?;
                     
                     definitions.insert(
                         id,
@@ -94,23 +121,27 @@ impl Fit {
 
                     if let Some(g) = global {
                         if definition.global != g {
+                            // If message does not have correct global ID
+                            // derive message length and set position
+                            // to next message
                             let pos = cursor.position();
                             cursor.set_position(pos + definition.data_size() as u64);
                             continue;
                         }
                     }
 
-                    // TODO 220812 REGRESSION CHECK on 20mb virb fit, DATA msg parse only new code similar or slightly slower
                     let data_message = DataMessage::new(
                         &mut cursor,
                         &definition,
                         data_index
                     )?;
 
-                    // TODO 220812 REGRESSION CHECK on 20mb virb fit, FLD DESCR msg exactly the same old vs new
                     // Parse and store custom developer definitions
                     if data_message.global == 206 {
                         let field_descr = FieldDescriptionMessage::new(&data_message)?;
+                        // Require both field_definition_number and developer_data_index
+                        // to create a unique key since third parties are not
+                        // always using this correctly, sometimes causing ID collisions
                         field_descriptions.insert(
                             (field_descr.field_definition_number, field_descr.developer_data_index),
                             field_descr,
@@ -119,12 +150,115 @@ impl Fit {
 
                     data_messages.push(data_message);
 
-                    data_index += 1; // use as data message index
+                    data_index += 1; // data message index
                 }
             }
         }
 
-        // println!("COMPLETE LOOP {:?}", t.elapsed());
+        Ok(Fit{
+            path: path.to_owned(),
+            header: fitheader,
+            records: data_messages,
+            index: HashMap::new()
+        })
+    }
+
+    /// Debug FIT-data. Optionally filter on specified `global` ID 
+    /// while parsing, which speeds up reads considerably if only
+    /// a single data type is of interest. Developer data
+    /// is not supported when filtering.
+    pub fn debug(path: &Path, global: Option<u16>) -> Result<Self, FitError> {
+
+        // TODO 220812 REGRESSION CHECK on 20mb virb fit old code 60ms faster on work laptop
+        
+        let mut cursor = Self::cursor(path)?;
+        let len = cursor.get_ref().len();
+
+        let fitheader = FitHeader::new(&mut cursor)?;
+
+        println!("{fitheader:#?}");
+
+        let data_size = fitheader.data_size(len) as u64;
+
+        // Simple incremental index for data messages,
+        // that can be used to sort in e.g. chronological order,
+        // even after filtering on type
+        let mut data_index = 0;
+        
+        let mut definitions: HashMap<u8, DefinitionMessage> = HashMap::new();
+        let mut data_messages: Vec<DataMessage> = Vec::new();
+        let mut field_descriptions: HashMap<(u8, u8), FieldDescriptionMessage> = HashMap::new();
+
+        while cursor.position() < data_size {
+
+            // println!("FIELD DESCRIPTIONS:\n{field_descriptions:#?}");
+
+            print!("OFFSET {} | ", cursor.position());
+
+            let header: MessageHeader = cursor.read_ne()?;
+            let id = header.id();
+
+            match header.kind() {
+
+                MessageType::Definition => {
+
+                    let definition = DefinitionMessage::new(
+                        &mut cursor,
+                        &header,
+                        &field_descriptions
+                    )?;
+
+                    println!("{definition:#?}");
+                    
+                    definitions.insert(
+                        id,
+                        definition 
+                    );
+                },
+
+                MessageType::Data => {
+
+                    let definition = definitions.get(&id).ok_or_else(||
+                        FitError::UnknownDefinition {local: id, offset: cursor.position()}
+                    )?;
+
+                    if let Some(g) = global {
+                        if definition.global != g {
+                            // If message does not have correct global ID
+                            // derive message length and set position
+                            // to next message
+                            let pos = cursor.position();
+                            cursor.set_position(pos + definition.data_size() as u64);
+                            continue;
+                        }
+                    }
+
+                    let data_message = DataMessage::new(
+                        &mut cursor,
+                        &definition,
+                        data_index
+                    )?;
+
+                    println!("{data_message:#?}");
+
+                    // Parse and store custom developer definitions
+                    if data_message.global == 206 {
+                        let field_descr = FieldDescriptionMessage::new(&data_message)?;
+                        // Require both field_definition_number and developer_data_index
+                        // to create a unique key since third parties are not
+                        // always using this correctly, sometimes causing ID collisions
+                        field_descriptions.insert(
+                            (field_descr.field_definition_number, field_descr.developer_data_index),
+                            field_descr,
+                        );
+                    }
+
+                    data_messages.push(data_message);
+
+                    data_index += 1; // data message index
+                }
+            }
+        }
 
         Ok(Fit{
             path: path.to_owned(),
@@ -167,7 +301,7 @@ impl Fit {
     ///            ╰----- 1 = Compressed time stamp header
     /// ```
     pub(crate) fn bit_set(byte: u8, position: u8) -> bool {
-        assert!((0..=7).contains(&position)); // ensure u8 bit range.
+        assert!((0..=7).contains(&position)); // ensure u8 8-bit range.
         byte & (1 << position) != 0
     }
 
@@ -297,7 +431,7 @@ impl Fit {
     /// will be returned in `ParseError::ErrorAssigningFieldValue(FIELD_NO)`.
     /// 
     /// `default_on_error` ensures a time for first logged message can be returned.
-    /// If `default_on_error = true` no `timestamp_correlation`/`162` can be found,
+    /// If `default_on_error = true` and no `timestamp_correlation`/`162` can be found,
     /// Garmin's FIT base start time is used: 1989-12-31T00:00:00.000.
     /// VIRB and watches log timestamps differently. VIRB logs a relative timestamp
     /// from start of FIT-file that has to be augmented by a correlation value logged
@@ -321,28 +455,8 @@ impl Fit {
         )
     }
 
-    // pub fn duration(
-    //     &self,
-    //     range: Option<&Range<usize>>
-    // ) -> Result<(Duration, Duration), FitError> {
-    //     let range = range.cloned().unwrap_or(0 .. self.len());
-
-    //     let start_msg = self.records[range.to_owned()].iter()
-    //         .find(|rec| rec.global == 161)
-    //         .map(|rec| CameraEvent::new(rec));
-    //     let end_msg = self.records[range].iter().rev()
-    //         .find(|rec| rec.global == 161)
-    //         .map(|rec| CameraEvent::new(rec));
-
-    //     if let (Some(Ok(start)), Some(Ok(end))) = (start_msg, end_msg) {
-    //         return Ok((start.to_duration(), end.to_duration()))
-    //     }
-        
-    //     Err(FitError::NoSuchSession)
-    // }
-
     /// Returns `PrimitiveDateTime` object for FIT
-    /// start datetime 1989-12-31 00:00:00.000.
+    /// start datetime `1989-12-31 00:00:00.000`.
     // pub fn fit_datetime(&self, offset_hours: Option<i8>) -> Result<PrimitiveDateTime, FitError> {
     fn fit_basetime() -> Result<PrimitiveDateTime, FitError> {
         let basetime = Date::from_calendar_date(1989, Month::December, 31)?
@@ -376,60 +490,9 @@ impl Fit {
         });
     }
 
-    // /// VIRB only.
-    // /// Derives start, end times of recording session via slice range
-    // /// as tuple `(start, end)`.
-    // pub fn session_datetime(&self, range: &Range<usize>, offset_hrs: Option<i64>, default_on_error: bool) -> Result<(PrimitiveDateTime, PrimitiveDateTime), FitError> {
-    //     let t0 = self.t0(offset_hrs.unwrap_or(0), default_on_error)?;
-    //     // let (start_dur, end_dur) = self.session_duration(uuid)?;
-    //     let (start_dur, end_dur) = self.duration(Some(range))?;
-
-    //     Ok((t0 + start_dur, t0 + end_dur))
-    // }
-
-    // /// VIRB only.
-    // /// Derives relative start, end as duration from start of FIT-file
-    // /// for recording session via starting UUID as tuple `(start::<chrono::Duration>, end::<chrono::Duration>)`.
-    // pub fn session_duration(&self, uuid: &str) -> Result<(Duration, Duration), FitError> {
-    //     let video_start_event = 0;
-    //     let video_end_event = 2;
-
-    //     let camera_events = self.cam(None)?;
-
-    //     let mut video_start: Option<chrono::Duration> = None;
-    //     let mut video_end: Option<chrono::Duration> = None;
-
-    //     for event in camera_events.iter() {
-    //         if video_start.is_none()
-    //             && event.camera_file_uuid == uuid
-    //             && event.camera_event_type == video_start_event
-    //         {
-    //             let sec = chrono::Duration::seconds(event.timestamp as i64);
-    //             let ms = chrono::Duration::milliseconds(event.timestamp_ms as i64);
-    //             video_start = Some(sec + ms);
-    //             // start_idx = Some(event.index);
-    //             // println!("START VIDEO: {video_start:?}\nSTART UUID: {}", event.camera_file_uuid);
-    //             // println!("START EVENT: {}", event.camera_event_type);
-    //         }
-
-    //         if video_start.is_some() && video_end.is_none() {
-    //             if event.camera_event_type == video_end_event {
-    //                 let sec = chrono::Duration::seconds(event.timestamp as i64);
-    //                 let ms = chrono::Duration::milliseconds(event.timestamp_ms as i64);
-    //                 video_end = Some(sec + ms);
-    //                 break
-    //                 // end_idx = Some(event.index);
-    //                 // println!("END VIDEO: {video_end:?}\nEND UUID: {}", event.camera_file_uuid);
-    //                 // println!("END EVENT: {}", event.camera_event_type);
-    //             }
-    //         }
-    //     }
-    //     match (video_start, video_end) {
-    //         (Some(start), Some(end)) => Ok((start, end)),
-    //         _ => Err(FitError::Fatal(FitParseError::NoSessions))
-    //     }
-    // }
-
+    /// Garmin VIRB only.
+    /// 
+    /// Returns all `camera_event` messages in FIT-file.
     pub fn camera(&self, range: Option<&Range<usize>>) -> Result<Vec<CameraEvent>, FitError> {
         CameraEvent::from_fit(self, range)
     }
@@ -460,7 +523,8 @@ impl Fit {
     }
 
     /// Returns a sub-set of `Record/20` relating to location only.
-    /// Currently supported fields are (may not be present for all devices):
+    /// Currently supported fields are present for VIRB cameras,
+    /// but may not be for other devices:
     /// - timestamp, field definition number 253
     /// - latitude, field definition number 0
     /// - longitude, field definition number 1
@@ -468,6 +532,9 @@ impl Fit {
     /// - speed, field definition number 73
     /// - altitude, field definition number 78
     /// - gps_accuracy, field definition number 31
+    /// 
+    /// If `no_fail` is set to `true`, records with errors
+    /// relating to missing fields will be discarded.
     pub fn record(
         &self,
         range: Option<&Range<usize>>,

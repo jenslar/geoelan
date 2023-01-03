@@ -1,3 +1,7 @@
+//! UNIMPLEMENTED
+//! 
+//! Process gyroscope data.
+
 // [DEVC: 24 | DVID: 1 | DVNM: HERO9 Black | SIZE: 2172 | DUR: Some(400)] | TS: Some(23000) | 393/408] STRM SIZE: 536, NAME: Some("Gyroscope")
 //   STMP J 8 1
 //     Uint64([23058550])

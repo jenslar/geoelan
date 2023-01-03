@@ -1,4 +1,4 @@
-//! Core structure for GPMF raw values.
+//! Core structure for GPMF raw data values.
 
 use std::io::Cursor;
 
@@ -18,9 +18,9 @@ use crate::{GpmfError, gopro::Dvid, FourCC};
 /// Type descriptions are edited versions of GoPro's own, see <https://github.com/gopro/gpmf-parser>.
 /// 
 /// Notes:
-/// - Type `35`/`#` contains "Huffman compression STRM payloads.  4-CC <type><size><rpt> <data ...> is compressed as 4-CC '#'<new size/rpt> <type><size><rpt> <compressed data ...>" (see above GitHub repo).
+/// - Type `35`/`#` contains "Huffman compression STRM payloads. 4-CC <type><size><rpt> <data ...> is compressed as 4-CC '#'<new size/rpt> <type><size><rpt> <compressed data ...>" (see above GitHub repo).
 /// It is currently parsed into `Vec<u8>`, but no further decoding or processing is implemented.
-/// - Strings except `Value::Utf8()` variant map to ISO8859-1 as a single-byte (0-255) extension of ascii. I.e. `String::from_utf8(Vec<u8>)` would be incorrect or fail for values above 127. See <https://github.com/gopro/gpmf-parser/issues/143#issuecomment-952125684>. `u8 as char` is used as a workaround to produce 
+/// - Strings except `Value::Utf8()` variant map to ISO8859-1 as a single-byte (0-255) extension of ascii. I.e. `String::from_utf8(Vec<u8>)` would be incorrect or fail for values above 127. See <https://github.com/gopro/gpmf-parser/issues/143#issuecomment-952125684>. `u8 as char` is used as a workaround to produce valid UTF-8 string.
 /// 
 /// For the original C source, see:
 /// <https://github.com/gopro/gpmf-parser/blob/420930426c00a2ef3158847f967aed2acb2b06c1/GPMF_common.h>

@@ -1,3 +1,7 @@
+//! GoPro media unique ID (`MUID`). Logged in the MP4 user data atom `udta`.
+//! Unique media ID that unfortunately does not contain any sequential information
+//! for video clips.
+
 /// Media unique ID, extracted from the
 /// `udta` atom of an unedited GoPro MP4 file.
 /// Eight values.

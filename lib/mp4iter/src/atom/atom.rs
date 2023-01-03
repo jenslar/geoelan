@@ -1,47 +1,16 @@
+//! MP4 atom.
+
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 use binread::{BinReaderExt, BinRead, BinResult};
 
-use crate::{errors::Mp4Error, fourcc::FourCC};
+use crate::{errors::Mp4Error, fourcc::FourCC, CONTAINER};
 
 use super::{Hdlr, Stco, Stsz, Stts, Udta, UdtaField};
 
-
-// /// Values extracted from GoPro MP4 to determine offset, size, duration for each DEVC chunk:
-// /// - `position` in bytes, from `stco` atom
-// /// - `size` in bytes, from `stsz` atom
-// /// - `duration` in time units, from `stts` atom, milliseconds so far (needs to be verified)
-// #[derive(Debug, Clone)]
-// pub struct Offset {
-//     /// Byte offset derived from `stco` atom
-//     /// under GoPro MET
-//     pub position: u32,
-//     /// Byte size derived from `stsz` atom
-//     /// under GoPro MET
-//     pub size: u32,
-//     /// Sample duration in milliseconds (?)
-//     /// derived from `stts` atom under GoPro MET
-//     pub duration: u32, // from stts atom in GoPro MET
-// }
-
-// // If the atom is a "container",
-// // it's nested and contains more atoms,
-// // within its specified, total size.
-// const CONTAINERS: [&'static str; 10] = [
-//     "moov", // offset tables, timing, metadata, telemetry
-//     "trak", // moov -> trak
-//     "tref", // moov -> trak -> tref
-//     "edts", // moov -> trak -> edts
-//     "mdia", // moov -> trak -> mdia
-//     "minf", // moov -> trak -> mdia -> minf
-//     "dinf", // moov -> trak -> mdia -> minf -> dinf
-//     "dref", // moov -> trak -> mdia -> minf -> dinf -> dref
-//     "stbl", // moov -> trak -> mdia -> minf -> stbl, contains timing (stts), offsets (stco)
-//     "stsd", // moov -> trak -> mdia -> minf -> stbl -> stsd
-// ];
-
-/// MP4 atom.
-pub struct Atom {
+/// Atom header.
+#[derive(Debug, Clone)]
+pub struct AtomHeader {
     /// Total size in bytes including 8 byte "header"
     /// (4 bytes size, 4 bytes Four CC)
     pub size: u64,
@@ -49,6 +18,20 @@ pub struct Atom {
     pub name: FourCC,
     /// Byte offset in MP4.
     pub offset: u64,
+}
+
+impl AtomHeader {
+    /// Convenience method to check whether atom at current offset is
+    /// a container or not.
+    pub fn is_container(&self) -> bool {
+        CONTAINER.contains(&self.name.to_str())
+    }
+}
+
+/// MP4 atom.
+pub struct Atom {
+    /// Header
+    pub header: AtomHeader,
     /// Raw data load, excluding 8 byte header (size + name).
     pub cursor: Cursor<Vec<u8>>
 }
@@ -56,6 +39,14 @@ pub struct Atom {
 impl Atom {
     // pub fn new(cursor: &mut Cursor<Vec<u8>>) {
 
+    // }
+
+    pub fn size(&self) -> u64 {
+        self.header.size
+    }
+
+    // pub fn name(&self) -> &FourCC {
+    //     &self.header.name
     // }
 
     pub fn iter(&mut self) {}
@@ -74,7 +65,7 @@ impl Atom {
 
     /// Read cursor to string.
     pub fn read_to_string(&mut self) -> std::io::Result<String> {
-        // get the byte len (NOT UTF-8 len).
+        // get number of bytes (NOT number of UTF-8 graphemes).
         let len = self.cursor.get_ref().len();
         let mut string = String::with_capacity(len);
         self.cursor.read_to_string(&mut string)?;
@@ -115,9 +106,9 @@ impl Atom {
     /// Ensures user specified name (Four CC),
     /// matches that of current `Atom`.
     fn match_name(&self, name: &FourCC) -> Result<(), Mp4Error> {
-        if &self.name != name {
+        if &self.header.name != name {
             Err(Mp4Error::AtomMismatch{
-                got: self.name.to_str().to_owned(),
+                got: self.header.name.to_str().to_owned(),
                 expected: name.to_str().to_owned()
             })
         } else {
@@ -214,6 +205,7 @@ impl Atom {
         })
     }
 
+    /// User data atom. Contains custom data depending on vendor.
     pub fn udta(&mut self) -> Result<Udta, Mp4Error> {
         self.match_name(&&FourCC::Udta)?;
 
@@ -221,7 +213,7 @@ impl Atom {
 
         // Atom::size includes 8 byte header
         // TODO remove header bytes from cursor instead? Cleaner, consistent
-        while self.cursor.position() < self.size - 8 {
+        while self.cursor.position() < self.header.size - 8 {
             let size = self.read::<u32>()?;
             let name = FourCC::from_str(&self.name(self.cursor.position())?);
 

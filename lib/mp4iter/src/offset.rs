@@ -1,5 +1,10 @@
-//! MP4 offset. Values are derived from `stco`, `stts`, and `stsz` atoms.
+//! MP4 byte offset (derived from `stco` atom), size in bytes (derived from `stsz` atom),
+//! and duration (derived from `stts`atom) in milliseconds
+//! for a chunk of data.
 
+/// MP4 byte offset (from `stco` atom), size in bytes (from `stsz` atom),
+/// and duration (from `stts`atom) in milliseconds
+/// for a chunk of data.
 #[derive(Debug)]
 pub struct Offset {
     /// Offset in bytes from start of file.
@@ -16,11 +21,3 @@ impl Offset {
         Self{position, size, duration}
     }
 }
-
-// pub struct Offsets(Vec<Offset>);
-
-// impl Offsets {
-//     pub fn time(&self) -> Vec<u32> {
-//         self.0.iter().fold(0, |acc|)
-//     }
-// }

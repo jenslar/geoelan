@@ -1,3 +1,26 @@
+//! GoPro core GPMF struct and methods.
+//! 
+//! Input:
+//! - original, unedited GoPro MP4 clips
+//! - raw GPMF "files" extracted via e.g. FFmpeg
+//! - byte slices
+//! - original, unedited GoPro JPEG files
+//! 
+//! Content will vary between devices and data types.
+//! Note that timing is derived directly from the MP4 container, meaning GPMF tracks
+//! exported with FFmpeg will not have relative time stamps for each data cluster.
+//!
+//! ```rs
+//! use gpmf_rs::Gpmf;
+//! use std::path::Path;
+//! 
+//! fn main() -> std::io::Result<()> {
+//!     let path = Path::new("GOPRO_VIDEO.MP4");
+//!     let gpmf = Gpmf::new(&path)?;
+//!     Ok(())
+//! }
+//! ```
+
 use std::collections::HashSet;
 use std::io::Cursor;
 use std::path::{PathBuf, Path};
@@ -6,6 +29,7 @@ use jpegiter::{Jpeg, JpegTag};
 use rayon::prelude::{IntoParallelRefMutIterator, IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use super::{FourCC, Timestamp, Stream};
+use crate::StreamType;
 use crate::{
     Gps,
     GoProPoint,
@@ -35,8 +59,9 @@ impl Gpmf {
     /// ```
     /// use gpmf_rs::Gpmf;
     /// use std::path::Path;
+    /// 
     /// fn main() -> std::io::Result<()> {
-    ///     let path = Path::new("PATH/TO/GOPRO.MP4");
+    ///     let path = Path::new("GOPRO_VIDEO.MP4");
     ///     let gpmf = Gpmf::new(&path)?;
     ///     Ok(())
     /// }
@@ -61,7 +86,8 @@ impl Gpmf {
         let mut mp4 = mp4iter::Mp4::new(path)?;
 
         // TODO 220812 REGRESSION CHECK: DONE.
-        // TODO        Mp4::offsets() 2-3x slower with new code (4GB file), though in microsecs 110-200us old vs 240-600us new.
+        // TODO        Mp4::offsets() 2-3x slower with new code (4GB file),
+        // TODO        though in microsecs: 110-200us old vs 240-600us new.
         // 1. Extract position/byte offset, size, and time span for GPMF chunks.
         let offsets = mp4.offsets("GoPro MET")?;
         
@@ -87,7 +113,7 @@ impl Gpmf {
             })
             .collect::<Result<Vec<_>, GpmfError>>()?;
 
-        assert_eq!(timestamps.len(), cursors.len(), "Timestamps and cursors differ in length for GPMF");
+        assert_eq!(timestamps.len(), cursors.len(), "Timestamps and cursors differ in number for GPMF");
 
         // 3. Parse each data chunk/cursor into Vec<Stream>.
         let streams = cursors.par_iter_mut().zip(timestamps.par_iter())
@@ -113,25 +139,18 @@ impl Gpmf {
     }
 
     /// Returns the embedded GPMF stream in a GoPro photo, JPEG only.
-    pub fn from_jpg(path: &Path) -> std::io::Result<()> {
-        // Find and extract EXIf chunkg with GPMF, then .from_cursor()
-        // println!("reading as JPEG");
-        let mut jpeg = Jpeg::new(path)?;
-        let exif = jpeg.exif()?;
-        println!("{exif:?}");
-        // println!("iterating over JPEG");
-        // while let Ok(segment) = jpeg.next() {
-        //     match segment.tag {
-        //         JpegTag::APP1 => println!("{:?}", segment),
-        //         JpegTag::SOS => {
-        //             println!("START OF SCAN, BREAKING LOOP");
-        //             break
-        //         },
-        //        _ => ()
-        //     }
-        // }
+    pub fn from_jpg(path: &Path) -> Result<Self, GpmfError> {
+        // Find and extract EXIf chunk with GPMF
+        let segment = Jpeg::new(path)?
+            .find(&JpegTag::APP6)
+            .map_err(|err| GpmfError::JpegError(err))?;
 
-        Ok(())
+        if let Some(mut app6) = segment {
+            app6.seek(6); // seek past `GoPro\null`
+            return Self::from_cursor(&mut app6.data)
+        } else {
+            Err(GpmfError::InvalidFileType { path: path.to_owned() })
+        }
     }
 
     /// Returns GPMF from a "raw" GPMF-file,
@@ -167,7 +186,6 @@ impl Gpmf {
     /// GPMF from `Cursor<Vec<u8>>`.
     pub fn from_cursor(cursor: &mut Cursor<Vec<u8>>) -> Result<Self, GpmfError> {
         Ok(Self{
-            // streams: Stream::new(cursor)?,
             streams: Stream::new(cursor, None)?,
             source: vec![]
         })
@@ -208,17 +226,23 @@ impl Gpmf {
     }
 
     /// Find streams with specified FourCC.
-    pub fn find(&self, fourcc: &FourCC, recurse: bool) {
-        unimplemented!("TODO: IMPLEMENT OPTIONALLY RECIRSIVE FOURCC SEARCH")
-        // self.iter()
-        //     .map(|stream| {
-        //         match stream.streams {
-        //             StreamType::Nested(s) => {
+    pub fn find(&self, fourcc: &FourCC) -> Option<&Stream> {
+        // unimplemented!("TODO: IMPLEMENT OPTIONALLY RECIRSIVE FOURCC SEARCH")
+        for stream in self.iter() {
+            if stream.fourcc() == fourcc {
+                return Some(stream)
+            }
+            match &stream.streams {
+                StreamType::Nested(s) => {
+                    for strm in s.iter() {
+                        strm.find(fourcc);
+                    }
+                },
+                StreamType::Values(v) => return None
+            }
+        }
 
-        //             }
-        //             StreamType::Values(v)
-        //         }
-        //     })
+        None
     }
 
     /// Move multiple `Stream`s from `streams` to `self.streams`.
@@ -277,7 +301,7 @@ impl Gpmf {
     pub fn names(&self) -> Vec<String> {
         // TODO perhaps use HashSet instead?
         let mut names: Vec<String> = Vec::new();
-        for (i1, devc_stream) in self.streams.iter().enumerate() {
+        for (_i1, devc_stream) in self.streams.iter().enumerate() {
             names.extend(
             devc_stream.find_all(&FourCC::STRM)
                 .iter()
@@ -329,7 +353,7 @@ impl Gpmf {
     /// Returns first `Timestamp` in GPMF stream.
     pub fn first_timestamp(&self) -> Option<&Timestamp> {
         self.first()
-        .and_then(|devc| devc.time.as_ref())
+            .and_then(|devc| devc.time.as_ref())
     }
     
     /// Returns last `Timestamp` in GPMF stream.
@@ -337,13 +361,6 @@ impl Gpmf {
         self.last()
             .and_then(|devc| devc.time.as_ref())
     }
-
-    // /// Device name. Extracted from first `Stream`.
-    // pub fn device_name_old(&self) -> Option<String> {
-    //     self.streams
-    //         .first()
-    //         .and_then(|s| s.device_name())
-    // }
 
     /// Device name. Extracted from first `Stream`.
     pub fn device_name(&self) -> Vec<String> {
@@ -357,7 +374,7 @@ impl Gpmf {
         names
     }
 
-    /// Device id. Extracted from first `Stream`.
+    /// Device ID. Extracted from first `Stream`.
     pub fn device_id(&self) -> Option<Dvid> {
         self.streams
             .first()
@@ -365,8 +382,9 @@ impl Gpmf {
     }
 
     /// Returns all GPS streams as Vec<Point>`. Each returned point is a processed,
-    /// linear average of `GPS5` (should be accurate enough for the 18Hz GPS,
-    /// but implementing a latitude dependent longitude average is a future possibility).
+    /// linear average of `GPS5`. Should be accurate enough for the 10 or 18Hz GPS
+    /// used by GoPro, but implementing a latitude dependent average
+    /// is a future possibility.
     pub fn gps(&self) -> Gps {
         Gps(self.filter_iter(&ContentType::Gps)
             .flat_map(|s| GoProPoint::new(&s)) // TODO which Point to use?

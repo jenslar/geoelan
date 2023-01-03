@@ -1,3 +1,5 @@
+//! FIT message types as described in [FIT SDK](https://developer.garmin.com/fit/overview/) Profile.xslx.
+
 use std::collections::HashMap;
 
 use super::profile::get_messagetype;
@@ -22,7 +24,7 @@ impl FitMessageType {
 /// FIT Message Field Type as specified in Profile.xlsx "Messages" sheet
 /// Used for getting field name and transforming raw values.
 /// Note that not some fields may not have scale/offset,
-/// but still require further processing, e.g. latiture/longitude
+/// but still require further processing, e.g. latitude/longitude
 /// in gps_metadata/160.
 #[derive(Debug, Clone)]
 pub struct FitFieldType {

@@ -78,7 +78,10 @@ impl Stream {
             
             let pad = header.pad;
 
+            // println!("{:?}", header.fourcc);
+
             match header.basetype {
+                // 0 = Container/nested stream
                 0 => {
                     // Create new stream after header offset if GPMF chunk is a container.
                     // Set byte read limit to avoid embedding containers/0 in each other indefinitely if they
@@ -92,6 +95,7 @@ impl Stream {
                     })
                 },
 
+                // Anything else will contain data values
                 _ => {
                     let mut values: Vec<Value> = Vec::new();
 
@@ -134,60 +138,6 @@ impl Stream {
         Ok(streams)
     }
 
-    // /// Compiles all GPMF streams in GoPro MP4-file into single,
-    // /// nested `Vec<Stream>` with timestamps derived from MP4.
-    // pub fn compile(mp4_path: &Path) -> Result<Vec<Stream>, GpmfError> {
-    //     let mut mp4 = mp4iter::Mp4::new(mp4_path)?;
-
-    //     // TODO 220812 REGRESSION CHECK: DONE.
-    //     // TODO        Mp4::offsets() 2-3x slower with new code (4GB file), though in microsecs 110-200us old vs 240-600us new.
-    //     // 1. Extract position/byte offset, size, and time span for GPMF chunks.
-    //     let offsets = mp4.offsets("GoPro MET")?;
-        
-    //     // Faster than a single, serial iter so far.
-    //     // 2. Read data at MP4 offsets and generate timestamps serially
-    //     let mut timestamps: Vec<Timestamp> = Vec::new();
-    //     let mut cursors = offsets.iter()
-    //         .map(|o| {
-    //             // Create timestamp
-    //             let timestamp = timestamps.last()
-    //                 .map(|t| Timestamp {
-    //                     relative: t.relative + o.duration,
-    //                     duration: o.duration,
-    //                 }).unwrap_or(Timestamp {
-    //                     relative: 0,
-    //                     duration: o.duration
-    //                 });
-    //             timestamps.push(timestamp);
-
-    //             // Read and return data at MP4 offsets
-    //             mp4.read_at(o.position as u64, o.size as u64)
-    //                 .map_err(|e| GpmfError::Mp4Error(e))
-    //         })
-    //         .collect::<Result<Vec<_>, GpmfError>>()?;
-
-    //     assert_eq!(timestamps.len(), cursors.len(), "Timestamps and cursors differ in length for GPMF");
-
-    //     // 3. Parse each data chunk/cursor into Vec<Stream>.
-    //     let streams = cursors.par_iter_mut().zip(timestamps.par_iter())
-    //         .map(|(cursor, t)| {
-    //             let stream = Stream::new(cursor, None)
-    //                 .map(|mut strm| {
-    //                     // 1-2 streams. 1 for e.g. Hero lineup, 2 for Karma drone (1 for drone, 1 for attached cam)
-    //                     strm.iter_mut().for_each(|s| s.set_time(t));
-    //                     strm
-    //                 });
-    //             stream
-    //         })
-    //         .collect::<Result<Vec<_>, GpmfError>>()? // Vec<Vec<Stream>>, need to flatten
-    //         .par_iter()
-    //         .flatten_iter() // flatten will mix drone data with cam data, perhaps bad idea
-    //         .cloned()
-    //         .collect::<Vec<_>>();
-
-    //     Ok(streams)
-    // }
-    
     /// Set relative timestamp for GPMF stream.
     pub fn set_time(&mut self, time: &Timestamp) {
         self.time = Some(time.to_owned());
@@ -359,6 +309,7 @@ impl Stream {
     //     }
     // }
     // pub fn find_all(&self, fourcc: &FourCC, recursive: bool) -> Vec<Self> {
+        
     /// Find all stream with specified FourCC. Matches current stream
     /// and direct decendants.
     pub fn find_all(&self, fourcc: &FourCC) -> Vec<Self> {

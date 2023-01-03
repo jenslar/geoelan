@@ -1,3 +1,7 @@
+//! GoPro recording type, relating to whether e.g. the camera was set up to loop or record normally.
+//! 
+//! See <https://community.gopro.com/s/article/GoPro-Camera-File-Naming-Convention?language=en_US>
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum RecordingType {
     Chaptered, // XXXX in GH01XXXX -> 1234 in GH011234, serves as session id

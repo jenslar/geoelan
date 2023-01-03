@@ -1,3 +1,5 @@
+//! [FIT SDK](https://developer.garmin.com/fit/overview/) message types taken from Profile.xslx.
+
 use std::collections::HashMap;
 
 use super::message_type::{FitFieldType, FitMessageType};

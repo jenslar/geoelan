@@ -119,6 +119,9 @@ impl Jpeg {
         Ok(None)
     }
 
+    /// Attempt to locate EXIF data.
+    /// Specifically for extracting GoPro GPMF data,
+    /// which seemingly has tag `APP1`.
     pub fn exif(&mut self) -> Result<Option<Segment>, JpegError> {
         self.find(&JpegTag::APP1)
     } 

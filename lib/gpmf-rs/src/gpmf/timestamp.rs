@@ -1,3 +1,5 @@
+//! Convenience structure for dealing with relative timestamps.
+
 use time;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd)]

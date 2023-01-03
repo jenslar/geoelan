@@ -1,7 +1,8 @@
-//! Various FIT related parse errors.
+//! Various FIT errors, including a few conversions.
 
 use std::{fmt, string::FromUtf8Error};
 
+/// Core FIT error enum.
 #[derive(Debug)]
 pub enum FitError {
     /// Converted `BinResult` error.

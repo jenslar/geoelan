@@ -56,7 +56,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     println!("---");
     for (i1, session) in sessions.iter().enumerate() {
-        println!("Session {}.\n  FIT-file: {}", i1+1, session.fit.path.display());
+        println!("[ Session {} ]\n  FIT-file: {}", i1+1, session.fit.path.display());
         for (i2, virbfile) in session.virb.iter().enumerate() {
             println!(" {:2}. UUID: {}", i2+1, virbfile.uuid);
             println!("      MP4: {:?}", virbfile.mp4()

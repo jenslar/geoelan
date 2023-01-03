@@ -1,3 +1,5 @@
+//! FIT definition message field.
+
 use binread::BinRead;
 
 use super::DataFieldAttributes;
@@ -8,25 +10,28 @@ use crate::{errors::FitError, types::FieldDescriptionMessage};
 pub struct BaseTypeDefinition(u8);
 
 impl BaseTypeDefinition {
+    /// New base type definition.
     pub fn new(def: u8) -> Self {
         Self(def)
     }
+
     /// Returns `false` for single byte type data (e.g. `u8`).
     /// Returns `true` for multi-byte data (e.g. `i32`).
     pub fn endian_ability(&self) -> bool {
         Fit::bit_set(self.0, 7)
     }
 
-    /// Reserved bits
+    /// Returns reserved bits as numerical value.
     pub fn reserved(&self) -> u8 {
         0b0110_0000 & self.0
     }
 
-    /// FIT Base Type Number
+    /// Returns FIT Base Type Number.
     pub fn number(&self) -> u8 {
         0b0000_1111 & self.0
     }
 
+    /// Returns byte length for FIT base types.
     pub fn base_len(&self) -> Result<u8, FitError> {
         match self.number() {
             0              // u8
@@ -56,21 +61,25 @@ impl BaseTypeDefinition {
     }
 }
 
+/// FIT message field definition.
 #[derive(Debug, Clone, BinRead)]
 pub struct DefinitionField {
+    /// Field definition number.
     pub field_def_no: u8,
     /// Size in bytes.
     /// Multiples of base_type size,
     /// e.g. multiple of 2 for 16bit values,
     /// which indicates multiple values.
     pub size: u8,
+    /// FIT base type (0-16).
     pub base_type: BaseTypeDefinition,
+    /// Fit field attributes.
     #[br(default)]
     pub attributes: Option<DataFieldAttributes>
 }
 
 impl DefinitionField {
-    /// Augment `FieldDefinition` with developer data definitions,
+    /// Augment `DefinitionField` with developer data definitions,
     /// via `FieldDescriptionMessage`.
     pub fn augment(&mut self, field_descr: &FieldDescriptionMessage) {
         self.field_def_no = field_descr.field_definition_number;

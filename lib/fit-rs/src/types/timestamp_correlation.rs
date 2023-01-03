@@ -1,3 +1,8 @@
+//! Timestamp correlation message (global ID 162). Logged by (at least) Garmin VIRB cameras
+//! at satellite sync (?) to allow for shifting the relative timeline to an absolute one.
+//! 
+//! Other devices may not need or log this value.
+
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::fit::DataMessage;
@@ -20,6 +25,7 @@ pub struct TimestampCorrelation {
 }
 
 impl TimestampCorrelation {
+    /// Returns a `TimestampCorrelation`/162 from a restructured `DataMessage`.
     pub fn new(data_message: &DataMessage) -> Result<Self, FitError> {
         let global_id = 162_u16;
 

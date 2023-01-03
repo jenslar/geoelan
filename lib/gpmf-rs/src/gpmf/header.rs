@@ -1,3 +1,5 @@
+//! GPMF header that precedes each GPMF stream.
+
 use std::{io::Cursor, fmt};
 
 use binread::BinReaderExt;
@@ -5,6 +7,7 @@ use binread::BinReaderExt;
 use super::FourCC;
 use crate::GpmfError;
 
+/// GPMF header.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Header {
     /// FourCC.

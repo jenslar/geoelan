@@ -1,3 +1,5 @@
+//! GoPro recording session.
+
 use std::path::{Path, PathBuf};
 
 use crate::{Gpmf, GpmfError};

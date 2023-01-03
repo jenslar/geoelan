@@ -1,9 +1,12 @@
+//! FIT file level header.
+
 use std::io::Cursor;
 
 use binread::{BinRead, BinReaderExt};
 
 use crate::errors::FitError;
 
+/// FIT file level header.
 #[derive(Debug, Copy, Clone, Default, BinRead)]
 pub struct FitHeader {
     /// Byte 0: size of header

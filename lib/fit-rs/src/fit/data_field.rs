@@ -1,3 +1,5 @@
+//! FIT data message field.
+
 use std::fmt;
 use std::io::Cursor;
 
@@ -8,8 +10,8 @@ use super::DefinitionField;
 
 use super::value::Value;
 
+/// FIT data message field.
 #[derive(Debug, Clone)]
-/// FIT message field, containing data.
 pub struct DataField {
     /// Field definition.
     pub definition: DefinitionField,
@@ -18,10 +20,15 @@ pub struct DataField {
     /// Required for developer data.
     pub attributes: Option<DataFieldAttributes>,
     /// Data values.
-    pub data: Value, // Container enum for Vec<T>: where T are types defined in FIT SDK
+    /// Container enum for Vec<T>,
+    /// where T are types defined in the
+    /// [FIT SDK](https://developer.garmin.com/fit/)
+    pub data: Value,
 }
 
 impl DataField {
+    /// New FIT data message field. `cursor` represents the full FIT file data load,
+    /// but its offset must be at the start of a data message field.
     pub fn new(cursor: &mut Cursor<Vec<u8>>, field_def: &DefinitionField, arch: u8) -> Result<Self, FitError> {
         Ok(Self {
             definition: field_def.to_owned(),
@@ -29,6 +36,11 @@ impl DataField {
             data: Value::new(cursor, field_def, arch)?
         })
     }
+
+    // pub fn value<T>(&self) -> Option<Vec<T>> {
+    //     self.data.into()
+    //     // None
+    // }
 
     /// FIT field definition number.
     pub fn field_def_no(&self) -> u8 {
@@ -42,44 +54,52 @@ impl DataField {
         }
     }
 
+    /// Returns field name if set.
     pub fn name(&self) -> Option<&str> {
         self.attributes.as_ref()
-            .map(|attr| attr.name.as_str())
+        .map(|attr| attr.name.as_str())
     }
-
+    
+    /// Returns field scale if set.
     pub fn scale(&self) -> Option<u32> {
         self.attributes.as_ref()
-            .and_then(|attr| attr.scale)
+        .and_then(|attr| attr.scale)
     }
-
+    
+    /// Returns field offset if set.
     pub fn offset(&self) -> Option<i32> {
         self.attributes.as_ref()
-            .and_then(|attr| attr.offset)
+        .and_then(|attr| attr.offset)
     }
-
+    
+    /// Returns field units if set.
     pub fn units(&self) -> Option<&str> {
         self.attributes.as_ref()
             .and_then(|attr| attr.units.as_deref())
     }
 
+    /// Set field name.
     pub fn set_name(&mut self, name: &str) {
         self.init_attr();
         self.attributes.as_mut()
-            .map(|attr| attr.name = name.to_owned());
+        .map(|attr| attr.name = name.to_owned());
     }
-
+    
+    /// Set field scale.
     pub fn set_scale(&mut self, scale: Option<u32>) {
         self.init_attr();
         self.attributes.as_mut()
-            .map(|attr| attr.scale = scale);
+        .map(|attr| attr.scale = scale);
     }
-
+    
+    /// Set field offset.
     pub fn set_offset(&mut self, offset: Option<i32>) {
         self.init_attr();
         self.attributes.as_mut()
-            .map(|attr| attr.offset = offset);
+        .map(|attr| attr.offset = offset);
     }
-
+    
+    /// Set field units.
     pub fn set_units(&mut self, units: Option<&str>) {
         self.init_attr();
         self.attributes.as_mut()
@@ -98,10 +118,6 @@ impl fmt::Display for DataField {
             self.offset().as_ref().map_or(&0, |v| v),
             self.units().map_or("N/A", |n| &n[..]),
             self.data, // bad display for fields with large arrays, e.g. 3d sensor data
-            // "{:4} {:?} {:?}",
-            // self.field_def_no(),
-            // self.attributes,
-            // self.data, // bad display for fields with large arrays, e.g. 3d sensor data
         )
     }
 }
