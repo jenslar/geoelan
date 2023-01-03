@@ -16,7 +16,7 @@ By annotating a section representing an on-site utterance, a plant that is in vi
 - See the `doc` directory for the full manual and a brief A4-guide.
 
 ### Installation
-- See the `bin` directory for pre-compiled executables for Linux (Ubuntu Intel x86), macOS (Intel x86 + Apple Silicon), and Windows (Intel x86). The `.sha256` text-files contain the SHA-256 hashes for each build.
+- See the `bin` directory for pre-compiled executables for macOS (Intel x86 + Apple Silicon), and Windows (Intel x86). Version 2.1 binaries for Linux are not yet added, but you can always compile on your own in the meantime.
 
 ### Compile and install from source
 
@@ -101,7 +101,7 @@ OUTDIR/VIRB0001-1/
 ### GoPro
 **Command**
 ```sh
-geoelan gopro2eaf --video INDIR/GH010026.MP4 --indir INDIR/ --outdir OUTDIR/
+geoelan gopro2eaf --gpmf INDIR/GH010026.MP4 --indir INDIR/ --outdir OUTDIR/
 ```
 
 **Output files**
@@ -120,7 +120,7 @@ OUTDIR/GH010026/
 GeoELAN locates and concatenates all clips belonging to the recording session starting with `VIRB0001-1.MP4`/`GH010026.MP4`, then generates an ELAN-file with the resulting audio and video files pre-linked.
 
 The relevant sub-commands are `virb2eaf`/`gopro2eaf`, depending on camera.
-By specifying any clip in the recording session  via `--video`, the remaining clips (GoPro + VIRB), including the corresponding FIT-file (VIRB), will be automatically located as long as these exist somewhere in the specified input directory (`--indir`). Sub-directories will be searched as well. The result, including the corresponding FIT-file for VIRB cameras, will be saved to the specified outout directory (`--outdir`).
+By specifying any clip in the recording session  via `--video` (VIRB), or `--gpmf` (GoPro), the remaining clips, including the corresponding FIT-file (VIRB), will be automatically located as long as these exist somewhere in the specified input directory (`--indir`). Sub-directories will be searched as well. The result, including the corresponding FIT-file for VIRB cameras, will be saved to the specified outout directory (`--outdir`).
 
 If low-resolution clips (`.GLV`/`.LRV`) are located, a concatenated low-resolution video will be linked in the ELAN-file. If not, the concatenated high-resolution video will be linked instead.
 
@@ -206,7 +206,7 @@ The relevant command is `eaf2geo`. By specifying an ELAN-file (`--eaf`) and the 
 
 `--geoshape point-single` lets GeoELAN know that each, respective annotation should be distilled into a single point, meaning that the generated KML-file will contain as many points as there are annotations in the selected tier. Each point inherits the corresponding annotation text for the selected tier as its description. The KML-file is named according to the selected `--geoshape` option, in this case `VIRB0001-1_point-single.kml`/`GH010026_point-single.kml`.
 
-If the proces fails for VIRB footage, the user will be presented with a list of recording sessions present in the FIT-file (see _The FIT-format and the Garmin VIRB_). GoPro MP4-files lack the appropriate metadata to display such as list.
+If the process fails for VIRB footage, the user will be presented with a list of recording sessions present in the FIT-file (see _The FIT-format and the Garmin VIRB_). GoPro MP4-files lack the appropriate metadata to display such as list.
 
 Annotating placename utterances recorded on-site
 ![Annotating placename utterances in ELAN](doc/img/elan_placename.jpg "Annotating placename utterances recorded on-site")
