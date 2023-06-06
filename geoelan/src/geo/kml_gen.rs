@@ -25,7 +25,7 @@ use super::{
         KmlPolyStyle,
         KmlLineStyle,
         KmlStyleType
-    }
+    }, EafPoint
 };
 
 // pub fn kml_to_bytes(doc: &KmlDocument) -> Vec<u8> {
@@ -172,8 +172,8 @@ pub fn kml_timestamp(datetime_start: &PrimitiveDateTime, datetime_end: Option<&P
 /// and quick-xml escapes '<' etc, the CDATA tag shouldn't be needed.
 /// Currently works at least in Google Earth Desktop.
 pub fn kml_cdata(
-    point_start: &super::point::Point,
-    point_end: Option<&super::point::Point>
+    point_start: &EafPoint,
+    point_end: Option<&EafPoint>
 ) -> String {
     let p_start = format!("<tr><td>{} (lat, lon): {}, {}</td></tr>",
         if point_end.is_some() {"Coordinate, start"} else {"Coordinate"},
@@ -218,7 +218,7 @@ pub fn kml_cdata(
 }
 
 pub fn kml_point(
-    point: &super::point::Point, // not kml-rs point
+    point: &EafPoint,
     name: Option<&str>,
     height: Option<&f64>,
     cdata: bool,
@@ -261,7 +261,7 @@ pub fn kml_point(
 
 /// Generates KML line string, aka "poly-line", with datetime if set in specified points.
 pub fn kml_linestring(
-    points: &[super::point::Point],
+    points: &[EafPoint],
     name: Option<&str>,
     height: Option<&f64>,
     cdata: bool,
@@ -319,7 +319,7 @@ pub fn kml_linestring(
 /// clamp = true set altitude mode to `ClampToGround`,
 /// otherwise set to `RelativeToGround`
 pub fn kml_linearring(
-    center_point: &super::point::Point, // not kml crate Point!
+    center_point: &EafPoint, // not kml crate Point!
     name: Option<&str>,
     radius: f64,
     vertices: u8,
@@ -378,7 +378,7 @@ pub fn kml_linearring(
 }
 
 pub fn placemarks_from_geoshape(
-    points: &[super::point::Point],
+    points: &[EafPoint],
     geoshape: &GeoShape,
     name: Option<&str>,
     cdata: bool,

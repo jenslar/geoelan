@@ -9,7 +9,7 @@ use geojson::{
 };
 use serde_json::{Map, to_value, Number};
 
-use super::geoshape::GeoShape;
+use super::{geoshape::GeoShape, EafPoint};
 
 /// Generate GeoJSON Feature ID from numerical value.
 fn geojson_id(id: usize) -> Id {
@@ -17,7 +17,7 @@ fn geojson_id(id: usize) -> Id {
 }
 
 /// Generate GeoJSON properties from contents in `Point` (not kml or geojson crate point!).
-fn geojson_properties(points: &[super::point::Point]) -> Map<String, serde_json::Value> {
+fn geojson_properties(points: &[EafPoint]) -> Map<String, serde_json::Value> {
     let mut properties = Map::new();
 
     if let Some(descr) = points.first().and_then(|p| p.description.as_ref()) {
@@ -74,7 +74,7 @@ fn geojson_properties(points: &[super::point::Point]) -> Map<String, serde_json:
 }
 
 /// Generate GeoJSON point from `Point` (not kml or geojson crate point!)
-pub fn geojson_point(point: &super::point::Point, id: Option<usize>) -> Feature {
+pub fn geojson_point(point: &EafPoint, id: Option<usize>) -> Feature {
     let geometry = Geometry::new(
         Value::Point(vec!(point.longitude, point.latitude))
     );
@@ -91,7 +91,7 @@ pub fn geojson_point(point: &super::point::Point, id: Option<usize>) -> Feature 
 }
 
 /// Generate GeoJSON line string from `Point`s (not kml or geojson crate point!)
-pub fn geojson_linestring(points: &[super::point::Point], id: Option<usize>) -> Feature {
+pub fn geojson_linestring(points: &[EafPoint], id: Option<usize>) -> Feature {
     let linestring: Vec<Vec<f64>> = points.iter()
         .map(|p| vec!(p.longitude.to_owned(), p.latitude.to_owned()))
         .collect();
@@ -109,7 +109,7 @@ pub fn geojson_linestring(points: &[super::point::Point], id: Option<usize>) -> 
 }
 
 /// Generate GeoJSON circle (GeoJSON polygon) from `Point` representing centre (not kml or geojson crate point!)
-pub fn geojson_circle(center_point: &super::point::Point, id: Option<usize>, radius: f64, vertices: u8) -> Feature {
+pub fn geojson_circle(center_point: &EafPoint, id: Option<usize>, radius: f64, vertices: u8) -> Feature {
     // Generate points representing a closed circle from center point
     let points = center_point.circle(radius, vertices);
 
@@ -131,7 +131,7 @@ pub fn geojson_circle(center_point: &super::point::Point, id: Option<usize>, rad
     }
 }
 
-pub fn features_from_geoshape(points: &[super::point::Point], geoshape: &GeoShape, count: Option<usize>) -> Vec<Feature> {
+pub fn features_from_geoshape(points: &[EafPoint], geoshape: &GeoShape, count: Option<usize>) -> Vec<Feature> {
     let idx = count.unwrap_or(1);
     match geoshape {
         GeoShape::PointAll{..}
@@ -180,7 +180,7 @@ pub fn geojson_from_features(features: &[Feature]) -> GeoJson {
     GeoJson::FeatureCollection(collection)
 }
 
-pub fn geojson_from_clusters(clusters: &[Vec<super::point::Point>], geoshape: &GeoShape) -> GeoJson {
+pub fn geojson_from_clusters(clusters: &[Vec<EafPoint>], geoshape: &GeoShape) -> GeoJson {
     let features: Vec<Feature> = clusters.into_iter()
         .enumerate()
         .flat_map(|(i, p)| features_from_geoshape(

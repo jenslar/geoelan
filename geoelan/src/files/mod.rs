@@ -68,9 +68,10 @@ pub fn writefile(content: &[u8], path: &Path) -> std::io::Result<bool> {
     Ok(write)
 }
 
-/// Adds suffix to existing file stem of path and returns the new path.
+/// Adds pre/suffix, to existing file stem or changes extension of path and returns the new path.
 /// Returns path untouched if no file stem can be extracted.
-pub fn affix_file_name(path: &Path, prefix: Option<&str>, suffix: Option<&str>) -> PathBuf {
+// !!! TODO change to return option in order to avoid overwriting existing files
+pub fn affix_file_name(path: &Path, prefix: Option<&str>, suffix: Option<&str>, extension: Option<&str>) -> PathBuf {
     let prefix = prefix.unwrap_or("");
     let suffix = suffix.unwrap_or("");
 
@@ -79,8 +80,10 @@ pub fn affix_file_name(path: &Path, prefix: Option<&str>, suffix: Option<&str>) 
         None => path.to_owned()
     };
 
-    // Ensure return path has the same file ext as inpath
-    if let Some(ext) = path.extension() {
+    // Set specified extension, or ensure return path has the same file ext as inpath
+    if let Some(ext) = extension {
+        return new_path.with_extension(ext)
+    } else if let Some(ext) = path.extension() {
         return new_path.with_extension(ext)
     }
     

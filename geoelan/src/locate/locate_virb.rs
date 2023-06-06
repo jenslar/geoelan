@@ -1,6 +1,6 @@
 //! Locate and match Garmin VIRB MP4-clips. Uses embedded UUID to derive clip sequence, regardless of file name.
 
-use std::path::PathBuf;
+use std::{path::PathBuf, io::ErrorKind};
 use std::time::Instant;
 
 use fit_rs::{Fit, VirbSession};
@@ -45,8 +45,8 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     // ...and exit if not
     if session_specified && !session_found {
-        println!("(!) No files could be located for specified recording session.");
-        std::process::exit(0)
+        let msg = "(!) No files could be located for specified recording session.";
+        return Err(std::io::Error::new(ErrorKind::Other, msg))
     }
 
     let sessions = match session {
@@ -59,10 +59,12 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         println!("[ Session {} ]\n  FIT-file: {}", i1+1, session.fit.path.display());
         for (i2, virbfile) in session.virb.iter().enumerate() {
             println!(" {:2}. UUID: {}", i2+1, virbfile.uuid);
-            println!("      MP4: {:?}", virbfile.mp4()
-                .map(|p| p.display().to_string()).unwrap_or("NONE".to_owned()));
-            println!("      GLV: {:?}", virbfile.glv()
-                .map(|p| p.display().to_string()).unwrap_or("NONE".to_owned()));
+            println!("      MP4: {}", virbfile.mp4()
+                .and_then(|f| f.to_str())
+                .unwrap_or("High-resolution MP4 not set"));
+            println!("      GLV: {}", virbfile.glv()
+                .and_then(|f| f.to_str())
+                .unwrap_or("Low-resolution MP4 not set"));
         }
     }
 

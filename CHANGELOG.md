@@ -1,6 +1,31 @@
+# GeoELAN 2.5
+- Merged `gopro2eaf` and `virb2eaf` into the single command `cam2eaf`.
+- New command `plot`: rudimentary plotting of sensor data. Leverages `plotly.js` via [`plotly`](https://github.com/igiagkiozis/plotly).
+- Many under-the-hood changes, such as better sorting of GoPro clips, independent of GPS and filename.
+
+# GeoELAN v2.2
+- Changed repository from <https://gitlab.com/rwaai/geoelan> to <https://github.com/jenslar/geoelan>
+- Experimental: Possible to use coordinates imported into ELAN via the `--geotier` as export source for `eaf2geo`.
+- `gopro2eaf`: Low-resolution video supported (`.LRV`), if found LRV-files are default when linking in ELAN (similar to VIRB GLV). Link high-res video by using `--link-high-res`
+- The new `GPS9` data will be used for devices that log this (currently only Hero11)
+- Locating and matching GoPro clips no longer depends on filenames or path:
+	- MUID (Media Unique ID) or GUMI (Global Unique ID) is use for matching clips in session
+	- A hash of the partial, "raw" GPMF stream is used to match correspondging high and low-resolution clips
+	- Sorting clips in chronological order currently depends on GPS. (fallback to filename sorting not yet implemented)
+	- Note: Due to limited access to various GoPro models, matching and grouping clips may not yet work as expected for Hero 8 - 10.
+- Changed or removed command line arguments for some commands
+- All internally developed Rust crates are updated and now located at <https://github.com/jenslar> (also specified as source in `Cargo.toml`)
+
+# GeoELAN v2.1.1
+- Changed average time to float based calculation for points in `geo::mod::point_cluster_average()`
+- Changed format for EAF default date to comply with `xs:dateTime`.
+- Fixed command line argument bug in command `eaf2geo`.
+- Fixed errors and typos in documentation.
+- `inspect`: `-v` can now be used for GoPro MP4 files as well with `--atoms` or `--meta` (use `--gpmf` for inspecting GPMF data)
+
 # GeoELAN v2.1
 - Support for printing MP4 atom structure, similar to [AtomicParsley](https://atomicparsley.sourceforge.net)
-- Support for extracting GPMF from GoPro JPEG-files
+- Support for inspecting GoPro JPEG-files (contains GPMF streams)
 - Bug and typo fixes
 
 # GeoELAN v2.0

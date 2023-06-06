@@ -2,12 +2,7 @@
 
 use std::{path::PathBuf, time::Instant};
 
-use walkdir::WalkDir;
-
 use gpmf_rs::GoProSession;
-
-use crate::files::{has_extension, is_hidden};
-use crate::model::CameraModel;
 
 // MAIN GOPRO LOCATE
 pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
@@ -16,48 +11,30 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     // required arg
     let indir: PathBuf = args.get_one::<PathBuf>("input-directory")
         .unwrap().canonicalize()?;
+    let video = args.get_one::<PathBuf>("video");
+    let verify_gpmf = *args.get_one::<bool>("verify").unwrap();
     
-    let mut sessions: Vec<GoProSession> = Vec::new();
-
-    let mut count = 0;
-
-    for result in WalkDir::new(indir) {
-        
-        let path = match result {
-            Ok(f) => f.path().to_owned(),
-            Err(_) => { // ignore errors... usually only lacking permissions for system paths
-                continue;
-            }
-        };
-
-        // Only consider files with mp4-extension (faster than returning parsing error),
-        // and completely ignore files in hidden dirs (such as Dropbox placeholders)
-        if !has_extension(&path, "mp4") || is_hidden(&path, true) {
-            continue
-        }
-
-        if let CameraModel::GoPro = CameraModel::from(path.as_path()) {
-            count += 1;
-
-            println!("[{count:04}] GOPRO {}", path.display());
-
-            if let Ok(session) = GoProSession::from_path(&path, false, false, false) {
-                if !sessions.contains(&session) {
-                    sessions.push(session);
-                }
-            }
-        }
-
-    }
+    let sessions = GoProSession::sessions_from_path(&indir, video.map(|p| p.as_path()), verify_gpmf, true);
 
     println!("---");
     for (i1, session) in sessions.iter().enumerate() {
         println!("[ Session {} ]", i1+1);
         for (i2, file) in session.iter().enumerate() {
-            println!("  {}. {}", i2+1, file.mp4_path.display());
-        }
+            println!("  {:2}. MP4: {}",
+                i2+1,
+                file.mp4.as_ref()
+                    .and_then(|f| f.to_str())
+                    .unwrap_or("High-resolution MP4 not set"));
+            println!("      LRV: {}",
+            file.lrv.as_ref()
+                .and_then(|f| f.to_str())
+                .unwrap_or("Low-resolution MP4 not set"));
+    }
     }
 
-    println!("Done ({:?})", timer.elapsed());
+    println!("Done ({:?}). {}",
+        timer.elapsed(),
+        if verify_gpmf {" Clips that fail GPMF verification ignored."} else {" Run with '--verify' to skip clips with GPMF errors."}
+    );
     Ok(())
 }

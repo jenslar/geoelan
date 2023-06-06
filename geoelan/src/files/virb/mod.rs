@@ -14,7 +14,7 @@ pub fn select_session(fit: &Fit) -> Result<FitSession, FitError> {
         return Err(FitError::NoSuchSession)
     }
 
-    println!(" Session | Clips | First UUID in session");
+    println!(" Session | Clips | UUIDs in session");
     println!(".......................{}", ".".repeat(100));
 
     for (i, session) in sessions.iter().enumerate() {

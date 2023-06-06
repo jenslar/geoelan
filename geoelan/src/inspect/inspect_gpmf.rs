@@ -1,56 +1,84 @@
 //! Inspect GoPro GPMF data. Supports "raw" GPMP-files, e.g. by having extracted the `GoPro MET` track from a GoPro MP4-file.
 
+use std::{fs::File, path::Path};
+use std::io::{Write, ErrorKind};
 use std::path::PathBuf;
 
-use gpmf_rs::{Gpmf, ContentType, GoProSession, FourCC};
-use mp4iter::Mp4;
+use gpmf_rs::{
+    SensorType,
+    SensorData,
+    Gpmf,
+    DataType,
+    FourCC,
+    GoProFile,
+    GoProSession,
+};
 
 use crate::{
     geo::{
-        point::Point,
-        kml_gen::{kml_point, kml_from_placemarks, kml_to_string},
-        json_gen::{geojson_point, geojson_from_features}
+        point::EafPoint,
+        EafPointCluster, downsample
     },
-    files::{affix_file_name, writefile, has_extension}
+    files::{affix_file_name, has_extension}
 };
 
 pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
 
-    let path: &PathBuf = args.get_one("gpmf").unwrap();  // clap: required arg
-    // let gpmf_path: &PathBuf = args.get_one("gpmf").unwrap();  // clap: required arg
-    // let video_path: &PathBuf = args.get_one("video").unwrap();  // clap: required arg
-    // let jpeg_path = args.get_one::<PathBuf>("jpeg");  // clap: required arg
-
-    // match Gpmf::from_jpg(path) {
-    //     Ok(_) => std::process::exit(0),
-    //     Err(err) => println!("Not a (GoPro) JPEG: {err}")
-    // }
+    let path = args.get_one::<PathBuf>("gpmf").unwrap();  // clap: required arg
+    let indir = match args.get_one::<PathBuf>("input-directory") {
+        Some(p) => p.to_owned(),
+        None => match path.parent() {
+            Some(d) => {
+                if d == Path::new("") {
+                    PathBuf::from(".")
+                } else {
+                    d.to_owned()
+                }
+            },
+            None => {
+                let msg = "(!) Failed to determine input directory";
+                return Err(std::io::Error::new(ErrorKind::Other, msg))
+            }
+        }
+    };
 
     let verbose = *args.get_one::<bool>("verbose").unwrap();   // clap: conflicts with debug, gps
     let debug = *args.get_one::<bool>("debug").unwrap();       // clap: conflicts with verbose, gps
+    let offsets = *args.get_one::<bool>("offsets").unwrap();
     let print_gps = *args.get_one::<bool>("gps").unwrap();     // clap: conflicts with debug, verbose
-    let print_meta = *args.get_one::<bool>("meta").unwrap();     // clap: conflicts with debug, verbose
-    let print_atoms = *args.get_one::<bool>("atoms").unwrap();     // clap: conflicts with debug, verbose
+    let full_gps = *args.get_one::<bool>("fullgps").unwrap();
+    let sensor_type = args.get_one::<String>("sensor");
+    let min_gps_fix = *args.get_one::<u32>("gpsfix").unwrap(); // default: 2
     let (save_kml, indexed_kml) = (
-        *args.get_one::<bool>("kml").unwrap() ||
-        *args.get_one::<bool>("indexed-kml").unwrap(), *args.get_one::<bool>("indexed-kml").unwrap()
+        *args.get_one::<bool>("kml").unwrap() || *args.get_one::<bool>("indexed-kml").unwrap(),
+        *args.get_one::<bool>("indexed-kml").unwrap()
     );
     let save_json = *args.get_one::<bool>("json").unwrap();
+    let save_csv = *args.get_one::<bool>("csv").unwrap(); // only for sensor data gyro, grav, accl, gps
     let session = *args.get_one::<bool>("session").unwrap();     // clap: conflicts with debug, verbose
-    // let content_type = args.value_of("data-type");     // clap: conflicts with debug, verbose
-    let content_type: Option<&String> = args.get_one("data-type");     // clap: conflicts with debug, verbose
+    let verify_gpmf = *args.get_one::<bool>("verify").unwrap();
+    let data_type = args.get_one::<String>("data-type");     // clap: conflicts with debug, verbose
 
     let timer_gpmf = std::time::Instant::now();
 
-    if has_extension(&path, "jpg") {
-    // if let Some(path) = jpeg_path {
-        let gpmf = match Gpmf::from_jpg(&path) {
-            Ok(g) => g,
-            Err(err) => {
-                eprintln!("(!) Failed to parse GPMF data in {}: {err}", path.display());
-                std::process::exit(1)
+    if offsets {
+        if has_extension(&path, "lrv") || has_extension(&path, "mp4") {
+            let mut mp4 = mp4iter::Mp4::new(&path)?;
+            let offsets = mp4.offsets("GoPro MET")?;
+
+            for (i, offset) in offsets.iter().enumerate() {
+                println!("[{:4}] DEVC @{:<10} size: {:<6} duration: {}ms", i+1, offset.position, offset.size, offset.duration)
             }
-        };
+
+            return Ok(())
+        } else {
+            let msg = format!("(!) Incorrect file format for '--offsets', must be a GoPro MP4.\n    Try 'geoelan inspect --video {}", path.display());
+            return Err(std::io::Error::new(ErrorKind::Other, msg))
+        }
+    }
+
+    if has_extension(&path, "jpg") {
+        let gpmf = Gpmf::from_jpg(&path, debug)?;
 
         if verbose {
             gpmf.print();
@@ -65,189 +93,226 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
             println!("{}", gpmf.device_name().join(", "));
         }
 
-        println!("Done");
-        std::process::exit(0)
+        println!("Done.");
+        return Ok(())
     }
 
-    println!("Locating GoPro-files and parsing GPMF-data...");
-
-    // TODO 220813 REGRESSION CHECK: DONE. GoProSession::from_path 2-3x slower with new code if parsing immediately. Code change to only parse when files in the same session have been matched. Only Stream::new/compile remains as performance issue now (20-30ms slower with new code on M1)
-
-    if print_atoms {
-        let mp4 = match Mp4::new(&path) {
-            Ok(f) => f,
-            Err(err) => {
-                eprintln!("(!) Failed to parse MP4-file {}: {err}", path.display());
-                std::process::exit(1)
+    // Either merged GPMF data from multiple files
+    // or from a single MP4 clip
+    let gpmf: Gpmf;
+    
+    if session {
+        println!("Locating GoPro-files and parsing GPMF-data...");
+    
+        // TODO 220813 REGRESSION CHECK: DONE. GoProSession::from_path 2-3x slower with new code if parsing immediately. Code change to only parse when files in the same session have been matched. Only Stream::new/compile remains as performance issue now (20-30ms slower with new code on M1)
+        
+        // Compile GoPro files, parse GPMF-data
+        // let gopro_session = match GoProSession::from_path(&path, Some(&indir), verify_gpmf, true) {
+        let gopro_session = match GoProSession::from_path(&path, Some(&indir), verify_gpmf, true) {
+            Some(session) => session,
+            None => {
+                let msg = format!("(!) Failed to determine GoPro session");
+                return Err(std::io::Error::new(ErrorKind::Other, msg))
             }
         };
-        
-        // print atom fourcc, size, offsets
-        // container_size contains 'atom size - 8' since 8 byte header is already read
-        // each value will decrease until it's 0 which flags that it shold be removed
-        // last value is last added and will be removed first as it indicates
-        // the container atom is child to another container atom
-        let mut sizes: Vec<u64> = Vec::new();
-        for atom in mp4.into_iter() {
-            let mut pop = false;
-            let indent = sizes.len();
-            let is_container = atom.is_container();
-            for size in sizes.iter_mut() {
-                if is_container {
-                    *size -= 8;
-                } else {
-                    *size -= atom.size;
-                }
-                if size == &mut 0 {
-                    pop = true;
-                }
-            }
-            println!("{}{} @{} size: {}",
-                "    ".repeat(indent as usize),
-                atom.name.to_str(),
-                atom.offset,
-                atom.size,
-            );
-            if is_container {
-                sizes.push(atom.size - 8);
-            }
-            if pop {
-                loop {
-                    match sizes.last() {
-                        Some(&0) => {_ = sizes.pop()},
-                        _ => break
-                    }
-                }
-            }
-        }
-
-        std::process::exit(0)
-    }
-    
-    // Compile GoPro files, parse GPMF-data
-    let mut gopro_session_result = GoProSession::from_path(&path, !session, true, debug);
-    if session {
         // If 'session' flag is passed the file/s must parse as MP4s
-        match &gopro_session_result {
-            Ok(gopro_session) => {
-                println!("Located the following session files:");
-                for (i, gopro_file) in gopro_session.iter().enumerate() {
-                    println!("{}. {} ({:4} DEVC-streams)", i+1, gopro_file.mp4_path.display(), gopro_file.gpmf.len());
-                }
-            },
+        println!("Located the following session files:");
+        for (i, gopro_file) in gopro_session.iter().enumerate() {
+            println!("{:4}. MP4: {}",
+                i+1,
+                gopro_file.mp4.as_ref()
+                    .and_then(|f| f.to_str()).unwrap_or("High-resolution MP4 not set"));
+            println!("      LRV: {}",
+                gopro_file.lrv.as_ref()
+                    .and_then(|f| f.to_str()).unwrap_or("Low-resolution MP4 not set"));
+        }
+
+        println!("Merging GPMF-data for {} files...", gopro_session.len());
+        gpmf = match gopro_session.gpmf() {
+            Ok(g) => g,
             Err(err) => {
-                println!("(!) Failed to parse {}: {err}", path.display());
-                std::process::exit(1)
+                // Print error then retry to parse as binary GPMF file
+                println!("(!) Failed to merge GPMF: {err}");
+                println!("--> Retrying specified file as raw GPMF-track...");
+                Gpmf::from_raw(&path, debug)?
             }
-        }
+        };
+    
+        println!("Done ({} ms{})", timer_gpmf.elapsed().as_millis(), if debug {", debug parse"} else {""});
+    } else {
+        let gopro_file = match GoProFile::new(&path) {
+            Ok(gp) => gp,
+            Err(err) => {
+                let msg = format!("(!) Failed to read MP4: {err}");
+                return Err(std::io::Error::new(ErrorKind::Other, msg))
+            }
+        };
+        gpmf = match gopro_file.gpmf() {
+            Ok(g) => g,
+            Err(err) => {
+                println!("(!) Failed to extract GPMF: {err}");
+                println!("--> Retrying as raw GPMF-track...");
+                Gpmf::from_raw(&path, debug)?
+            }
+        };
     }
-
-    let gpmf = match &mut gopro_session_result {
-        Ok(gopro_session) => {
-            println!("Merging GPMF-data for {} files...", gopro_session.len());
-            gopro_session.gpmf()
-        },
-        Err(err) => {
-            println!("(!) Failed to parse as GoPro MP4: {err}");
-            println!("--> Retrying parse as raw GPMF-track...");
-            match Gpmf::new(&path) {
-                Ok(g) => g,
-                Err(err) => {
-                    println!("(!) Failed to parse GPMF {}: {err}", path.display());
-                    std::process::exit(1)
-                }
-            }
-        }
-    };
-
-    println!("Done ({} ms{})", timer_gpmf.elapsed().as_millis(), if debug {", debug parse"} else {""});
 
     let size = gpmf.len();
-
-    let gps = gpmf.gps();
-
+    let mut gps = gpmf.gps();
+    let pruned_len = gps.prune_mut(min_gps_fix, None);
+    
     if print_gps {
-        let points: Vec<_> = gpmf.gps().iter().map(|p| Point::from(p)).collect();
-        for (i,point) in points.iter().enumerate() {
+        let mut csv: Vec<String> = vec!["INDEX\tDATETIME\tTIMESTAMP\tLATITUDE\tLONGITUDE\tALTITUDE\tSPEED2D\tSPEED3D".to_owned()];
+        let point_cluster = EafPointCluster::new(&gps.iter().map(EafPoint::from).collect::<Vec<_>>(), None);
+
+        for (i,point) in point_cluster.iter().enumerate() {
             println!("[{:4}]\n{}", i+1, point);
+            if save_csv {
+                csv.push(format!("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                    i+1,
+                    point.datetime_string().as_deref().unwrap_or("Unspecified"),
+                    point.timestamp.map(|t| t.as_seconds_f64().to_string()).as_deref().unwrap_or("Unspecified"),
+                    point.latitude,
+                    point.longitude,
+                    point.altitude,
+                    point.speed2d,
+                    point.speed3d,
+                ))
+            }
         }
 
-        if let Some(point) = points.first() {
+        if let Some(point) = point_cluster.first() {
             println!("-------------------");
             println!("First logged point:\n{point}");
         }
+
+        if save_csv {
+            // Re-use and filename from e.g. GH010006.MP4 to GH010006_GPS,csv
+            // !!! TODO change affix_file_name to return Option<PathBuf> to avoid overwriting
+            let csv_path = affix_file_name(&path, None, Some("_GPS"), Some("csv"));
+            let mut csv_file = File::create(&csv_path)?;
+            csv_file.write_all(csv.join("\n").as_bytes())?;
+            println!("Wrote {}", csv_path.display());
+        }
+
+        println!("---");
+        println!("Points: {}", gps.len());
+        if min_gps_fix == 0 {
+            println!("Showing all points, including those with no satellite lock.")
+        } else {
+            let lock = match min_gps_fix {
+                0 => "No lock",
+                2 => "2D lock",
+                3 => "3D lock",
+                _ => "Invalid value, must be one of 0, 2, 3."
+            };
+            println!("{} points pruned due to bad satellite lock (< {} = {})",
+                pruned_len,
+                min_gps_fix,
+                lock
+            )
+        }
+        println!("---");
+
     } else if verbose {
         gpmf.print();
     }
 
-    if let Some(styp) = content_type {
-        let ctype = ContentType::from_str(styp);
-        for (i, stream) in gpmf.filter_iter(&ctype).enumerate() {
+    if let Some(sensor) = sensor_type {
+        let mut csv: Vec<String> = vec!["INDEX\tTIME\tSENSOR\tPHYSICAL_QUANTITY\tUNIT\tX\tY\tZ".to_owned()];
+        let stype = match sensor.as_str() {
+            "acc" | "accelerometer" => SensorType::Accelerometer,
+            "grv" | "gravity" => SensorType::GravityVector,
+            "gyr" | "gyroscope" => SensorType::Gyroscope,
+            s => {
+                let msg = format!("(!) Unknown GoPro sensor: '{s}'. Valid choices are: gyroscope/gyr, accelerometer/acc, gravity/grv");
+                return Err(std::io::Error::new(ErrorKind::Other, msg))
+            }
+        };
+
+        let sensor_data = SensorData::from_gpmf(&gpmf, &stype);
+
+        let mut counter = 0;
+        for (i1, data) in sensor_data.iter().enumerate() {
+            println!("[{:4}] {} [{}, {}] {}",
+                i1+1,
+                data.sensor,
+                data.quantifier,
+                data.units.as_deref().unwrap_or("Unspecified"),
+                data.device.to_str()
+            );
+            for (i2, field) in data.fields.iter().enumerate() {
+                println!("  {:4}. {}", i2+1, field.to_string());
+                if save_csv {
+                    counter += 1;
+                    csv.push(format!("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                        counter,
+                        data.timestamp.map(|t| t.as_seconds_f64()).unwrap_or(0.),
+                        data.sensor,
+                        data.quantifier,
+                        data.units.as_deref().unwrap_or("Unspecified"),
+                        field.x,
+                        field.y,
+                        field.z,
+                    ))
+                }
+            }
+        }
+
+        if save_csv {
+            // Re-use and filename from e.g. GH010006.MP4 to GH010006_GPS,csv
+            let csv_path = affix_file_name(&path, None, Some(&format!("_{}", sensor)), Some("csv"));
+            let mut csv_file = File::create(&csv_path)?;
+            csv_file.write_all(csv.join("\n").as_bytes())?;
+            println!("Wrote {}", csv_path.display());
+        }
+
+        if sensor_data.is_empty() {
+            println!("Sensor type {stype:?} not present")
+        }
+    }
+
+    if let Some(dt) = data_type {
+        let dtype = DataType::from_str(dt);
+        for (i, stream) in gpmf.filter_iter(&dtype).enumerate() {
             stream.print(Some(i+1), None)
         }
     }
 
-    if let Ok(gopro_session) = &gopro_session_result {
-        if print_meta {
-            println!("Meta (MP4 udta atom):");
-            for meta in gopro_session.meta().iter() {
-                for udta_field in meta.udta.iter() {
-                    println!("  {} SIZE: {}", udta_field.name.to_str(), udta_field.size);
-                    println!("     RAW: {:?}", udta_field.data.get_ref());
-                }
-                for stream in meta.gpmf.iter() {
-                    stream.print(None, None)
-                }
-            }
-        }
-    }
-
     if save_kml || save_json {
-        let points: Vec<crate::geo::point::Point> = gpmf.gps().iter()
-            .map(crate::geo::point::Point::from)
-            .collect();
+        let points = gps.iter()
+            .map(EafPoint::from)
+            .collect::<Vec<_>>();
+
+        let downsampled_points = match full_gps {
+            true => points.to_owned(),
+            false => downsample(10, &points, None)
+        };
+
+        let cluster = EafPointCluster::new(&downsampled_points, None);
         
+        // Generate KML and save to disk
         if save_kml {
-            let kml_points: Vec<kml::types::Placemark> = points.iter().enumerate()
-                .map(|(i, p)| {
-                    let name = match indexed_kml {
-                        true => Some((i+1).to_string()),
-                        false => None
-                    };
-                    kml_point(p, name.as_deref(), None, false, None)
-                })
-                .collect();
-            let kml = kml_from_placemarks(&kml_points, &[]);
-
-            let kml_doc = kml_to_string(&kml);
-            let kml_path = affix_file_name(&path, None, Some("points")).with_extension("kml");
-
-            match writefile(&kml_doc.as_bytes(), &kml_path) {
+            let kml_path = affix_file_name(&path, None, Some("_points"), Some("kml"));
+            match cluster.write_kml(indexed_kml, &kml_path) {
                 Ok(true) => println!("Wrote {}", kml_path.display()),
-                Ok(false) => println!("User aborted writing ELAN-file"),
+                Ok(false) => println!("Aborted writing KML-file"),
                 Err(err) => {
-                    println!("(!) Failed to write '{}': {err}", kml_path.display());
-                    std::process::exit(1)
+                    let msg = format!("(!) Failed to write '{}': {err}", kml_path.display());
+                    return Err(std::io::Error::new(ErrorKind::Other, msg))
                 },
             }
         }
 
+        // Generate GeiJSON and save to disk
         if save_json {
-            let json_points: Vec<geojson::Feature> = points.iter()
-                .map(|p| geojson_point(p, None))
-                .collect();
-            let geojson = geojson_from_features(&json_points);
-
-            // Serialize GeoJSON. Not indented (= smaller size for web use).
-            let geojson_doc = geojson.to_string();
-            let geojson_path = affix_file_name(&path, None, Some("points")).with_extension("geojson");
-
-            match writefile(&geojson_doc.as_bytes(), &geojson_path) {
+            let geojson_path = affix_file_name(&path, None, Some("_points"), Some("geojson"));
+            match cluster.write_json(indexed_kml, &geojson_path) {
                 Ok(true) => println!("Wrote {}", geojson_path.display()),
-                Ok(false) => println!("User aborted writing ELAN-file"),
+                Ok(false) => println!("Aborted writing GeoJSON-file"),
                 Err(err) => {
-                    println!("(!) Failed to write '{}': {err}", geojson_path.display());
-                    std::process::exit(1)
+                    let msg = format!("(!) Failed to write '{}': {err}", geojson_path.display());
+                    return Err(std::io::Error::new(ErrorKind::Other, msg))
                 },
             }
         }
@@ -255,29 +320,18 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     println!("SUMMARY");
     println!("  Unique data stream types ({size} DEVC streams in total):");
-    for name in &gpmf.names() {
+    for name in &gpmf.types() {
         println!("    {name}");
     }
-    match (gps.t0_as_string(), gps.t_last_as_string()) {
+    match (gps.t0_as_string(Some(min_gps_fix)), gps.t_last_as_string()) {
         (Some(t1), Some(t2)) => println!("  Start time:       {t1}\n  End time:         {t2}"),
         _ => (),
     }
-    println!("  Device:           {}",
-        gpmf.device_name().join(", "));
-        // gpmf.device_name().unwrap_or("Unable to determine device".to_owned()));
-    
-    // TODO 220809 fix udta/muid
-    // println!("  Clip or session IDs (MUID/'media unique identifier'):");
-    // if let Ok(gopro_session) = gopro_session_result {
-    //     for (i, gopro_file) in gopro_session.iter().enumerate() {
-    //         if let (Some(muid_gpmf), Some(muid_udta)) = (gopro_file.muid_gpmf(), gopro_file.muid_udta()) {
-    //             println!("  {:2}. {}\n      GPMF: {}\n      udta: {}", i+1, gopro_file.mp4_path.file_name().unwrap().to_str().unwrap(), muid_gpmf, muid_udta)
-    //         }
-    //         if let Some(muid_bytes) = gopro_file.muid_bytes() {
-    //             println!("     Bytes: {}", muid_bytes)
-    //         }
-    //     }
-    // }
+    let device = gpmf.device_name();
+    println!("  Device name:      {}{}",
+        device.join(", "),
+        if device.contains(&"Camera".to_owned()) {" (Hero5 Black)"} else {""}
+    );
     
     println!("Done");
 

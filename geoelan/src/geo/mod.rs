@@ -12,25 +12,26 @@ pub mod point;
 pub mod point_cluster;
 
 pub use geoshape::GeoShape;
-pub use point::Point;
-pub use point_cluster::PointCluster;
+pub use point::EafPoint;
+pub use point_cluster::EafPointCluster;
 
 fn average(nums: &[f64]) -> f64 {
     nums.iter().sum::<f64>() / nums.len() as f64
 }
 
 /// Downsample points.
-/// Clusters points in sizes equal to `sample_factor`
+/// Clusters points in sizes equal to `sample_factor`,
+/// then downsamples each sub-cluster to a single point.
 /// Optionally set a minimum number of points to return via `min`.
 /// If `sample_factor` results in fewer points than `min`,
-/// `min` will be used
+/// `min` will be used in its place.
 pub fn downsample(
     mut sample_factor: usize,
-    points: &[point::Point],
+    points: &[point::EafPoint],
     min: Option<usize>
-) -> Vec<point::Point> {
+) -> Vec<point::EafPoint> {
     match sample_factor {
-        0 => panic!("Sample factor cannot be 0."),
+        0 => panic!("Sample factor cannot be 0."), // avoid division by 0
         1 => return points.to_vec(),
         // ensure downsampling will at lest yield a single point
         f if f > points.len() => sample_factor = points.len(),
@@ -51,29 +52,38 @@ pub fn downsample(
         }
     }
 
-    let initial_sample_factor = sample_factor; // changed if remaining points < sample_factor
+    // let initial_sample_factor = sample_factor; // changed if remaining points < sample_factor
 
-    let mut average: Vec<point::Point> = Vec::new();
+    // let mut average: Vec<point::EafPoint> = Vec::new();
+
+    // // splits into even chunks, with possible remainder.len() < sample_factor
+    // for cluster in points.chunks(sample_factor) {
+    //     average.push(point_cluster_average(&cluster));
+    // }
+
+    points.chunks(sample_factor)
+        .map(|c| point_cluster_average(c))
+        .collect::<Vec<_>>()
 
     // TODO could perhaps iter over points using point.chunks(sample_factor) + remainder?
-    for idx in (0..points.len()).step_by(sample_factor) {
-        average.push(point_cluster_average(&points[idx..idx + sample_factor]));
+    // for idx in (0..points.len()).step_by(sample_factor) {
+    //     average.push(point_cluster_average(&points[idx..idx + sample_factor]));
 
-        // Need to check step size before last loop, i.e. before last idx+stepsize
-        // or risk out of bounds if points.len() % initial_sample_factor != 0,
-        // hence 2*samplefactor.
-        // Sets sample factor to len of remaining points if < initial samplefactor
-        if initial_sample_factor > 1 && 2 * sample_factor > points.len() - idx {
-            sample_factor = points.len() - idx - sample_factor;
-        }
-    }
+    //     // Need to check step size before last loop, i.e. before last idx+stepsize
+    //     // or risk out of bounds if points.len() % initial_sample_factor != 0,
+    //     // hence 2*samplefactor.
+    //     // Sets sample factor to len of remaining points if < initial samplefactor
+    //     if initial_sample_factor > 1 && 2 * sample_factor > points.len() - idx {
+    //         sample_factor = points.len() - idx - sample_factor;
+    //     }
+    // }
 
-    average
+    // average
 }
 
 /// Returns latitude dependent average for specified coordinate cluster.
 // pub fn point_cluster_average(points: &[Point], text: Option<&str>) -> Point {
-pub fn point_cluster_average(points: &[point::Point]) -> point::Point {
+pub fn point_cluster_average(points: &[point::EafPoint]) -> point::EafPoint {
     // see: https://carto.com/blog/center-of-points/
     // atan2(y,x) where y = sum((sin(yi)+...+sin(yn))/n), x = sum((cos(xi)+...cos(xn))/n), y, i in radians
     // note that this currently does a f64 conversion/cast from degrees to radians and back to degrees
@@ -81,6 +91,13 @@ pub fn point_cluster_average(points: &[point::Point]) -> point::Point {
 
     let description = points.first()
         .and_then(|p| p.description.to_owned());
+    let ts_first = points.first()
+        .and_then(|p| p.timestamp);
+    // Note: if points have no duration set, resulting eaf
+    //       will have incorrect annotation boundaries on the geotier.
+    let dur_total: Duration = points.iter()
+        .filter_map(|p| p.duration)
+        .sum();
 
     let deg2rad = std::f64::consts::PI / 180.0; // inverse for radians to degress
 
@@ -122,22 +139,35 @@ pub fn point_cluster_average(points: &[point::Point]) -> point::Point {
     };
     let sp2d_avg = average(&sp2d);
     let sp3d_avg = average(&sp3d);
-    let time_avg = Duration::milliseconds(
-        time_as_ms.iter().sum::<i64>() / points.len() as i64, // may be off by 1ms since no float+round
-    );
+    // let time_avg = Duration::milliseconds(
+    //     time_as_ms.iter().sum::<i64>() / points.len() as i64, // may be off by 1ms since no float+round
+    // );
+    // TODO untested, added 230107
+    // TODO no longer used 230403
+    // let time_avg = {
+    //     let sum = time_as_ms.iter().sum::<i64>() as f64;
+    //     let avg = sum / points.len() as f64;
+    //     Duration::milliseconds(avg.round() as i64)
+    // };
 
-    point::Point {
+    point::EafPoint {
         latitude: lat_avg_deg,
         longitude: lon_avg_deg,
         altitude: alt_avg,
         heading: hdg_avg,
         speed2d: sp2d_avg,
         speed3d: sp3d_avg,
-        // TODO find datetime for avg point, not use that of the first
+        // Use datetime for first point in cluster to represent the start
+        // of the timestamp for averaged points. (rather than average datetime)
         datetime: points.first().and_then(|p| p.datetime),
-        timestamp: Some(time_avg),
-        // TODO find duration for avg point, not use that of the first
-        duration: points.first().and_then(|p| p.duration),
+        // timestamp: should be start of first point not average,
+        // so that timestamp + duration = timespan within which all averaged points were logged
+        timestamp: ts_first, // TODO test! hero11 then virb (remove set_timedelta for virb)
+        // timestamp: Some(time_avg), // OLD
+        // duration: should be sum of all durations
+        // so that timestamp + duration = timespan within which all averaged points were logged
+        duration: Some(dur_total), // TODO test! hero11 then virb (remove set_timedelta for virb)
+        // duration: points.first().and_then(|p| p.duration), // OLD
         description,
     }
 }

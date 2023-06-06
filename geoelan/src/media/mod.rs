@@ -51,26 +51,29 @@ impl Media {
     
             let video_out = affix_file_name(
                 &output_dir.canonicalize()?
-                    .join(&filestem)
-                    .with_extension("mp4"),
+                    .join(&filestem),
                 prefix,
-                suffix);
+                suffix,
+                Some("mp4")
+            );
     
             let audio_out = affix_file_name(
                 &output_dir.canonicalize()?
-                    .join(&filestem)
-                    .with_extension("wav"),
+                    .join(&filestem),
                 prefix,
-                suffix);
+                suffix,
+                Some("wav")
+            );
     
-            let mut concatenation_list_path = affix_file_name(
+            let concatenation_list_path = affix_file_name(
                 &output_dir.canonicalize()?
                     .join(&filestem),
                 prefix,
-                suffix
+                suffix,
+                Some("txt")
             );
     
-            concatenation_list_path.set_extension("txt");
+            // concatenation_list_path.set_extension("txt");
     
             // POPULATE + WRITE CONCATENATION LIST
             let mut concatenation_list = String::new();

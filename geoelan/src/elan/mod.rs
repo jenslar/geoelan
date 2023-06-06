@@ -1,11 +1,11 @@
 //! Functions for generating ELAN-files and selecting tiers.
 
 use std::{path::Path, io::Write};
-use eaf_rs::eaf::{AnnotationDocument, EafError, Tier};
+use eaf_rs::eaf::{Eaf, EafError, Tier};
 
 use crate::text::process_string;
 
-use super::geo::point::Point;
+use super::geo::point::EafPoint;
 
 /// Generates an ELAN-file. If points are provided,
 /// a tier named "geo" will be created with these inserted as annotations.
@@ -14,24 +14,25 @@ use super::geo::point::Point;
 /// for the final annotation boundary, in case this surpasses the length
 /// of the media files.
 /// 
-/// `session_start_ms` and `session_end_ms` allows for shifting the ELAN timeline,
+/// VIRB only: `session_start_ms` and `session_end_ms` allows for shifting the ELAN timeline,
 /// since relative timestamps in FIT are relative to the start of the FIT-file,
 /// which is usually earlier than recording start.
 pub fn generate_eaf(
-    video_path: &Path,
+    video_path: &Path, // could do mp4iter::mp4::Mp4::duration from this to get end
     audio_path: &Path,
-    points: Option<&[Point]>,
+    points: Option<&[EafPoint]>,
     session_start_ms: Option<i64>,
-) -> Result<AnnotationDocument, EafError> {
+) -> Result<Eaf, EafError> {
     let mut eaf = if let Some(pts) = points {
         // Generate tier with coordinates is points are passed
         let geo_tier_id = "geo";
 
+        // Annotations in the form (value, start_ms, end_ms)
         let mut annotations: Vec<(String, i64, i64)> = Vec::new();
 
         for point in pts.iter() {
             let t = point.timestamp.to_owned().expect("(!) No relative timestamp for point");
-            let mut ts_val1 = t.whole_milliseconds() as i64; // i128 -> i64 = ca 1100hrs so should be ok for video
+            let mut ts_val1 = t.whole_milliseconds() as i64; // i128 -> i64: i64::MAX = ca 1100hrs so should be ok for video
             // VIRB only (?): FIT-start time is relative to FIT-file start, not session start
             //                Need to substract from each EAF time slot.
             if let Some(start) = session_start_ms {
@@ -61,16 +62,17 @@ pub fn generate_eaf(
         // expression below.
         if let Some(annot_tuple) = annotations.last_mut() {
             let mut mp4 = mp4iter::Mp4::new(video_path)?;
+            // Mp4::duration() returns error for zero length videos
             if let Ok(duration) = mp4.duration() {
                 let duration_ms = duration.whole_milliseconds() as i64; // i128 as i64 cast should be safe enough for video time spans
                 annot_tuple.2 = duration_ms;
             }
         }
 
-        AnnotationDocument::from_values(&annotations, Some(geo_tier_id))?
+        Eaf::from_values(&annotations, Some(geo_tier_id))?
     } else {
         // Generate an empty default eaf if no points passed.
-        AnnotationDocument::default()
+        Eaf::default()
     };
 
     // Link media files
@@ -84,7 +86,7 @@ pub fn generate_eaf(
     Ok(eaf)
 }
 
-pub fn select_tier(eaf: &AnnotationDocument, no_tokenized: bool) -> std::io::Result<Tier> {
+pub fn select_tier(eaf: &Eaf, no_tokenized: bool) -> std::io::Result<Tier> {
     println!("Select tier:");
     println!("      ID{}Parent              Tokenized  Annotations  Tokens unique/total  Participant     Annotator       Start of first annotation", " ".repeat(19));
     for (i, tier) in eaf.tiers.iter().enumerate() {
@@ -101,7 +103,7 @@ pub fn select_tier(eaf: &AnnotationDocument, no_tokenized: bool) -> std::io::Res
             tier.annotations
                 .first()
                 .map(|a| {
-                    format!("'{} ...'", process_string(&a.value(), None, None, None, Some(30)))
+                    format!("'{} ...'", process_string(&a.value().to_string(), None, None, None, Some(30)))
                 })
                 .unwrap_or("[empty]".to_owned())
         );

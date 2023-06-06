@@ -1,6 +1,6 @@
 //! Geometry output types.
 
-use super::downsample;
+use super::{downsample, EafPoint};
 
 #[derive(Debug)]
 /// Output geometry types
@@ -57,7 +57,7 @@ impl GeoShape {
 /// Returns `true` if the first point in a cluster
 /// has a description and `false` otherwise.
 /// Returns `false` if the cluster is empty.
-fn is_marked(point_cluster: &[super::point::Point]) -> bool {
+fn is_marked(point_cluster: &[EafPoint]) -> bool {
     point_cluster
         .first()
         .map(|p| p.description.is_some())
@@ -69,17 +69,17 @@ fn is_marked(point_cluster: &[super::point::Point]) -> bool {
 /// and that any point variants will return at least
 /// a single point, regardless of `downsample_factor`.
 pub fn filter_downsample(
-    point_clusters: &[Vec<super::point::Point>],
+    point_clusters: &[Vec<EafPoint>],
     downsample_factor: Option<usize>,
     geoshape: &GeoShape,
-) -> Vec<Vec<super::point::Point>> {
+) -> Vec<Vec<EafPoint>> {
     let sample_factor = downsample_factor.unwrap_or(1);
 
     // Store last point in cluster to generate continuous lines for 'line-all'
-    let mut last_point: Option<super::point::Point> = None;
+    let mut last_point: Option<EafPoint> = None;
 
     // 1. Filter out unmarked clusters for some geoshapes
-    let filtered_clusters: Vec<Vec<super::point::Point>> = match geoshape {
+    let filtered_clusters: Vec<Vec<EafPoint>> = match geoshape {
         
         // All points preserved
         GeoShape::PointAll{..} => point_clusters.iter()
@@ -105,7 +105,7 @@ pub fn filter_downsample(
                 // Possibly bad way of adding point in previous cluster
                 // as first point in current one to generate
                 // continuous poly-line.
-                let mut downsampled: Vec<super::point::Point> = Vec::new();
+                let mut downsampled: Vec<EafPoint> = Vec::new();
                 let description = cluster.first().and_then(|p| p.description.as_ref());
                 if let Some(lp) = last_point.as_mut() {
                     lp.description = description.cloned();
@@ -121,7 +121,6 @@ pub fn filter_downsample(
         // then transform to broken-up polylines.
         GeoShape::LineMulti{..} => point_clusters.iter()
             .filter_map(|cluster|
-                // if *marked {
                 if is_marked(cluster) {
                     // minimum of 2 points for polylines
                     Some(downsample(sample_factor, cluster, Some(2)))
@@ -138,7 +137,6 @@ pub fn filter_downsample(
         GeoShape::PointSingle{..}
         | GeoShape::Circle{..} => point_clusters.iter()
             .filter_map(|cluster|
-                // if *marked {
                 if is_marked(cluster) {
                     Some(downsample(cluster.len(), cluster, None))
                 } else {

@@ -1,130 +1,32 @@
 //! Inspect Garmin FIT files. Supports non-VIRB files.
 
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{Write, ErrorKind};
 use std::path::PathBuf;
 
-use fit_rs::{Fit, FitSessions, SensorType, VirbFile};
-use mp4iter::Mp4;
+use fit_rs::{Fit, FitSessions, SensorType};
 
 use crate::files::{affix_file_name, writefile};
 use crate::files::virb::select_session;
-use crate::geo::{Point, downsample};
+use crate::geo::{EafPoint, downsample, EafPointCluster};
 use crate::geo::geo_fit::set_datetime_fit;
-use crate::geo::json_gen::{geojson_point, geojson_from_features};
-use crate::geo::kml_gen::{kml_point, kml_from_placemarks, kml_to_string};
 
 pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     let fit_path: Option<&PathBuf> = args.get_one("fit");
-    let video: Option<&PathBuf> = args.get_one("video");
-    let print_atoms = *args.get_one::<bool>("atoms").unwrap();
-    let print_meta = *args.get_one::<bool>("meta").unwrap(); // clap: false if not present
     let debug = *args.get_one::<bool>("debug").unwrap();
 
     if debug {
         if let Some(path) = fit_path {
-            let fit = Fit::debug(path, None);
-        }
-    }
-
-    if print_atoms {
-        if let Some(path) = video {
-
-            let mp4 = match Mp4::new(&path) {
-                Ok(f) => f,
-                Err(err) => {
-                    eprintln!("(!) Failed to parse MP4-file {}: {err}", path.display());
-                    std::process::exit(1)
-                }
-            };
-            
-            // print atom fourcc, size, offsets
-            // container_size contains 'atom size - 8' since 8 byte header is already read
-            // each value will decrease until it's 0 which flags that it shold be removed
-            // last value is last added and will be removed first as it indicates
-            // the container atom is child to another container atom
-            let mut sizes: Vec<u64> = Vec::new();
-            for atom in mp4.into_iter() {
-                let mut pop = false;
-                let indent = sizes.len();
-                let is_container = atom.is_container();
-                for size in sizes.iter_mut() {
-                    if is_container {
-                        *size -= 8;
-                    } else {
-                        *size -= atom.size;
-                    }
-                    if size == &mut 0 {
-                        pop = true;
-                    }
-                }
-                println!("{}{} @{} size: {}",
-                    "    ".repeat(indent as usize),
-                    atom.name.to_str(),
-                    atom.offset,
-                    atom.size,
-                );
-                if is_container {
-                    sizes.push(atom.size - 8);
-                }
-                if pop {
-                    loop {
-                        match sizes.last() {
-                            Some(&0) => {_ = sizes.pop()},
-                            _ => break
-                        }
-                    }
-                }
-            }
-        } else {
-            println!("(!) No video specified");
-        }
-
-        std::process::exit(0)
-    }
-
-    // Print UUID in MP4 then exit if no FIT specified
-    if fit_path.is_none() {
-        if let Some(path) = video {
-            match VirbFile::new(path, None) {
-                Ok(virb) => {
-                    println!("UUID:     {}", virb.uuid);
-                    if let Some(duration) = virb.duration() {
-                        println!("Duration: {}", duration.to_string())
-                    }
-
-                    if print_meta {
-                        println!("Meta (MP4 udta atom):");
-                        match virb.meta() {
-                            Ok(udta) => {
-                                for udta_field in udta.fields.iter() {
-                                    println!("  {} SIZE: {}", udta_field.name.to_str(), udta_field.size);
-                                    println!("     RAW: {:?}", udta_field.data.get_ref());
-                                }
-                            },
-                            Err(err) => {
-                                println!("(!) Failed to read custom metadata in '{}': {err}", path.display())
-                            }
-                        }
-                    }
-                    std::process::exit(0)
-                },
-                Err(err) => {
-                    println!("(!) Failed to read '{}' (is it an original VIRB file?): {err}", path.display());
-                    std::process::exit(1)
-                }
-            }
+            // Want error while parsing in this case
+            let _fit = Fit::debug(path, None);
         }
     }
 
     let path = fit_path.unwrap();
-    let mut fit = match Fit::new(&path) {
-        Ok(data) => data,
-        Err(err) => {
-            println!("(!) Failed to parse '{}': {err}", path.display());
-            std::process::exit(1)
-        },
-    };
+
+    let mut fit = Fit::new(&path)?;
     if let Err(err) = fit.index() {
         println!("(!) Failed to map sessions for {}: {err}", path.display());
         std::process::exit(1)
@@ -141,8 +43,9 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
         *args.get_one::<bool>("kml").unwrap()
         || *args.get_one::<bool>("indexed-kml").unwrap(), *args.get_one::<bool>("indexed-kml").unwrap()
     );
-    let full_gps = *args.get_one::<bool>("full-gps").unwrap();
+    let full_gps = *args.get_one::<bool>("fullgps").unwrap();
     let save_json = *args.get_one::<bool>("json").unwrap();
+    let save_csv = *args.get_one::<bool>("csv").unwrap(); // only for sensor data gyro, grav, accl, gps
     // NOTE data-type is u16 for fit, string for gpmf...
     let global_id: Option<u16> = match args.get_one::<String>("data-type") {
         Some(id) => {
@@ -152,21 +55,15 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
                     Some(g)
                 }
                 Err(err) => {
-                    println!("(!) 'global-id' must be a valid number: {err}");
-                    std::process::exit(1)
+                    let msg = format!("(!) 'global-id' must be a valid number: {err}");
+                    return Err(std::io::Error::new(ErrorKind::Other, msg))
                 }
             }
         }
         None => None,
     };
     let mut fit_session = if Some(&true) == args.get_one::<bool>("session") {
-        match select_session(&fit) {
-            Ok(s) => Some(s),
-            Err(err) => {
-                println!("(!) Not a VIRB FIT-file or no sessions present: {err}");
-                std::process::exit(1)
-            }
-        }
+        Some(select_session(&fit)?)
     } else {
         None
     };
@@ -177,11 +74,11 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
     let records = fit.filter(global_id, range.as_ref());
     
     // Get GPS log as points
-    let points = match print_gps || save_kml || save_json { // add kml flag here later
+    let points = match print_gps || save_kml || save_json {
         true => match fit.points(range.as_ref()) {
             Ok(gm) => {
-                let mut pts: Vec<Point> = gm.iter()
-                    .map(Point::from)
+                let mut pts: Vec<EafPoint> = gm.iter()
+                    .map(EafPoint::from)
                     .collect();
                 match set_datetime_fit(&mut pts, &fit, 0) {
                     Ok(_) => println!("Set date time for points."),
@@ -189,86 +86,84 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
                 };
                 Some(pts)
             },
-            Err(err) => {
-                println!("(!) Failed to extract GPS data: {err}");
-                std::process::exit(1)
-            }
+            Err(err) => return Err(err.into())
         },
         false => None
     };
 
     if let Some(pts) = &points {
         if pts.is_empty() {
-            println!("No GPS log found.")
+            println!("(!) No GPS log found.")
         } else {
+            let mut csv: Vec<String> = vec!["INDEX\tDATETIME\tTIMESTAMP\tLATITUDE\tLONGITUDE\tALTITUDE\tSPEED2D\tSPEED3D".to_owned()];
 
             if print_gps {
                 for (i, point) in pts.iter().enumerate() {
                     println!("[{:6}]\n{point}", i+1);
+                    csv.push(format!("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+                        // counter,
+                        i+1,
+                        // !!! datetime = None? works for gpmf...
+                        point.datetime_string().as_deref().unwrap_or("Unspecified"),
+                        point.timestamp.map(|t| t.as_seconds_f64().to_string()).as_deref().unwrap_or("Unspecified"),
+                        point.latitude,
+                        point.longitude,
+                        point.altitude,
+                        point.speed2d,
+                        point.speed3d,
+                    ))
                 }
         
                 if let Some(p) = pts.first() {
                     println!("-------------------");
                     println!("First logged point:\n{p}");
                 }
+
+                if save_csv {
+                    // Re-use and filename from e.g. GH010006.MP4 to GH010006_GPS,csv
+                    // !!! TODO change affix_file_name to return Option<PathBuf> to avoid overwriting
+                    let csv_path = affix_file_name(&path, None, Some("_GPS"), Some("csv"));
+                    let mut csv_file = File::create(&csv_path)?;
+                    csv_file.write_all(csv.join("\n").as_bytes())?;
+                    println!("Wrote {}", csv_path.display());
+                }
         
-                std::process::exit(0)
+                return Ok(())
             }
     
             if save_kml || save_json {
-                // Downsample FIT points to 1Hz / 1pt/sec (GoPro is that already)
+                // Downsample FIT points to 1Hz / 1pt/sec (GoPro is already extracted as roughly 1Hz)
                 let downsampled_points = match full_gps {
                     true => pts.to_owned(),
                     false => downsample(10, pts, None)
                 };
                 
+                // Generate KML object and write to disk
                 if save_kml {
-                    let kml_points: Vec<kml::types::Placemark> = downsampled_points.iter().enumerate()
-                        .map(|(i, p)| {
-                            let name = match indexed_kml {
-                                true => Some((i+1).to_string()),
-                                false => None
-                            };
-                            kml_point(p, name.as_deref(), None, false, None)
-                        })
-                        .collect();
-                    let kml = kml_from_placemarks(&kml_points, &[]);
-        
-                    let kml_doc = kml_to_string(&kml);
-                    let kml_path = affix_file_name(&path, None, Some("points")).with_extension("kml");
-        
+                    let kml_doc = EafPointCluster::new(&downsampled_points, None)
+                        .to_kml_string(indexed_kml);
+                    let kml_path = affix_file_name(&path, None, Some("_points"), Some("kml"));
                     match writefile(&kml_doc.as_bytes(), &kml_path) {
                         Ok(true) => println!("Wrote {}", kml_path.display()),
-                        Ok(false) => println!("User aborted writing ELAN-file"),
-                        Err(err) => {
-                            println!("(!) Failed to write '{}': {err}", kml_path.display());
-                            std::process::exit(1)
-                        },
+                        Ok(false) => println!("User aborted writing KML-file"),
+                        Err(err) => return Err(err),
                     }
                 }
         
+                // Generate GeoJSON object and write to disk
                 if save_json {
-                    let json_points: Vec<geojson::Feature> = downsampled_points.iter()
-                        .map(|p| geojson_point(p, None))
-                        .collect();
-                    let geojson = geojson_from_features(&json_points);
-        
-                    // Serialize GeoJSON. Not indented (= smaller size for web use).
-                    let geojson_doc = geojson.to_string();
-                    let geojson_path = affix_file_name(&path, None, Some("points")).with_extension("geojson");
-        
+                    let geojson_doc = EafPointCluster::new(&downsampled_points, None)
+                        .to_json_string(indexed_kml);
+                    let geojson_path = affix_file_name(&path, None, Some("points"), Some("geojson"));
                     match writefile(&geojson_doc.as_bytes(), &geojson_path) {
                         Ok(true) => println!("Wrote {}", geojson_path.display()),
-                        Ok(false) => println!("User aborted writing ELAN-file"),
-                        Err(err) => {
-                            println!("(!) Failed to write '{}': {err}", geojson_path.display());
-                            std::process::exit(1)
-                        },
+                        Ok(false) => println!("User aborted writing GeoJSON-file"),
+                        Err(err) => return Err(err),
                     }
                 }
 
                 println!("Done");
-                std::process::exit(0)
+                return Ok(())
             }
         }
 
@@ -276,21 +171,21 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     if let Some(sensor_type) = print_sensor {
         let sensor_type = match sensor_type.as_str() {
-            "gyro" => SensorType::Gyroscope,
-            "accl" => SensorType::Accelerometer,
-            "mag" => SensorType::Magnetometer,
-            "baro" => SensorType::Barometer,
-            _ => {
-                println!("(!) Unknown sensor type.");
-                std::process::exit(1)
+            "mag" | "magnetometer" => SensorType::Magnetometer,
+            "gyr" | "gyroscope" => SensorType::Gyroscope,
+            "acc" | "accelerometer" => SensorType::Accelerometer,
+            "bar" | "barometer" => SensorType::Barometer,
+            s => {
+                let msg = format!("(!) Unknown VIRB sensor: '{s}'. Valid choices are: magnetometer, gyroscope, accelerometer, barometer");
+                return Err(std::io::Error::new(ErrorKind::Other, msg))
             }
         };
 
         let calibrated_sensor_data = match fit.sensor(&sensor_type, range.as_ref()) {
             Ok(data) => data,
             Err(err) => {
-                println!("(!) Failed to compile sensor data: {err}");
-                std::process::exit(1)
+                let msg = format!("(!) Failed to compile sensor data: {err}");
+                return Err(std::io::Error::new(ErrorKind::Other, msg))
             }
         };
 
@@ -299,7 +194,7 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
         }
 
         println!("Done");
-        std::process::exit(0)
+        return Ok(())
     }
 
     // Key: (Global ID, Message Type), Value: count
@@ -323,7 +218,7 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
     stats_sorted.sort_by_key(|(global, ..)| global.to_owned());
 
 
-    println!("\nSUMMARY");
+    println!("\nSummary");
     if Some(&true) == args.get_one::<bool>("meta") {
         println!("{}", "-".repeat(51));
         println!("Header\n");

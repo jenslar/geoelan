@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
+use eaf_rs::Annotation;
 use fit_rs::{GpsMetadata, FitPoint};
 use gpmf_rs::GoProPoint;
-use time::{PrimitiveDateTime, Duration};
+use time::{PrimitiveDateTime, Duration, format_description, ext::NumericalDuration};
 
-#[derive(Debug, Clone)]
-pub struct Point {
+#[derive(Debug, Default, Clone)]
+pub struct EafPoint {
     /// Latitude.
     pub latitude: f64,
     /// Longitude.
@@ -41,7 +42,7 @@ pub struct Point {
     pub description: Option<String>
 }
 
-impl std::fmt::Display for Point {
+impl std::fmt::Display for EafPoint {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "  latitude:    {:.6}
   longitude:   {:.6}
@@ -79,12 +80,12 @@ impl std::fmt::Display for Point {
 
 /// Convert single VIRB point/`gps_metadata` to `Point`.
 /// See the FIT SDK for an explanatiton of the conversion.
-impl From<&GpsMetadata> for Point {
-    fn from(gps: &GpsMetadata) -> Point {
+impl From<&GpsMetadata> for EafPoint {
+    fn from(gps: &GpsMetadata) -> Self {
         let semi2deg = 180.0 / 2.0_f64.powi(31);
-        let relative_time = Duration::seconds(gps.timestamp as i64) +
-        Duration::milliseconds(gps.timestamp_ms as i64);
-        Point {
+        let relative_time = Duration::seconds(gps.timestamp as i64)
+            + Duration::milliseconds(gps.timestamp_ms as i64);
+        Self {
             latitude: (gps.latitude as f64) * semi2deg,
             longitude: (gps.longitude as f64) * semi2deg,
             altitude: (gps.altitude as f64 / 5.0) - 500.0,
@@ -98,19 +99,19 @@ impl From<&GpsMetadata> for Point {
             datetime: None, // derived from `timestamp_correlation` message
             timestamp: Some(relative_time),
             // duration: None,
-            duration: Some(relative_time),
+            duration: Some(relative_time), // ????
             description: None
         }
     }
 }
 
-impl From<&FitPoint> for Point {
+impl From<&FitPoint> for EafPoint {
     /// Convert Single Garmin VIRB point to `Point`.
     /// Note that datetime is always set to `None` for this
     /// conversion. Use `Point::from_fit()` to convert and
     /// set datetime simultaneously.
-    fn from(point: &FitPoint) -> Point {
-        Point {
+    fn from(point: &FitPoint) -> Self {
+        Self {
             latitude: point.latitude,
             longitude: point.longitude,
             altitude: point.altitude,
@@ -125,10 +126,10 @@ impl From<&FitPoint> for Point {
     }
 }
 
-impl From<&GoProPoint> for Point {
+impl From<&GoProPoint> for EafPoint {
     /// Convert Single GoPro point to `Point`.
-    fn from(point: &GoProPoint) -> Point {
-        Point {
+    fn from(point: &GoProPoint) -> Self {
+        Self {
             latitude: point.latitude,
             longitude: point.longitude,
             altitude: point.altitude,
@@ -136,17 +137,95 @@ impl From<&GoProPoint> for Point {
             speed2d: point.speed2d,
             speed3d: point.speed3d,
             datetime: Some(point.datetime),
-            timestamp: point.time.to_owned().map(|p| p.to_relative()), // derived from MP4 atom
-            duration: point.time.to_owned().map(|p| p.to_duration()), // derived from MP4 atom
+            // timestamp: point.time.to_owned().map(|ts| ts.to_relative()), // derived from MP4 atom
+            timestamp: Some(point.time.to_owned()), // derived from MP4 atom
+            duration: None,
+            // timestamp: point.time.as_ref().map(|ts| ts.relative), // derived from MP4 atom
+            // duration: point.time.as_ref().map(|ts| ts.duration), // derived from MP4 atom
             description: None
         }
     }
 }
 
-impl Point {
+// impl TryFrom<&Annotation> for Point {
+impl From<&Annotation> for EafPoint {
+    /// Convert EAF annotation value to a `Point`.
+    /// May fail if annotation value is not in the form
+    /// `LAT:55.791765;LON:13.501448;ALT:101.6;TIME:2023-01-25 12:15:45.399`.
+    /// 
+    /// If timevalues are not set for annotation boundaries,,
+    /// `Point::timstamp` and `Point::duration` will be set to `None`.
+    // fn try_from(annotation: &Annotation) -> Result<Self, Error> {
+    fn from(annotation: &Annotation) -> Self {
+        let value = annotation.value().to_string();
+        // TODO add Annotation.duration() -> milliseconds method
+        let (timestamp, duration) = match annotation.ts_val() {
+            (Some(t1), Some(t2)) => (
+                Some(t1.milliseconds()),
+                Some((t2-t1).milliseconds())
+            ),
+            _ => (None, None)
+        };
+        // split LAT:55.791765;LON:13.501448;...
+        let split = value.split(";")
+            // split e.g. LAT:55.791765
+            .filter_map(|spl| spl.split_once(":"))
+            // keep 55.791765
+            .map(|spl| spl.1) // TODO do unwrap_or here to get a "" on None?
+            // [55.791765, 13.501448, 101.6, 2023-01-25 12:15:45.399]
+            .collect::<Vec<_>>();
+
+        // TODO parse time string
+        // TODO better to iterate + enumerate and use idx 0 for lat etc
+        let (lat, lon, alt, time) = match split.len() {
+            4 => (
+                split[0].parse::<f64>().unwrap_or_default(),
+                split[1].parse::<f64>().unwrap_or_default(),
+                split[2].parse::<f64>().unwrap_or_default(),
+                split[3].to_owned(),
+            ),
+            _ => (
+                f64::default(),
+                f64::default(),
+                f64::default(),
+                String::default(),
+            )
+        };
+
+        Self {
+            latitude: lat,
+            longitude: lon,
+            altitude: alt,
+            heading: None,
+            datetime: None, // TODO parse str into datetime
+            timestamp,
+            duration,
+            .. Self::default()
+        }
+    }
+}
+
+impl EafPoint {
     /// Returns timestamp as milliseconds.
     pub fn timestamp_ms(&self) -> Option<i64> {
         self.timestamp.map(|t| (t.as_seconds_f64() * 1000.0) as i64)
+    }
+
+    /// Returns datetime as formatted string:
+    /// `YYYY-MM-DDTHH:mm:ss.fff`
+    pub fn datetime_string(&self) -> Option<String> {
+        let format = format_description::parse(
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour \
+                sign:mandatory]:[offset_minute]")
+            .expect("Failed to create date time format"); // result instead?
+        self.datetime.and_then(|dt| dt.format(&format).ok()) // result instead?
+    }
+
+    pub fn with_offset_hrs(&self, offset_hrs: i64) -> Self {
+        Self {
+            datetime: self.datetime.map(|dt| dt + Duration::hours(offset_hrs)),
+            ..self.to_owned()
+        }
     }
 
     /// Converts `geoelan::geo::Point` to the corresponding `kml::types::Point`.
@@ -169,7 +248,7 @@ impl Point {
         let t = Duration::seconds(point.timestamp as i64) +
         Duration::milliseconds(point.timestamp_ms as i64);
         
-        Point {
+        Self {
             latitude: (point.latitude as f64) * semi2deg,
             longitude: (point.longitude as f64) * semi2deg,
             altitude: (point.altitude as f64 / 5.0) - 500.0,
@@ -195,7 +274,7 @@ impl Point {
     /// same as the first one.
     pub fn circle(&self, radius: f64, vertices: u8) -> Vec<Self> {
 
-        let mut circle: Vec<super::point::Point> = Vec::new();
+        let mut circle: Vec<Self> = Vec::new();
         let pi = std::f64::consts::PI;
 
         let vertices = match vertices {
@@ -212,7 +291,7 @@ impl Point {
             let lat = self.latitude + (180_f64/pi) * (dy/6378137_f64);
             let lon = self.longitude + (180_f64/pi) * (dx/6378137_f64) / (self.latitude*pi/180_f64).cos();
 
-            circle.push(super::point::Point {
+            circle.push(Self {
                 latitude: lat,
                 longitude: lon,
                 ..self.to_owned()})

@@ -1,9 +1,9 @@
 //! Extract and georeference ELAN-annotations, and export as KML + GeoJSON.
 
-use std::{path::PathBuf, collections::{HashSet, HashMap}};
+use std::{path::PathBuf, collections::{HashSet, HashMap}, io::ErrorKind};
 
 use time::Duration;
-use eaf_rs::AnnotationDocument;
+use eaf_rs::Eaf;
 use kml::types::{Placemark, Element};
 
 use crate::{
@@ -11,7 +11,8 @@ use crate::{
         geoshape::{GeoShape, filter_downsample},
         kml_gen::{placemarks_from_geoshape, kml_from_placemarks, kml_to_string, kml_style},
         json_gen::geojson_from_clusters,
-        kml_styles::Rgba
+        kml_styles::Rgba,
+        EafPoint
     },
     elan::select_tier,
     files
@@ -24,66 +25,53 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     // clap: required arg
     let eaf_path = args.get_one::<PathBuf>("eaf").unwrap().to_owned();
-    let eaf = match AnnotationDocument::deserialize(&eaf_path, true) {
-        Ok(e) => e,
-        Err(err) => {
-            println!("(!) Failed to parse ELAN-file: {err}");
-            std::process::exit(1)
-        }
-    };
+    let use_geotier = *args.get_one::<bool>("geotier").unwrap();
+    let fit_present = args.contains_id("fit");
+    let gpmf_present = args.contains_id("gpmf");
 
-    let fit_present = *args.get_one::<bool>("fit").unwrap();
-    let gpmf_present = *args.get_one::<bool>("gpmf").unwrap();
+    // Parse EAF early in case 'geotier' is set.
+    let eaf = Eaf::de(&eaf_path, true)?;
 
-    // let mut points = match (args.contains_id("fit"), args.contains_id("gpmf")) {
-    let mut points = match (fit_present, gpmf_present) {
-        (true, false) => match virb2points::run(args) {
-            Ok(p) => p,
-            Err(err) => {
-                println!("(!) Failed to extract points for Garmin VIRB: {err}");
-                std::process::exit(1);
-            }
-        },
-        (false, true) => match gopro2points::run(args) {
-            Ok(p) => p,
-            Err(err) => {
-                println!("(!) Failed to extract points for GoPro: {err}");
-                std::process::exit(1);
-            }
+    // Extract points from either VIRB, GoPro, or annotation data.
+    let mut points = match (fit_present, gpmf_present, use_geotier) {
+        (true, false, false) => virb2points::run(args)?,
+        (false, true, false) => gopro2points::run(args)?,
+        (false, false, true) => {
+            print!("[GEO TIER] ");
+            let geotier = select_tier(&eaf, true)?;
+
+            // Try to parse annotations into coordinates.
+            // Will use default values if parsing fails.
+            geotier.iter()
+                .map(|annotation| EafPoint::from(annotation))
+                .collect::<Vec<_>>()
         },
         _ => {
-            println!("(!) Can only specify one of 'gpmf', 'fit'");
-            std::process::exit(1);
+            let msg = "(!) Can only specify one of 'gpmf', 'fit', 'geotier'";
+            return Err(std::io::Error::new(ErrorKind::Other, msg))
         }
     };
 
     if points.is_empty() {
-        println!("(!) No points to process.");
-        std::process::exit(1);
+        let msg = "(!) No points to process.";
+        return Err(std::io::Error::new(ErrorKind::Other, msg))
     }
 
     let time_offset = *args.get_one::<isize>("time-offset").unwrap(); // clap default: 0
-    // let time_offset: isize = match args.value_of("time-offset").unwrap().parse() { // clap default: 0
-    //     Ok(val) => val,
-    //     Err(err) => {
-    //         println!("(!) 'time-offset' must be a signed integer: {err}");
-    //         std::process::exit(1);
-    //     }
-    // };
 
     // clap: default 1
     let downsample_factor = args.get_one::<usize>("downsample-factor")
         .unwrap().to_owned();
     if downsample_factor == 0 {
-        println!("(!) 'downsample' can not be 0.");
-        std::process::exit(1);
+        let msg = "(!) 'downsample' can not be 0.";
+        return Err(std::io::Error::new(ErrorKind::Other, msg))
     }
 
     // clap: default 1
     let radius = args.get_one::<f64>("radius").unwrap().to_owned();
     if !(radius > 0.0) {
-        println!("(!) 'radius' must be a positive float.");
-        std::process::exit(1);
+        let msg = "(!) 'radius' must be a positive float.";
+        return Err(std::io::Error::new(ErrorKind::Other, msg))
     }
 
     // clap default: 40, range: 3 .. 255 (min value checked later)
@@ -95,9 +83,9 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let height: Option<f64> = args.get_one("height").cloned();
     if let Some(h) = &height {
         if !(h > &0.0) {
-           println!("(!) 'height' must be a positive float.");
-           std::process::exit(1);
-       }
+            let msg = "(!) 'height' must be a positive float.";
+            return Err(std::io::Error::new(ErrorKind::Other, msg))
+        }
     }
 
     // clap: default 'point-all'
@@ -113,8 +101,8 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         // Final branch should never be reached, since clap sets default to 'points-all'
         // and checks valid values.
         shape => {
-            println!("(!) Invalid 'geoshape' value '{shape}'.");
-            std::process::exit(1);
+            let msg = format!("(!) Invalid 'geoshape' value '{shape}'.");
+            return Err(std::io::Error::new(ErrorKind::Other, msg))
         },
     };
 
@@ -122,16 +110,11 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     //            since will otherwise risk not having points corresponding
     //            to annotation time spans, short ones especially.
 
-    let tier = match select_tier(&eaf, true) {
-        Ok(t) => t,
-        Err(err) => {
-            println!("(!) Failed to extract tier: {err}");
-            std::process::exit(1)
-        }
-    };
 
+    print!("[CONTENT TIER] ");
+    let tier = select_tier(&eaf, true)?;
 
-    println!("Mapping annotation values and downsampling points...");
+    print!("Mapping annotation values and downsampling points...");
     // For performance reasons outer iteration is points,
     // since these usually outnumber number of annotations in a tier.
     for point in points.iter_mut() {
@@ -155,7 +138,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                         false
                     }
                 })
-                .map(|a| point.description = Some(a.value()));
+                .map(|a| point.description = Some(a.value().to_string()));
         }
     }
 
@@ -163,7 +146,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     // see issue #80552: https://github.com/rust-lang/rust/issues/80552
     // let point_clusters = points.group_by(|p1, p2| p1.description == p2.description)
 
-    let mut point_clusters: Vec<Vec<crate::geo::point::Point>> = Vec::new();
+    let mut point_clusters: Vec<Vec<EafPoint>> = Vec::new();
     if points.len() > 1 {
         // Add first point to point_slice as comparison
         let mut point_slice = vec!(points[0].to_owned());
@@ -189,8 +172,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     }
 
     let downsampled_clusters = filter_downsample(&point_clusters, Some(downsample_factor), &geoshape);
-    println!("Done.");
-
+    println!(" Done.");
 
     println!("Resulting point clusters with downsample factor {downsample_factor} and geoshape '{}':", geoshape.to_string());
     // For comparing original point count with downsampled result.
@@ -222,8 +204,6 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
             description.unwrap_or("NONE")
         )
     }
-    println!("  Done.");
-
 
     println!("Generating KML and GeoJSON...");
     // KML-only: Substitute basic Placemark description with HTML CDATA 
@@ -254,15 +234,12 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     // Serialize to KML v2.2. No line breaks/indentation.
     let kml_doc = kml_to_string(&kml);
-    let kml_path = files::affix_file_name(&eaf_path, None, Some(geoshape_arg)).with_extension("kml");
+    let kml_path = files::affix_file_name(&eaf_path, None, Some(geoshape_arg), Some("kml"));
 
     match files::writefile(&kml_doc.as_bytes(), &kml_path) {
         Ok(true) => println!("Wrote {}", kml_path.display()),
-        Ok(false) => println!("User aborted writing ELAN-file"),
-        Err(err) => {
-            println!("(!) Failed to write '{}': {err}", kml_path.display());
-            std::process::exit(1)
-        },
+        Ok(false) => println!("User aborted writing KML-file"),
+        Err(err) => return Err(err),
     }
 
     // Generate GeoJSON
@@ -270,15 +247,12 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     // Serialize GeoJSON. Not indented (= smaller size for web use).
     let geojson_doc = geojson.to_string();
-    let geojson_path = files::affix_file_name(&eaf_path, None, Some(geoshape_arg)).with_extension("geojson");
+    let geojson_path = files::affix_file_name(&eaf_path, None, Some(geoshape_arg), Some("geojson"));
 
     match files::writefile(&geojson_doc.as_bytes(), &geojson_path) {
         Ok(true) => println!("Wrote {}", geojson_path.display()),
-        Ok(false) => println!("User aborted writing ELAN-file"),
-        Err(err) => {
-            println!("(!) Failed to write '{}': {err}", geojson_path.display());
-            std::process::exit(1)
-        },
+        Ok(false) => println!("User aborted writing JSON-file"),
+        Err(err) => return Err(err),
     }
 
 
@@ -294,7 +268,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     if let Some(annotation) = first_annotation {
         println!("Relative time stamps:");
-        print!("  First annotation:  ");
+        print!("  First annotation:   ");
         if let (Some(t1), Some(t2)) = annotation.ts_val() {
             println!("    {t1:8} ms - {t2:8} ms '{}'", annotation.value())
         } else {
@@ -303,13 +277,14 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     }
     
     if let (Some(point), Some(point_annot)) = (first_point, first_annotated_point) {
-        print!("  First logged point: ");
+        print!("  First processed point:  ");
         if let Some(t) = point.timestamp_ms() {
-            println!("   {t:8} ms")
+            print!("{t:8} ms")
         } else {
-            println!("(!) No relative time set for point:\n    {point}")
+            print!("(!) No relative time set for point:\n    {point}")
         }
-        print!("  First annotated point: ");
+        println!(" (not first point in GPS log)");
+        print!("  First annotated point:  ");
         if let (Some(t), Some(txt)) = (point_annot.timestamp_ms(), point_annot.description.as_ref()) {
             println!("{t:8} ms '{txt}'")
         } else {
@@ -319,7 +294,9 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     println!("Annotations:");
     println!("  Geo-referenced:        {:4} annotations", georefed_annotations.len());
-    println!("  Discarded:             {:4} annotations (preceed GPS logging start time)", tier.len() - georefed_annotations.len());
+    println!("  Discarded:             {:4} annotations (preceed GPS logging start time)",
+        tier.len() - georefed_annotations.len()
+    );
 
     Ok(())
 }
