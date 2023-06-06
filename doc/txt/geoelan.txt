@@ -6,7 +6,7 @@ logs via the ELAN annotation software.
 Please cite this document as
 
   Larsson, J. 2022. GeoELAN Manual. Lund: Lund University Humanities
-  Lab. https://gitlab.com/rwaai/geoelan
+  Lab. https://github.com/jenslar/geoelan
 
 Acknowledgments
 
@@ -67,8 +67,8 @@ Requirements
 
 Installation
 
--   Download the zip-file from https://gitlab.com/rwaai/geoelan or use
-    git clone https://gitlab.com/rwaai/geoelan.git.
+-   Download the zip-file from https://github.com/jenslar/geoelan or use
+    git clone https://github.com/jenslar/geoelan.git.
 -   See the bin directory for pre-compiled executables for Linux, macOS,
     and Windows.
 
@@ -79,7 +79,7 @@ system, this may require installing additional software, and some
 understanding of working in a terminal. The basic steps are:
 
 1.  Install the Rust programming language
-2.  Get the GeoELAN source from https://gitlab.com/rwaai/geoelan
+2.  Get the GeoELAN source from https://github.com/jenslar/geoelan
 3.  cd geoelan (you should be in the folder containing Cargo.toml)
 4.  cargo build --release
 5.  cargo install --path . (optional, makes geoelan a global command)
