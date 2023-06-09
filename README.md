@@ -2,7 +2,7 @@
 
 > **Note 1:** This is GeoELAN's new home. The [old one](https://gitlab.com/rwaai/geoelan) will no longer be updated.
 
-> **Note 2:** Documentation may be outdated, working on updating this! (and make it less verbose...)
+> **Note 2:** Documentation may be temporarily outdated, working on updating this and to make it less verbose.
 
 
 ### Acknowledgements
