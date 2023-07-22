@@ -30,7 +30,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<Vec<EafPoint>> {
     // };
     // TODO NOT YET TESTED
     // let start_time = match fit.session_duration(&uuid) {
-    let start_time = match fit_session.duration() {
+    let start_time = match fit_session.timespan_rel() {
         Some((start, _)) => start,
         None => {
             println!("(!) Unable to determine start time for session.");

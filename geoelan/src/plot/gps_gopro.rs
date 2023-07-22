@@ -1,0 +1,127 @@
+use std::{path::PathBuf, io::ErrorKind};
+
+use gpmf_rs::{Gpmf, GoProSession, GpmfError};
+use plotly::{Scatter, common::{Title, Fill}};
+
+use crate::geo::haversine;
+
+
+pub(crate) fn gps2plot(
+    args: &clap::ArgMatches,
+) -> std::io::Result<(Title, Title, Title, Vec<Box<Scatter<f64, f64>>>)> {
+    
+    let path = args.get_one::<PathBuf>("gpmf").unwrap(); // verified to exist already
+    let y_axis = args.get_one::<String>("y-axis").unwrap(); // sensor type, required arg
+    let x_axis = args.get_one::<String>("x-axis"); // optional, default to counts/index
+    let fill = *args.get_one::<bool>("fill").unwrap();
+    let session = *args.get_one::<bool>("session").unwrap();
+
+    println!("Compiling data...");
+    
+    let gpmf = match session {
+        true => {
+            match GoProSession::from_path(&path, None, false, true) {
+                Some(s) => s.gpmf()?,
+                None => return Err(GpmfError::NoSession).map_err(|e| e.into())
+            }
+        },
+        false => Gpmf::new(&path, false)?
+    };
+
+    let gps = gpmf.gps().prune(2, None);
+
+    println!("Done");
+
+    println!("Generating plot...");
+
+    let x_axis_units: &str;
+    let x_axis_name: &str;
+    let x: Vec<f64> = match x_axis.map(|s| s.as_str()) {
+        Some("t" | "time") => {
+            x_axis_units = "seconds";
+            x_axis_name = "Time";
+            gps.iter().map(|g| g.time.as_seconds_f64()).collect()
+        },
+        Some("dst" | "distance") => {
+            x_axis_units = "meters";
+            x_axis_name = "Distance";
+            // Generate increasing distance vector
+            let mut dist: Vec<f64> = vec![0.];
+            let mut d = 0.;
+            for p in gps.0.windows(2) {
+                d += haversine(
+                    p[0].latitude, p[0].longitude,
+                    p[1].latitude, p[1].longitude,
+                );
+                dist.push(d)
+            }
+            dist
+        }
+        other => {
+            let msg = format!("(!) Invalid X-axis data type '{}'. Implemented values are 'time', 'distance'. Run 'geoelan inspect --gpmf {}' for a summary.",
+                other.unwrap_or("NONE"),
+                path.display()
+            );
+            return Err(std::io::Error::new(ErrorKind::Other, msg))
+        }
+    };
+
+    let y_axis_units: &str;
+    let y_axis_name: &str;
+    let y: Vec<f64> = match y_axis.as_str() {
+        "lat" | "latitude" => {
+            y_axis_units = "deg";
+            y_axis_name = "Latitude";
+            gps.iter().map(|p| p.latitude).collect()
+        },
+        "lon" | "longitude" => {
+            y_axis_units = "deg";
+            y_axis_name = "Longitude";
+            gps.iter().map(|p| p.longitude).collect()
+        },
+        "alt" | "altitude" => {
+            y_axis_units = "m";
+            y_axis_name = "Altitude";
+            gps.iter().map(|p| p.altitude).collect()
+        },
+        "s2d" | "speed2d" => {
+            y_axis_units = "m/s";
+            y_axis_name = "2D speed" ;
+            gps.iter().map(|p| p.speed2d).collect()
+        },
+        "s3d" | "speed3d" => {
+            y_axis_units = "m/s";
+            y_axis_name = "3D speed" ;
+            gps.iter().map(|p| p.speed3d).collect()
+        },
+        other => {
+            let msg = format!("(!) '{other}' is not supported by GoPro or not yet implemented. Run 'geoelan inspect --gpmf {}' for a summary.",
+                path.display()
+            );
+            return Err(std::io::Error::new(ErrorKind::Other, msg))
+        }
+    };
+
+    let title = Title::new(&format!("GPS [{}]", path.file_name().map(|f| f.to_string_lossy().to_string()).unwrap()));
+    let x_axis_label = Title::new(&format!("{x_axis_name} ({x_axis_units})"));
+    let y_axis_label = Title::new(&format!("{y_axis_name} ({y_axis_units})"));
+
+    println!("Done");
+
+    let x_y_scatter = if fill {
+        // Fill, would be better to have an arbitrary Y value to give more height to data
+        Scatter::new(x, y).fill(Fill::ToZeroY)
+    } else {
+        Scatter::new(x, y)
+    };
+
+
+    Ok((
+        title,
+        x_axis_label,
+        y_axis_label,
+        vec![
+            x_y_scatter
+        ]
+    ))
+}

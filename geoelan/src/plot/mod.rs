@@ -8,22 +8,24 @@
 use std::io::ErrorKind;
 
 mod sensors;
-mod plot_gopro;
-use plot_gopro::gopro2plot;
-mod plot_virb;
-use plot_virb::virb2plot;
+mod sensor_gopro;
+mod sensor_virb;
+mod gps_gopro;
+mod gps_virb;
 
 // https://lib.rs/crates/plotly
-use plotly::{Plot, Scatter, Layout, common::{Title, Marker}, layout::{LayoutGrid, GridPattern}, Scatter3D};
+use plotly::{Plot, Scatter, Layout, common::Title, layout::Axis, color::Rgb};
+
+use self::sensors::print_table;
 
 // Quick check for if requested data is sensor data or not.
 fn is_sensor(value: &str) -> bool {
     match value {
-        "gyr" | "gyroscrope"
+        "gyr" | "gyroscope"
         | "acc" | "accelerometer"
-        | "mag" | "magnetometer" // VIRB magnetometer (+ Fusion, MAX)
-        | "grv" | "gravity"     // GoPro gravtiy vector
-        | "bar" | "baro" | "barometer" => true,
+        | "mag" | "magnetometer"       // VIRB magnetometer (+ Fusion, MAX, but not implemented)
+        | "grv" | "gravity"            // GoPro gravity vector
+        | "bar" | "barometer" => true, // VIRB barometer
         _ => false
     }
 }
@@ -39,44 +41,62 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     // - 'hdg' / 'heading' - GPS heading (VIRB - GP N/Y but possible via accelerometer)
     // - 'fix' / 'gpsfix' - GPS satellite lock/fix (GP - may exist in VIRB undocumented fields?)
     // - 'dop' / 'dilution' - GPS dilution of position (GP - may exist in VIRB undocumented fields?)
-    // let y_axis = args.get_one::<String>("y-axis").unwrap(); // sensor type, required arg
+    let y_axis = args.get_one::<String>("y-axis").unwrap(); // sensor type, required arg
     let is_gopro = args.contains_id("gpmf");
     let is_fit = args.contains_id("fit");
+    // let print_sensor_table = *args.get_one::<bool>("sensor-table").unwrap();
+
+    // if print_sensor_table {
+    //     return print_table()
+    // }
 
     // Data in tuples (DATA, SECONDS) as [(f64, f64), ...]
 
     let title: Title;
+    let x_axis_label: Title;
+    let y_axis_label: Title;
     let traces: Vec<Box<Scatter<f64, f64>>>;
 
     // GoPro
     if is_gopro {
-        (title, traces) = gopro2plot(&args)?;
+        (title, x_axis_label, y_axis_label, traces) = match y_axis.as_str() {
+            "acc" | "accelerometer"
+            | "gyr" | "gyroscope"
+            | "grv" | "gravity"
+            | "bar" | "barometer"
+            | "mag" | "magnetometer" => sensor_gopro::sensor2plot(args)?,
+            _ => gps_gopro::gps2plot(&args)?
+        }
     // FIT, VIRB
     } else if is_fit {
-        (title, traces) = virb2plot(args)?;
+        (title, x_axis_label, y_axis_label, traces) = match y_axis.as_str() {
+            "acc" | "accelerometer"
+            | "gyr" | "gyroscope"
+            | "grv" | "gravity"
+            | "bar" | "barometer"
+            | "mag" | "magnetometer" => sensor_virb::sensor2plot(args)?,
+            _ => gps_virb::gps2plot(args)?
+        };
     } else {
         let msg = "(!) No data file specified.";
         return Err(std::io::Error::new(ErrorKind::Other, msg))
     }
 
+    // Create plot canvas
+    let mut plot = Plot::new();
     let layout = Layout::new()
         .height(600)
+        .x_axis(Axis::new().title(x_axis_label).grid_color(Rgb::new(255, 255, 255)))
+        .y_axis(Axis::new().title(y_axis_label).grid_color(Rgb::new(255, 255, 255)))
+        .plot_background_color(Rgb::new(229, 229, 229))
         .title(title);
-    let mut plot = Plot::new();
     plot.set_layout(layout);
+
+    // Add traces to plot canvas
     for trace in traces.into_iter() {
         plot.add_trace(trace)
     }
-    // let layout = Layout::new()
-    //     .title(title);
-    //     // .title(title)
-    //     // !!! grid/subplots do not work as described?
-    //     // .grid(LayoutGrid::new()
-    //     //     .columns(3)
-    //     //     .rows(3) // x, y, z
-    //     //     .pattern(GridPattern::Independent)).title(title);
 
-    // plot.set_layout(layout);
     plot.show();
 
     Ok(())

@@ -1,27 +1,27 @@
 //! Inspect camera telemetry, such as GPS logs.
 
-use std::{path::PathBuf, io::ErrorKind};
+use std::{io::ErrorKind, path::PathBuf};
 
 use fit_rs::VirbFile;
 use gpmf_rs::GoProFile;
 
 use crate::model::CameraModel;
 
-mod inspect_gpmf;
 mod inspect_fit;
+mod inspect_gpmf;
 
 pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
-
     // Inspect GoPro GPMF or Garmin FIT telemetry
     if args.get_one::<PathBuf>("gpmf").is_some() {
-        return inspect_gpmf::inspect_gpmf(args)
+        return inspect_gpmf::inspect_gpmf(args);
     } else if args.get_one::<PathBuf>("fit").is_some() {
-        return inspect_fit::inspect_fit(args)
+        return inspect_fit::inspect_fit(args);
     }
 
-    // Inspect GoPro (no telemetry) or VIRB MP4
+    // Inspect MP4 atom hierarchy
     if let Some(path) = args.get_one::<PathBuf>("video") {
         let model = CameraModel::from(path.as_path());
+
         let print_atoms = *args.get_one::<bool>("atoms").unwrap();
         let print_meta = *args.get_one::<bool>("meta").unwrap();
 
@@ -30,7 +30,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 Ok(v) => v,
                 Err(err) => {
                     let msg = format!("(!) Failed to read MP4: {err}");
-                    return Err(std::io::Error::new(ErrorKind::Other, msg))
+                    return Err(std::io::Error::new(ErrorKind::Other, msg));
                 }
             };
             // Print atom fourcc, size, offsets
@@ -53,10 +53,9 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                         pop = true;
                     }
                 }
-                // if header.name == FourCC::Hdlr {
-                //     let hdlr = mp4.atom(&mut header)?;
-                // }
-                println!("{}{} @{} size: {}",
+
+                println!(
+                    "{}{} @{} size: {}",
                     "    ".repeat(indent as usize),
                     header.name.to_str(),
                     header.offset,
@@ -68,8 +67,8 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 if pop {
                     loop {
                         match sizes.last() {
-                            Some(&0) => {_ = sizes.pop()},
-                            _ => break
+                            Some(&0) => _ = sizes.pop(),
+                            _ => break,
                         }
                     }
                 }
@@ -79,13 +78,11 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
         match model {
             CameraModel::GoPro(devname) => {
-                // let gopro = match GoProFile::new(path.as_path(), false, false) {
-                // let gopro = match GoProFile::new(path.as_path(), false, false) {
                 let gopro = match GoProFile::new(path.as_path()) {
                     Ok(g) => g,
                     Err(err) => {
                         let msg = format!("(!) Failed to read as GoPro MP4: {err}");
-                        return Err(std::io::Error::new(ErrorKind::Other, msg))
+                        return Err(std::io::Error::new(ErrorKind::Other, msg));
                     }
                 };
 
@@ -93,8 +90,9 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                     let meta = match gopro.meta() {
                         Ok(m) => m,
                         Err(err) => {
-                            let msg = format!("(!) Failed to extract metadata from GoPro MP4: {err}");
-                            return Err(std::io::Error::new(ErrorKind::Other, msg))
+                            let msg =
+                                format!("(!) Failed to extract metadata from GoPro MP4: {err}");
+                            return Err(std::io::Error::new(ErrorKind::Other, msg));
                         }
                     };
                     println!("Metadata (MP4 'udta' atom):");
@@ -109,7 +107,8 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 }
 
                 // let dvnm = DeviceName::from_mp4(&path)?;
-                println!("Identified as {} MP4 file\n  MUID: {:?}\n  GUMI: {:?}",
+                println!(
+                    "Identified as {} MP4 file\n  MUID: {:?}\n  GUMI: {:?}",
                     devname.to_str(),
                     gopro.muid,
                     gopro.gumi,
@@ -117,24 +116,28 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 let time_dur = gopro.time()?;
                 println!("Creation time: {}", time_dur.0.to_string());
                 println!("Duration:      {:.3}s", time_dur.1.as_seconds_f64());
-                println!("To inspect GPMF run 'geoelan inspect --gpmf {}'", path.display());
-                
-                return Ok(())
-            },
+                println!(
+                    "To inspect GPMF run 'geoelan inspect --gpmf {}'",
+                    path.display()
+                );
+
+                return Ok(());
+            }
             CameraModel::Virb(uuid) => {
                 let virb = match VirbFile::new(path.as_path(), None) {
                     Ok(v) => v,
                     Err(err) => {
                         let msg = format!("(!) Failed to read as VIRB MP4: {err}");
-                        return Err(std::io::Error::new(ErrorKind::Other, msg))
+                        return Err(std::io::Error::new(ErrorKind::Other, msg));
                     }
                 };
                 if print_meta {
                     let meta = match virb.meta() {
                         Ok(m) => m,
                         Err(err) => {
-                            let msg = format!("(!) Failed to extract metadata from VIRB MP4: {err}");
-                            return Err(std::io::Error::new(ErrorKind::Other, msg))
+                            let msg =
+                                format!("(!) Failed to extract metadata from VIRB MP4: {err}");
+                            return Err(std::io::Error::new(ErrorKind::Other, msg));
                         }
                     };
                     println!("Metadata (MP4 'udta' atom):");
@@ -146,24 +149,24 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 }
                 println!("Identified as VIRB MP4 file with UUID:\n{}", uuid);
                 std::process::exit(0)
-            },
+            }
             CameraModel::Unknown => {
                 if print_meta {
                     let mut mp4 = match mp4iter::Mp4::new(path.as_path()) {
                         Ok(v) => v,
                         Err(err) => {
                             let msg = format!("(!) Failed to read MP4: {err}");
-                            return Err(std::io::Error::new(ErrorKind::Other, msg))
+                            return Err(std::io::Error::new(ErrorKind::Other, msg));
                         }
                     };
-                    let meta = match mp4.udta() {
+                    let meta = match mp4.udta(true) {
                         Ok(v) => v,
                         Err(err) => {
                             let msg = format!("(!) Failed to extract metadata from MP4: {err}");
-                            return Err(std::io::Error::new(ErrorKind::Other, msg))
+                            return Err(std::io::Error::new(ErrorKind::Other, msg));
                         }
                     };
-    
+
                     println!("Metadata (MP4 'udta' atom):");
                     for field in meta.fields.iter() {
                         println!("  {} SIZE: {}", field.name.to_str(), field.size);
@@ -172,15 +175,14 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                     println!("---");
                 }
 
-                print!("Unknown camera model ({}).", path.file_name().unwrap().to_string_lossy());
                 if let Ok(gp) = GoProFile::new(&path) {
                     println!(" Possibly GoPro with no GPMF data and MUID {:?}", gp.muid)
                 } else {
                     println!(" No GoPro GPMF data or VIRB UUID found.")
                 }
-                
-                return Ok(())
-            },
+
+                return Ok(());
+            }
         }
     }
 

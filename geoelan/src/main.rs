@@ -1,6 +1,6 @@
 use std::{path::PathBuf, process::ExitCode};
 
-use clap::{Arg, Command, builder::PossibleValuesParser, ArgAction};
+use clap::{Arg, Command, builder::{PossibleValuesParser, BoolValueParser}, ArgAction};
 use time::OffsetDateTime;
 
 use kml;
@@ -18,18 +18,29 @@ mod media;
 mod text;
 mod model;
 
-// fn main() -> std::io::Result<()> {
 fn main() -> ExitCode {
-    let about = format!(
-        "GeoELAN, build: {}
-- Source:        https://github.com/jenslar/geoelan
-- Documentation: https://github.com/jenslar/geoelan/mdbook
+    let version = "2.5";
+    let author = "Jens Larsson";
+    let repo = "https://github.com/jenslar/geoelan";
+    let build = OffsetDateTime::now_utc().date().to_string();
+    let help = format!("GeoELAN {version} (build: {build})
 
-GeoELAN is a tool for annotating action camera GPS logs using the free annotation software ELAN. Supported cameras are a recent GoPro or a Garmin VIRB Ultra 30. Additional functionality includes inspecting and plotting data in GoPro's GPMF-format and Garmin FIT-files, and also to automatically locate and group video clips by recording session. Refer to the manual for further information.
+    GeoELAN is a tool for annotating action camera GPS logs using the free annotation software ELAN.
+
+Source: {repo}
+
+Use 'geoelan --help' for a longer description.");
+    // - Documentation: https://github.com/jenslar/geoelan/mdbook
+    let long_help = format!(
+        "GeoELAN {version} (build: {build})
+
+        Source:        {repo}
+
+GeoELAN is a tool for annotating action camera GPS logs using the free annotation software ELAN. Supported cameras are a recent GoPro or a Garmin VIRB Ultra 30. Additional functionality includes inspecting and plotting data in GoPro's GPMF-format and Garmin FIT-files, and to also automatically locate and group video clips by recording session. Refer to the manual for further information.
 
 IMPORTANT:
   Keep your original files (renaming is fine). Concatenating/converting video clips will
-  discard embedded data, such as GPS-logs and identifiers.
+  discard all embedded telemetry, such as GPS-logs and identifiers.
 
 REQUIREMENTS:
 - FFmpeg:              https://ffmpeg.org ('cam2eaf')
@@ -46,34 +57,20 @@ MANUAL:
 PUBLICATION:
 - https://doi.org/10.1080/13645579.2020.1763705
 
----",
-        OffsetDateTime::now_utc().date().to_string()
-    );
+---");
 
     let args = Command::new("geoelan")
 
-        .version("2.5")
-        .author("Jens Larsson")
-        .about(about)
+        .version(version)
+        .author(author)
+        .about(help)
+        .long_about(long_help)
         .term_width(80)
         .arg_required_else_help(true)
 
-        // // Print or save manual
-        // .subcommand(Command::new("manual")
-        //     .about("Print the manual or save as a file to disk.")
-        //     .visible_alias("m")
-        //     .arg(Arg::new("pdf")
-        //         .help("Save the full manual as a PDF to current directory.")
-        //         .long("pdf")
-        //         .action(clap::ArgAction::SetTrue))
-        //         .arg(Arg::new("pdf-a4")
-        //         .help("Save the A4-guide as a PDF to current directory.")
-        //         .long("pdf-a4")
-        //         .action(clap::ArgAction::SetTrue))
-        // )
-
         .subcommand(Command::new("cam2eaf")
-            .about("Generate an ELAN-file from GoPro/VIRB footage, with or without coordinates inserted as a tier. Requires FFmpeg for concatenating clips.")
+            .about("Generate an ELAN-file from GoPro/VIRB footage.")
+            .long_about("Generate an ELAN-file from GoPro/VIRB footage, with or without coordinates inserted as a tier. Requires FFmpeg for joining clips.")
             .visible_alias("c2e")
 
             .next_help_heading("VIRB")
@@ -103,15 +100,15 @@ PUBLICATION:
                 .required_unless_present_any(&["video", "fit", "batch"]))
             
             .next_help_heading("GoPro")
-            .arg(Arg::new("verify-gpmf")
-                .help("Verifies GPMF data and discards corrupt clips before grouping as session.")
-                .long("verify-gpmf")
+            .arg(Arg::new("verify")
+                .help("Verifies GPMF data and ignores corrupt clips.")
+                .long("verify")
                 .conflicts_with_all(&[
                     "fit", "uuid" // VIRB only args
                 ])
                 .action(ArgAction::SetTrue))
             .arg(Arg::new("gpsfix")
-                .help("Filter GPS-log to only include points with a specific number of satellites locked. 0 = No lock (all points), 2 = 2D lock, 3 = 3D lock.")
+                .help("Ignore points below satellite lock threshold. 0 = No lock, 2 = 2D lock, 3 = 3D lock.")
                 .long("gpsfix")
                 .default_value("3") // 3D lock for eaf
                 .conflicts_with_all(&[
@@ -190,23 +187,26 @@ PUBLICATION:
                 .action(ArgAction::SetTrue))
         )
 
-        // 'point-all':   Points. Includes all points, meaning some will not have a description value.
-        // 'point-multi': Points. Only includes points that intersect with an annotation value.
-        // 'line-all':    Continuous poly-line. Includes all points, meaning some segments
-        //                will not have a description value.
-        // 'line-multi':  Segmented poly-line. Only includes points that intersect with an annotation value.
-        // 'circle-2d':   Generates a flat circle around an average point derived from those logged within
-        //                each annotation's timespan.
-        // 'circle-3d':   Generates an extruded circle around an average point derived from those logged within
-        //                each annotation's timespan. Extrusion height is equal to the altitude value,
-        //                relative to ground.
-
-        // Defaults for circles (customizable):
-        // radius:        2 meters
-        // vertices:      40 (valid values are 3 - 255)
         // Generate KML and GeoJson from EAF
         .subcommand(Command::new("eaf2geo")
-            .about("Generate KML and GeoJson from specified ELAN-file. Use the 'geoshape' option to specify feature type (point, polyline, or circle) for output KML and GeoJSON files. ELAN annotation values become descriptions if a logged point's timstamp intersects with the annotation timespan.")
+            .about("Generate KML and GeoJson from specified ELAN-file.")
+            .long_about(r#"Generate KML and GeoJson from specified ELAN-file.
+
+ELAN annotation values become KML/GeoJSON descriptions if a logged point's timstamp intersects with the annotation timespan.
+            
+Use the '--geoshape' option to specify feature type (point, polyline, or circle).
+
+Geoshape options:
+  'point-all':   Points. Includes all points, meaning some will not have a description value.
+  'point-multi': Points. Only includes points that intersect with an annotation value.
+  'line-all':    Continuous poly-line. Includes all points, meaning some segments will not have a description value.
+  'line-multi':  Segmented poly-line. Only includes points that intersect with an annotation value.
+  'circle-2d':   Generates a flat circle around an average point derived from those logged within each annotation's timespan.
+  'circle-3d':   Generates an extruded circle around an average point derived from those logged within each annotation's timespan. Extrusion height is equal to the altitude value, relative to ground.
+
+  Defaults for circles (customizable):
+    radius:        2 meters
+    vertices:      40 (valid values are 3 - 255)"#)
             .visible_alias("e2g")
 
             .next_help_heading("General")
@@ -230,7 +230,7 @@ PUBLICATION:
                 .value_parser(clap::value_parser!(usize))
                 .default_value("1"))
             .arg(Arg::new("geoshape")
-                .help("Output options for KML-file. ELAN annotation values will be added as description for points that intersect with an annotation timespan regardless of geoshape value.")
+                .help("Output options for KML and GeoJSON files.")
                 .long("geoshape")
                 .default_value("point-all")
                 // TODO change below to GeoTypes enum
@@ -284,11 +284,11 @@ PUBLICATION:
                 .value_parser(clap::value_parser!(PathBuf))
                 .required_unless_present_any(["fit", "geotier"]))
             .arg(Arg::new("verify")
-                .help("Verifies GPMF data and discards corrupt clips before grouping as session.")
+                .help("Verifies GPMF data and ignores corrupt clips.")
                 .long("verify")
                 .action(ArgAction::SetTrue))
             .arg(Arg::new("gpsfix")
-                .help("Filter GPS-log to only include points with a specific number of satellites locked. 0 = No lock (all points), 2 = 2D lock, 3 = 3D lock.")
+                .help("Ignore points below satellite lock threshold. 0 = No lock, 2 = 2D lock, 3 = 3D lock.")
                 .long("gpsfix")
                 .default_value("3") // 3D lock for eaf
                 .conflicts_with_all(["fit", "geotier"])
@@ -318,7 +318,7 @@ PUBLICATION:
                 ]))
                 .required_unless_present_any(&["uuid", "video", "fit"]))
             .arg(Arg::new("video")
-                .help("Any original GoPro or VIRB clip.")
+                .help("Any unedited GoPro or VIRB clip.")
                 .short('v')
                 .long("video")
                 .value_parser(clap::value_parser!(PathBuf))
@@ -340,21 +340,17 @@ PUBLICATION:
                 .long("fit")
                 .value_parser(clap::value_parser!(PathBuf))
                 .conflicts_with_all(&["uuid", "video"]))
-            .arg(Arg::new("duplicates")
-                .help("Include duplicate files in match results")
-                .long("duplicates")
-                .action(ArgAction::SetTrue))
 
             .next_help_heading("GoPro")
             .arg(Arg::new("verify")
-                .help("Verifies GPMF data and discards corrupt clips before grouping as session.")
+                .help("Verifies GPMF data and ignores corrupt clips.")
                 .long("verify")
                 .action(ArgAction::SetTrue))
         )
 
         // Inspect GoPro/Garmin telemetry
         .subcommand(Command::new("inspect")
-            .about("Inspect Garmin FIT-files  ('--fit <FIT-FILE>'), or GoPro GPMF data ('--gpmf <MP4-FILE>').")
+            .about("Inspect Garmin FIT and GoPro GPMF data.")
             .visible_alias("i")
 
             .next_help_heading("General")
@@ -365,14 +361,16 @@ PUBLICATION:
                 .value_parser(clap::value_parser!(PathBuf))
                 .conflicts_with("gpmf"))
             .arg(Arg::new("atoms")
-                .help("Print MP4 atom information if specified file is a video.")
+                .help("Print MP4 atom information if '--video' is used.")
                 .action(ArgAction::SetTrue)
                 .long("atoms")
+                .requires("video")
                 .conflicts_with_all(["gpmf", "fit"]))
             .arg(Arg::new("meta")
-                .help("Print MP4 custom metadata (udta).")
+                .help("Print MP4 custom metadata if '--video' is used.")
                 .action(ArgAction::SetTrue)
                 .long("meta")
+                .requires("video")
                 .conflicts_with_all(["gpmf", "fit"]))
             
             .next_help_heading("VIRB")
@@ -381,7 +379,7 @@ PUBLICATION:
                 .long("fit")
                 .short('f')
                 .value_parser(clap::value_parser!(PathBuf))
-                .required_unless_present_any(&["video", "gpmf"])
+                .required_unless_present_any(["video", "gpmf"])
                 .conflicts_with("gpmf"))
                 
             .next_help_heading("GoPro")
@@ -405,14 +403,15 @@ PUBLICATION:
                 .requires("gpmf")
                 .conflicts_with_all(&["fit", "video", "global"])) // list all conflicts...?
             .arg(Arg::new("gpsfix")
-                .help("Filter GPS-log to only include points with a specific number of satellites locked. 0 = No lock (all points), 2 = 2D lock, 3 = 3D lock.")
+                .help("Ignore points below satellite lock threshold. 0 = No lock, 2 = 2D lock, 3 = 3D lock.")
                 .long("gpsfix")
                 .default_value("2") // 2D lock
                 .value_parser(clap::value_parser!(u32))
+                // .value_parser(PossibleValuesParser::new([0_u32, 2_u32, 3_u32]))
                 .requires("gpmf")
                 .conflicts_with_all(&["fit", "video", "global"])) // list all conflicts...?
             .arg(Arg::new("verify")
-                .help("Verifies GPMF data and discards corrupt clips before grouping as session.")
+                .help("Verifies GPMF data and ignores corrupt clips.")
                 .long("verify")
                 .requires("gpmf")
                 .action(ArgAction::SetTrue))
@@ -446,7 +445,7 @@ PUBLICATION:
                 .long("json")
                 .action(ArgAction::SetTrue))
             .arg(Arg::new("fullgps")
-                .help("Use full 10Hz GPS log for KML/GeoJson.")
+                .help("Use full GPS log for KML/GeoJson (10-18Hz depending on model).")
                 .long("fullgps")
                 .action(ArgAction::SetTrue))
             .arg(Arg::new("verbose")
@@ -455,18 +454,17 @@ PUBLICATION:
                 .conflicts_with_all(&["gps", "debug"])
                 .action(ArgAction::SetTrue))
             .arg(Arg::new("data-type")
-                .help("Print telemetry data for specified data type. FIT: specify the numerical ID, e.g. for 160 for GPS. GPMF: specify a string, e.g. 'GPS (Lat., Long., Alt., 2D speed, 3D speed)' (citation marks may be required) for GPS.")
+                .help("Print specified data in raw form. FIT: e.g. 160 for GPS. GPMF: e.g. 'GPS (Lat., Long., Alt., 2D speed, 3D speed)' for GPS (note the citation marks).")
                 .long("type")
                 .short('t')
-                // TODO value parser possible? string for gopro, u16 for virb
                 .conflicts_with_all(&["gps", "debug", "verbose"]))
             .arg(Arg::new("gps")
-                .help("Print GPS log.")
+                .help("Print processed GPS log.")
                 .long("gps")
                 .action(ArgAction::SetTrue)
                 .conflicts_with_all(&["verbose", "debug", "data-type"])) // gps always prints points
             .arg(Arg::new("debug")
-                .help("Print debug info for all data while parsing.")
+                .help("Print debug info while parsing.")
                 .long("debug")
                 .action(ArgAction::SetTrue)
                 .conflicts_with_all(&["gps", "verbose", "data-type"])) // gps always prints points
@@ -486,52 +484,83 @@ PUBLICATION:
                 .long("gpmf")
                 .short('g')
                 .value_parser(clap::value_parser!(PathBuf))
+                // .required_unless_present_any(["fit", "table"]))
                 .required_unless_present("fit"))
 
-            .next_help_heading("Garmin VIRB")
+            .next_help_heading("VIRB")
             .arg(Arg::new("fit")
                 .help("Garmin FIT-file. Non-VIRB FIT-files work depending on options used.")
                 .long("fit")
                 .short('f')
                 .value_parser(clap::value_parser!(PathBuf))
+                // .required_unless_present_any(["gpmf", "table"]))
                 .required_unless_present("gpmf"))
 
             .next_help_heading("General")
+            .arg(Arg::new("session")
+                .help("Compile telemetry for the entire recording session.")
+                .long("session")
+                .short('s')
+                .action(ArgAction::SetTrue))
+            // .arg(Arg::new("sensor-table")
+            //     .help("Show a table detailing which sensors are available and exit.")
+            //     .long("table")
+            //     .exclusive(true)
+            //     .action(ArgAction::SetTrue))
             .arg(Arg::new("y-axis")
                 .help("Data to plot on Y-axis.")
                 .long("y-axis")
                 .short('y')
                 .required(true)
+                // .required_unless_present("table")
                 .value_parser([
+                    // Sensors
                     "acc", "accelerometer", // GoPro, VIRB
                     "gyr", "gyroscope",     // GoPro, VIRB
                     "grv", "gravity",     // GoPro (Gravity Vector)
                     "bar", "barometer",     // VIRB
                     "mag", "magnetometer",   // VIRB, some GoPro models (Fusion only?)
+                    
+                    // GPS
+                    "lat", "latitude", // TODO GPS altitude. GoPro, VIRB
+                    "lon", "longitude", // TODO GPS altitude. GoPro, VIRB
                     "alt", "altitude", // TODO GPS altitude. GoPro, VIRB
+                    "s2d", "speed2d",
+                    "s3d", "speed3d",
+                    // "dst", "distance", // TODO GPS altitude. GoPro, VIRB
+
                 ]))
             .arg(Arg::new("x-axis")
                 .help("Data to plot on X-axis. Defaults to count/data index if not specified.")
                 .long("x-axis")
                 .short('x')
                 .value_parser([
-                    "time",     // Time of recording session in seconds
-                    "dist", "distance", // GPS travel distance/displacement
-                ]))
+                    // General
+                    "c", "count",      // Sample count (default)
+                    "t", "time",       // Time of recording session in seconds
+
+                    // GPS
+                    "dst", "distance", // GPS travel distance/displacement
+                ])
+                .default_value("count"))
+            .arg(Arg::new("fill")
+                .help("Fill area under plot.")
+                .long("fill")
+                .action(clap::ArgAction::SetTrue))
         )
 
         // Print or save manual
         .subcommand(Command::new("manual")
-        .about("Print the manual or save as a file to disk.")
-        .visible_alias("m")
-        .arg(Arg::new("pdf")
-            .help("Save the full manual as a PDF to current directory.")
-            .long("pdf")
-            .action(clap::ArgAction::SetTrue))
+            .about("Print the manual or save as a file to disk.")
+            .visible_alias("m")
+            .arg(Arg::new("pdf")
+                .help("Save the full manual as a PDF to current directory.")
+                .long("pdf")
+                .action(clap::ArgAction::SetTrue))
             .arg(Arg::new("pdf-a4")
-            .help("Save the A4-guide as a PDF to current directory.")
-            .long("pdf-a4")
-            .action(clap::ArgAction::SetTrue))
+                .help("Save the A4-guide as a PDF to current directory.")
+                .long("pdf-a4")
+                .action(clap::ArgAction::SetTrue))
         )
         .get_matches();
     

@@ -19,7 +19,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let session = match (video_path_opt, fit_path_opt, uuid_opt) {
         (Some(path), ..) => VirbSession::from_mp4(path, indir, true),
         (_, Some(path), _) => {
-            let fit = Fit::parse(path, Some(161))?; // only need camera_event/161
+            let fit = Fit::parse(path, Some(161), false)?; // only need camera_event/161
             let fit_session = select_session(&fit)?;
             
             // Any UUID in the session is fine,

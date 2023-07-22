@@ -171,3 +171,30 @@ pub fn point_cluster_average(points: &[point::EafPoint]) -> point::EafPoint {
         description,
     }
 }
+
+
+/// Calculate the great circle distance between two points
+/// on the earth (specified in decimal degrees)
+pub fn haversine(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    let deg2rad = std::f64::consts::PI / 180.0; // inverse for radians to degress
+    
+	// convert decimal degrees to radians
+	let (lon1, lat1, lon2, lat2) = (
+        lon1 * deg2rad,
+        lat1 * deg2rad,
+        lon2 * deg2rad,
+        lat2 * deg2rad
+    );
+
+	// haversine formula
+	let dlon = lon2 - lon1;
+	let dlat = lat2 - lat1;
+
+	// let a = sin((dlat)/2)^2 + cos(lat1) * cos(lat2) * sin(dlon/2)^2;
+	let a = (dlat / 2.).sin().powi(2)
+        + lat1.cos() * lat2.cos() * (dlon / 2.).sin().powi(2);
+	let c = 2. * a.sqrt().asin();
+	let r = 6371.; // Radius of earth in kilometers. Use 3956 for miles
+
+	c * r
+}

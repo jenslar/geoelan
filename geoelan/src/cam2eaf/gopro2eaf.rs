@@ -11,7 +11,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
             std::io::Error::new(ErrorKind::Other, msg)
         })?
     };
-    let verify_gpmf = *args.get_one::<bool>("verify-gpmf").unwrap();
+    let verify_gpmf = *args.get_one::<bool>("verify").unwrap();
     let single = *args.get_one::<bool>("single").unwrap(); // defaults to false
 
     let mut gopro_session = if single {

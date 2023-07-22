@@ -28,28 +28,12 @@ use super::{
     }, EafPoint
 };
 
-// pub fn kml_to_bytes(doc: &KmlDocument) -> Vec<u8> {
-//     let kml_doc = Kml::KmlDocument(doc.to_owned());
-
-//     let mut kml_out = Vec::new();
-
-//     // Add XML declaration to buffer
-//     kml_out.extend(b"<?xml version='1.0' encoding='utf-8'?>");
-
-//     // Serialize KML to buffer
-//     let mut writer = KmlWriter::from_writer(&mut kml_out);
-
-//     writer.write(&kml_doc).unwrap();
-    
-//     kml_out
-// }
-
 pub fn kml_to_string(doc: &KmlDocument) -> String {
-    vec!(
+    vec![
         // Add XML declaration
         "<?xml version='1.0' encoding='utf-8'?>".to_owned(),
         Kml::KmlDocument(doc.to_owned()).to_string()
-    ).join("")
+    ].join("")
 }
 
 /// Generate KML document from geometries in `element`
@@ -82,7 +66,7 @@ pub fn kml_from_placemarks(placemarks: &[Placemark], styles: &[Element]) -> KmlD
     }
 }
 
-/// <styleUrl>#linestyleExample</styleUrl>
+/// KML style URL element
 fn kml_styleurl(id: &str) -> Element {
     Element{
         name: "styleUrl".to_owned(),
@@ -132,7 +116,6 @@ pub fn kml_style(id: &str, geoshape: &GeoShape, color: &Rgba) -> Element {
 /// Otherwise a timespan is generated:
 /// `<TimeSpan><begin>2021-06-22T11:40:34.119</begin><end>2021-06-22T11:40:42.519</end></TimeSpan>`,
 /// which is useful for e.g. polylines.
-// pub fn kml_timestamp(datetime_start: &chrono::NaiveDateTime, datetime_end: Option<&chrono::NaiveDateTime>) -> Element {
 pub fn kml_timestamp(datetime_start: &PrimitiveDateTime, datetime_end: Option<&PrimitiveDateTime>) -> Element {
     let mut name = "TimeStamp".to_owned();
     let children = match datetime_end {
@@ -140,11 +123,9 @@ pub fn kml_timestamp(datetime_start: &PrimitiveDateTime, datetime_end: Option<&P
             name = "TimeSpan".to_owned();
             let mut start = Element::default();
             start.name = "begin".to_owned();
-            // start.content = Some(datetime_start.format("%Y-%m-%dT%H:%M:%S").to_string());
             start.content = Some(datetime_start.to_string()); // TODO 220809 check default PrimitiveDateTime.to_string format, maybe not correct
             let mut end = Element::default();
             end.name = "end".to_owned();
-            // end.content = Some(dt_end.format("%Y-%m-%dT%H:%M:%S").to_string());
             end.content = Some(dt_end.to_string()); // TODO 220809 check default PrimitiveDateTime.to_string format, maybe not correct
 
             vec!(start, end)
@@ -152,7 +133,6 @@ pub fn kml_timestamp(datetime_start: &PrimitiveDateTime, datetime_end: Option<&P
         None => vec!(Element{
             name: "when".to_owned(),
             attrs: HashMap::new(),
-            // content: Some(datetime_start.format("%Y-%m-%dT%H:%M:%S").to_string()),
             content: Some(datetime_start.to_string()), // TODO 220809 check default PrimitiveDateTime.to_string format, maybe not correct
             children: Vec::new()
         })

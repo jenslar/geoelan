@@ -63,7 +63,7 @@ pub fn generate_eaf(
         if let Some(annot_tuple) = annotations.last_mut() {
             let mut mp4 = mp4iter::Mp4::new(video_path)?;
             // Mp4::duration() returns error for zero length videos
-            if let Ok(duration) = mp4.duration() {
+            if let Ok(duration) = mp4.duration(false) {
                 let duration_ms = duration.whole_milliseconds() as i64; // i128 as i64 cast should be safe enough for video time spans
                 annot_tuple.2 = duration_ms;
             }

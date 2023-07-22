@@ -6,7 +6,6 @@ use std::path::PathBuf;
 
 use gpmf_rs::{
     SensorType,
-    SensorData,
     Gpmf,
     DataType,
     FourCC,
@@ -230,7 +229,9 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
             }
         };
 
-        let sensor_data = SensorData::from_gpmf(&gpmf, &stype);
+        // let sensor_data = SensorData::from_gpmf(&gpmf, &stype);
+        let sensor_data = gpmf.sensor(&stype);
+
 
         let mut counter = 0;
         for (i1, data) in sensor_data.iter().enumerate() {

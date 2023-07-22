@@ -158,7 +158,7 @@ impl Media {
     /// Returns duration for the longest track in an MP4-file.
     pub fn duration(path: &Path) -> std::io::Result<time::Duration> {
         let mut mp4 = mp4iter::Mp4::new(path)?;
-        let duration = mp4.duration()?;
+        let duration = mp4.duration(false)?;
 
         Ok(duration)
     }

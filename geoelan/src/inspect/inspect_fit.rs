@@ -20,7 +20,7 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
     if debug {
         if let Some(path) = fit_path {
             // Want error while parsing in this case
-            let _fit = Fit::debug(path, None);
+            let _fit = Fit::debug(path);
         }
     }
 
@@ -246,7 +246,7 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
         if let Err(err) = session.derive() {
             println!("(!) Failed to derive session: {err}");
         };
-        if let Ok((start, end)) = session.datetime(None, true) {
+        if let Ok((start, end)) = session.timespan_abs(None, true) {
             println!("Session time span:");
             println!("  Start:    {}", start.to_string());
             println!("  End:      {}", end.to_string());
