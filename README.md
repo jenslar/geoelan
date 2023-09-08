@@ -1,6 +1,6 @@
 ## GeoELAN
 
-**IMPORTANT:** GoPro's newest camera, as far as I know **HERO12 Black DOES NOT have a GPS module** (the HERO11 Black does have GPS and is still being sold at the time of writing). This means the main workflow in **GeoELAN WILL NOT WORK with a GoPro HERO12 Black**. I don't know what GoPro's plans are, but I will look into alternative solutions (e.g. using a parallel GPS log from a fitness watch or similar).
+**IMPORTANT:** GoPro's newest camera **HERO12 Black DOES NOT have a GPS module** as far as I know (the HERO11 Black does have GPS and is still being sold at the time of writing). This means the main workflow in **GeoELAN WILL NOT WORK with a GoPro HERO12 Black**. I don't know what GoPro's plans are, but I will look into alternative solutions (e.g. using a parallel GPS log from a fitness watch or similar).
 
 > **Note 1:** This is GeoELAN's new home. The [old one](https://github.com/jenslar/geoelan) will no longer be updated.
 
