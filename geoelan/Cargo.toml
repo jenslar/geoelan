@@ -21,7 +21,7 @@ regex = "1"
 plotly = "0.8.4"
 fit-rs = {git = "https://github.com/jenslar/fit-rs.git"}
 gpmf-rs = {git = "https://github.com/jenslar/gpmf-rs.git"}
-eaf-rs = {git = "https://github.com/jenslar/eaf-rs.git"}
+eaf-rs = {git = "https://github.com/jenslar/eaf-rs.git", version = "0.4.1"}
 mp4iter = {git = "https://github.com/jenslar/mp4iter.git"}
 jpegiter = {git = "https://github.com/jenslar/jpegiter.git"}
 leaflet = "0.2.2"
