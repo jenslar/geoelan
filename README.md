@@ -1,28 +1,120 @@
-## GeoELAN
+**GeoELAN v2.7 2024-10-16**
 
-**IMPORTANT:** GoPro's newest camera **HERO12 Black DOES NOT have a GPS module** as far as I know (the HERO11 Black does have GPS and is still being sold at the time of writing). This means the main workflow in **GeoELAN WILL NOT WORK with a GoPro HERO12 Black**. I don't know what GoPro's plans are, but I will look into alternative solutions (e.g. using a parallel GPS log from a fitness watch or similar).
+> **Important:**
+> - **GoPro Hero 12 Black does not have a GPS module and is not supported**. GoPro Hero 13 Black once again has a GPS and should be compatible.
+> - **Garmin has discontinued the VIRB Ultra 30**. Use a GoPro with a GPS module instead.
+> We still have and use VIRBs, so GeoELAN will continue to support these and the FIT-format.
 
-> **Note 1:** This is GeoELAN's new home. The [old one](https://github.com/jenslar/geoelan) will no longer be updated.
+Annotate action camera GPS logs with the help of the free annotation tool [ELAN](https://archive.mpi.nl/tla/elan).
 
-> **Note 2:** Documentation may be temporarily outdated. I'm working on updating this (and to make it less verbose).
+GeoELAN is multi-functional command-line tool that can
+- **geo-reference** ELAN-annotations of GoPro and VIRB footage (i.e. annotate GPS logs) and **generate annotated points, lines, or circles**.
+- **inspect** the raw content of your GoPro GPMF data, or Garmin FIT-files.
+- **locate and match** all relevant files belonging to the same recording session (clips, telemetry-files).
+- automatically **join clips** for a specific recording session, and **generate an ELAN-file** with linked media (requires FFmpeg).
+- be useful even if all you want to do is to inspect GoPro and Garmin telemetry and/or join action camera clips automatically
 
-> GeoELAN is multi-functional command-line tool that can
-> - **geo-reference** ELAN-annotations of GoPro and VIRB footage (i.e. annotate GPS logs) and **generate annotated points, lines, or circles**.
-> - **inspect** the raw content of your GoPro GPMF data, or Garmin FIT-files.
-> - **locate and match** all relevant files belonging to the same recording session irrespective of file name (clips, telemetry-files).
-> - automatically **join clips** for a specific recording session, and **generate an ELAN-file** with linked media.
+The `geoelan` executable contains the full PDF manual for convenience: `geoelan manual --pdf`.
 
-### Acknowledgements
+List available sub-commands with `geoelan --help`. List parameters for each sub-command with `geoelan SUBCOMMAND --help`, e.g. `geoelan locate --help`.
 
-GeoELAN was developed with support from the [Bank of Sweden Tercentenary Foundation](https://www.rj.se/en/) (Grant nos [NHS14-1665:1](https://www.rj.se/en/grants/2015/language-as-key-to-perceptual-diversity-an-interdisciplinary-approach-to-the-senses/) and [IN17-0183:1](https://www.rj.se/en/grants/2017/digital-multimedia-archive-of-austroasiatic-intangible-heritage-phase-ii-seeding-multidisciplinary-workspaces/)).
+# Introduction
 
-We would also like to acknowledge the [The Language Archive](https://archive.mpi.nl/tla/), Max Planck Institute for Psycholinguistics in Nijmegen for their tireless efforts in developing [ELAN](https://archive.mpi.nl/tla/elan), and making it available for free.
+GeoELAN is a command-line tool that geo-references time-aligned text-annotations of observed phenomena in audiovisual recordings, captured with a recent GoPro or Garmin VIRB action camera, see [Larsson et al 2021](https://doi.org/10.1080/13645579.2020.1763705). In other words, GeoELAN is used for annotating action camera GPS logs with the help of the free annotation tool [ELAN](https://archive.mpi.nl/tla/elan).
 
-### Overview
+Requirements:
+- GoPro Hero 5 Black - GoPro Hero 11 Black, GoPro Hero 13 Black (Hero12 Black does not have a GPS module)
+- Garmin VIRB (VIRB Ultra 30 tested)
+- [ELAN](https://archive.mpi.nl/tla/elan) ([documentation](https://archive.mpi.nl/tla/elan/documentation))
+- [FFmpeg](http://ffmpeg.org) (in `PATH` preferred, but custom path can also be set when running GeoELAN)
 
-[GeoELAN](https://github.com/jenslar/geoelan) is a command-line tool for annotating action-camera GPS logs using [ELAN](https://archive.mpi.nl/tla/elan), see [Larsson et al 2021](https://doi.org/10.1080/13645579.2020.1763705). Simply record a video with a supported device and annotate the recording in ELAN as per usual. Any annotation - be it an utterance, a plant that is in view, or anything else that was captured - can now be automatically geo-referenced.
+---
 
-The nature of the workflow also means consultants not physically present at the the time of recording may evaluate observed phenomena to be geo-referenced post-collection. As the name implies, the free [ELAN](https://archive.mpi.nl/tla/elan) annotation software plays a central role and is required to annotate events. The final output can be points, polylines, or polygons (circles), in the form of annotated [KML](https://www.ogc.org/standards/kml/) and [GeoJSON-files](https://geojson.org). Henceforth, "GoPro" refers to a GoPro Hero 5 Black or later, and "VIRB" to the Garmin VIRB Ultra 30. Note that while GeoELAN functionality differs slightly between Garmin and GoPro due to differences in formats and file structure, its main purpose is intact for either brand.
+# Install
+
+See [releases](https://github.com/jenslar/geoelan/releases) to the right for pre-compiled binaries for Windows (x86), macOS (Apple Silicon, x86), and Linux (x86).
+
+Note that some operating systems (most notably macOS) will not run unsigned binaries without user intervention, see https://support.apple.com/guide/mac-help/mh40616/mac for more information.
+
+## Compile and install from source
+
+You can also compile GeoELAN yourself. The full build requires [Pandoc](https://pandoc.org) and [Asciidoctor](https://asciidoctor.org) to be present in path to compile the GeoELAN documentation. Remove `build.rs` or change its name to skip this step.
+
+The basic steps are:
+
+1. Install the [Rust programming langugage toolchain](https://www.rust-lang.org)
+2. Get the source: `git clone https://github.com/jenslar/geoelan`
+3. `cd geoelan` (you should be in the folder containing `Cargo.toml`)
+4. `cargo build --release`
+5. `cargo install --path .` (optional, makes `geoelan` [a global command](https://doc.rust-lang.org/cargo/commands/cargo-install.html))
+
+---
+
+## Filenames
+
+GeoELAN will find the correct high/low-resolution clips regardless of file name as long as the extension is `.MP4`, `.LRV`, `.GLV` (upper or lower case). I.e. a low-resolution GoPro clip named `GL010019.LRV` by the camera, can be renamed to e.g. `foraging_trip1.mp4` and GeoELAN will still tag it as low-resolution and find the remaining clips in that recording session.
+
+## Examples
+
+Locate all low-resolution GoPro clips (`.LRV`) in `~/Desktop/` for session the containing the high-resolution clip `GX020006.MP4`, join them and generate an ELAN-file with a tier containing coordinates:
+
+```sh
+geoelan cam2eaf --video ~/Desktop/gopro/GX010006.MP4 --indir ~/Desktop/ --geotier --low-res-only --outdir ~/Desktop/
+```
+
+(if `--indir` is not specified, GeoELAN will search the parent folder for the specified clip)
+
+Prompts the user to select a tier to geo-reference, then generates a KML and GeoJSON files with a continuous poly-line,
+alternating between annotated and un-annotated sections. Relevant GoPro files are automatically located.
+
+```sh
+geoelan eaf2geo --eaf ~/Desktop/gopro/MYELANFILE.eaf --gpmf ~/Desktop/gopro/GX010006.MP4 --indir ~/Desktop/ --geoshape line-all
+```
+
+Specified `--gpmf` file must be an original GoPro clip. Joined recording sessions (done via `geoelan cam2eaf ...` or using FFmpeg directly) will not
+contain any telemetry, such as GPS log. If there is a solution to preserve telemetry when joining clips, such as mapping tracks with FFmpeg, please let me know.
+
+Locate all GoPro clips and group them according to recording session:
+
+```sh
+geoelan locate --indir ~/Desktop/ --kind gopro
+```
+
+Locate remaining clips in session containing `GX020006.MP4` (does not have to be the first clip in the session):
+
+```sh
+geoelan locate --indir ~/Desktop/ --video ~/Desktop/gopro/GX020006.MP4
+```
+
+Generate a KML-file from the merged GPS-log for session containing `GX020006.MP4`:
+
+```sh
+geoelan inspect --gpmf ~/Desktop/gopro/GX010006.MP4 --session --indir ~/Desktop/ --kml
+```
+
+`--gpmf VIDEOFILE` tells GeoELAN to extract and refers to GoPro's "[GoPro Metadata Format](https://github.com/gopro/gpmf-parser)" which is how all telemetry is logged on GoPro cameras. It is embedded within the video files.
+
+Print MP4 atom layout (similar to AtomicParsely):
+
+```sh
+geoelan inspect --video ~/Desktop/gopro/GX010006.MP4 --atoms
+```
+
+Print MP4 user data (`udta` atom), including GPMF data if encountered (this is different to the timed GPMF telemetry and contains device specific information):
+
+```sh
+geoelan inspect --video ~/Desktop/gopro/GX010006.MP4 --meta
+```
+
+`--video VIDEOFILE` tells GeoELAN to inspect the file as an MP4 video, ignoring e.g. timed GPMF telemetry.
+
+Plot the accelerometer data in a GoPro MP4 file (opens in default browser):
+
+```sh
+geoelan plot --gpmf ~/Desktop/gopro/GX010006.MP4 --y-axis accelerometer
+```
+
+---
 
 Annotating placename utterances in ELAN, to be geo-referenced by GeoELAN
 ![Annotating placename utterances in ELAN](doc/img/elan_placename.jpg "Annotating placename utterances recorded on-site")
@@ -30,46 +122,9 @@ Annotating placename utterances in ELAN, to be geo-referenced by GeoELAN
 Using GeoELAN to geo-reference ELAN annotations
 ![Using GeoELAN to geo-reference ELAN annotations](doc/img/map_placename.jpg "Using GeoELAN to geo-reference ELAN annotations")
 
-### Supported action cameras
+---
 
-Supported cameras are **GoPro** (Hero 5 Black and later) and **Garmin VIRB** (VIRB Ultra 30). Ensure that the GPS is turned on and has acquired satellite lock.
-
-### Manual
-See the `doc` directory for the full manual, example walkthrough and a brief A4-guide.
-
-### Installation
-See the `bin` directory for pre-compiled executables for Linux (Ubuntu Intel x86), macOS (Intel x86 + Apple Silicon), and Windows (Intel x86).
-
-#### Compile and install from source
-
-You can also compile GeoELAN yourself. Depending on your operating system, this may require installing additional software, and a basic understanding of working in a terminal. The basic steps are:
-
-1. Install the [Rust toolchain](https://www.rust-lang.org)
-2. Get the source: `git clone https://github.com/jenslar/geoelan`
-3. `cd geoelan` (you should be in the folder containing `Cargo.toml`)
-4. `cargo build --release`
-5. `cargo install --path .` (optional, makes `geoelan` [a global command](https://doc.rust-lang.org/cargo/commands/cargo-install.html))
-
-## Requirements
-
-- An action camera with a built-in GPS. Supported devices are:
-    -  [GoPro](https://gopro.com) Hero Black 5 or newer (Max, and Fusion cameras have not been tested)
-    -  [Garmin VIRB Ultra 30](https://www.garmin.com/en-US/p/522869/pn/010-01529-03) ([documentation](https://support.garmin.com/en-US/?partNumber=010-01529-03&tab=manuals)) (**discontinued**)
-- [ELAN](https://archive.mpi.nl/tla/elan) ([documentation](https://archive.mpi.nl/tla/elan/documentation))
-- [FFmpeg](https://www.ffmpeg.org) (for concatenating video)
-- [Rust toolchain](https://www.rust-lang.org) (optional, only required for compiling GeoELAN from source)
-
-### Quick help
-- Usage: `geoelan COMMAND OPTIONS`. E.g. to geo-reference an ELAN-file:
-  - GoPro: `geoelan eaf2geo --eaf MyElanFile.eaf --video GH01000.MP4`
-  - VIRB: `geoelan eaf2geo --eaf MyElanFile.eaf --fit MyFitFile.fit`
-- Running `geoelan` with no options will display an overview.
-- Running `geoelan COMMAND --help` displays an overview for that command, e.g.:
-  - `geoelan eaf2geo --help`.
-- Available commands: `cam2eaf`, `eaf2geo`, `locate`, `inspect`, `plot`, `manual`
-- The `geoelan` executable contains the full PDF manual for convenience: `geoelan manual --pdf`
-
-## Example walkthrough
+# Example walkthrough
 
 This section describes how GeoELAN can be used to geo-reference ELAN-annotations. Please refer to the detailed sections if you get stuck. Remember that all input video clips must be the unprocessed, original MP4 (GoPro + VIRB) and FIT-files (VIRB). The so-called FIT-files mentioned throughout this manual are where the VIRB logs GPS-data and other kinds of telemetry during a recording session. These need to be matched to the corresponding video recording. GeoELAN will help with all of this, with the exception of annotating your data.
 
@@ -140,7 +195,7 @@ An annotated event can relate to anything observed in the recording and can be r
 > **Points** could concern documenting:
 > - **the location of a plant or a geographical feature**, e.g. annotate the timespan either is visible in the video.
 > - **an uttered place name or an animal cry**, e.g. annotate the timespan of the on-site utterance or cry.
-> 
+>
 > **Lines** could concern documenting:
 > - various **types of movement through the landscape**. To annotate the movement of "walking up-hill" as it is observed visually in the recording, set the annotation's start time at the bottom of the hill and its end at the top, or for as long as the motion can be observed.
 > - a **narrative reflecting on the immediate surroundings** as they change over time. E.g. comments on visible landscape features, or perhaps the re-construction of an historical event as it unfolded over space and time.
@@ -155,12 +210,12 @@ This is where you choose the approriate geographical representations for your an
 > **Points**:
 > - the location of a plant or a geographical feature
 > - an uttered place name or an animal cry
-> 
+>
 > To get a single, average coordinate for each annotation, use the `--geoshape point-single` option.
-> 
+>
 > **Lines**:
 > - types of movement through the landscape
-> - narrative reflecting on the immediate surroundings 
+> - narrative reflecting on the immediate surroundings
 
 There are other options, such as _circle_ output. It is the same as point output with the difference that radius and height can be specified (all circles will have the same size). For a more detailed overview of the possibilities, see the `--geoshape` option for the command _eaf2geo_. Experiment! If you realise one representation is not appropriate after all, re-run GeoELAN with a different option.
 
@@ -176,7 +231,7 @@ geoelan eaf2geo --eaf VIRB0001-1.eaf --fit 2003-01-02-12-00-00.fit --geoshape po
 OUTDIR/VIRB0001-1/
 ├── ...                              Existing files
 ├── VIRB0001-1_point-single.kml      New KML-file, one point per annotation in the selected tier
-└── VIRB0001-1_point-single.geojson  New GeoJSON-file, one point per annotation in the selected tier
+└── VIRB0001-1_point-single.json  New GeoJSON-file, one point per annotation in the selected tier
 ```
 
 ### GoPro
@@ -193,7 +248,7 @@ geoelan eaf2geo --eaf GH010026.eaf --gpmf INDIR/GH010026.MP4  --geoshape point-s
 OUTDIR/GH010026/
 ├── ...                            Existing files
 ├── GH010026_point-single.kml      New KML-file, one point per annotation in the selected tier
-└── GH010026_point-single.geojson  New GeoJSON-file, one point per annotation in the selected tier
+└── GH010026_point-single.json  New GeoJSON-file, one point per annotation in the selected tier
 ```
 
 ### Explanation of the command
@@ -210,4 +265,13 @@ For the example command for VIRB, the user will be presented with a list of reco
 
 Larsson, Jens, Niclas Burenhult, Nicole Kruspe, Ross. S Purves, Mikael Rothstein and Peter Sercombe. 2020. Integrating behavioral and geospatial data on the timeline: towards new dimensions of analysis. _International Journal of Social Research Methodology_. doi: [10.1080/13645579.2020.1763705](https://doi.org/10.1080/13645579.2020.1763705)
 
-ELAN (Version 6.5) [Computer software]. 2023. Nijmegen: Max Planck Institute for Psycholinguistics. Retrieved from https://archive.mpi.nl/tla/elan
+ELAN (Version 6.7) [Computer software]. 2024. Nijmegen: Max Planck Institute for Psycholinguistics. Retrieved from https://archive.mpi.nl/tla/elan
+
+---
+---
+
+# Acknowledgements
+
+GeoELAN was developed with support from the [Bank of Sweden Tercentenary Foundation](https://www.rj.se/en/) (Grant nos [NHS14-1665:1](https://www.rj.se/en/grants/2015/language-as-key-to-perceptual-diversity-an-interdisciplinary-approach-to-the-senses/) and [IN17-0183:1](https://www.rj.se/en/grants/2017/digital-multimedia-archive-of-austroasiatic-intangible-heritage-phase-ii-seeding-multidisciplinary-workspaces/)).
+
+We would also like to acknowledge the [The Language Archive](https://archive.mpi.nl/tla/), Max Planck Institute for Psycholinguistics in Nijmegen for their tireless efforts in developing [ELAN](https://archive.mpi.nl/tla/elan), and making it available for free.

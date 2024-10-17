@@ -12,9 +12,11 @@ pub fn print_table() -> std::io::Result<()> {
     Hero 9 Black  | Yes*  | Accelerometer | Gyroscope | Gravity |     N/A      |
     Hero 10 Black | Yes*  | Accelerometer | Gyroscope | Gravity |     N/A      |
     Hero 11 Black | Yes** | Accelerometer | Gyroscope | Gravity |     N/A      |
+    Hero 12 Black | No*** | Accelerometer | Gyroscope | Gravity |     N/A      |
 
-    *  18Hz GPS, individual points not timestamped, only 1-second cluster (GPS5).
-    ** 10Hz GPS, individual points timestamped (GPS9).
+    *   18Hz GPS, individual points not timestamped, only 1-second cluster (GPS5).
+    **  10Hz GPS, individual points timestamped (GPS9).
+    *** Hero 12 Black has no GPS module and can not be used with GeoELAN
     "#;
 
     let virb = r#"

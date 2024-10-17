@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use eaf_rs::Annotation;
-use fit_rs::{GpsMetadata, FitPoint};
+use fit_rs::{FitPoint, GpsMetadata};
 use gpmf_rs::GoProPoint;
-use time::{PrimitiveDateTime, Duration, format_description, ext::NumericalDuration};
+use time::{ext::NumericalDuration, format_description, Duration, PrimitiveDateTime};
 
 #[derive(Debug, Default, Clone)]
 pub struct EafPoint {
@@ -39,12 +39,14 @@ pub struct EafPoint {
     /// - GPMF: Derived from MP4 `stts` atom (not available for GPMF streams extracted to file via eg FFmpeg).
     pub duration: Option<Duration>,
     /// Description.
-    pub description: Option<String>
+    pub description: Option<String>,
 }
 
 impl std::fmt::Display for EafPoint {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "  latitude:    {:.6}
+        write!(
+            f,
+            "  latitude:    {:.6}
   longitude:   {:.6}
   altitude:    {:.6}
   heading:     {}
@@ -54,26 +56,30 @@ impl std::fmt::Display for EafPoint {
   timestamp:   {}s
   duration:    {}s
   description: {}",
-    self.latitude,
-    self.longitude,
-    self.altitude,
-    self.heading.map(|h| format!("{:.1}", h)).as_deref().unwrap_or("NONE"),
-    self.speed2d,
-    self.speed3d,
-    // self.datetime.map(|dt| dt.format("%Y-%m-%dT%H:%M:%S%.3f").to_string()).as_deref().unwrap_or("NONE"),
-    self.datetime.map(|dt| dt.to_string()).as_deref().unwrap_or("NONE"),
-    self.timestamp.map(|t| t.as_seconds_f64())
-        .unwrap_or(0.0),
-        // format!("{}s {}ms", t.num_seconds(), t.num_milliseconds() - t.num_seconds() * 1000))
-        // .as_deref()
-        // .unwrap_or("NONE"),
-    self.duration.map(|t| t.as_seconds_f64())
-        .unwrap_or(0.0),
-    // self.duration.map(|t|
-    //     format!("{}s {}ms", t.num_seconds(), t.num_milliseconds() - t.num_seconds() * 1000))
-    //     .as_deref()
-    //     .unwrap_or("NONE"),
-    self.description.as_deref().unwrap_or("NONE"),
+            self.latitude,
+            self.longitude,
+            self.altitude,
+            self.heading
+                .map(|h| format!("{:.1}", h))
+                .as_deref()
+                .unwrap_or("NONE"),
+            self.speed2d,
+            self.speed3d,
+            // self.datetime.map(|dt| dt.format("%Y-%m-%dT%H:%M:%S%.3f").to_string()).as_deref().unwrap_or("NONE"),
+            self.datetime
+                .map(|dt| dt.to_string())
+                .as_deref()
+                .unwrap_or("NONE"),
+            self.timestamp.map(|t| t.as_seconds_f64()).unwrap_or(0.0),
+            // format!("{}s {}ms", t.num_seconds(), t.num_milliseconds() - t.num_seconds() * 1000))
+            // .as_deref()
+            // .unwrap_or("NONE"),
+            self.duration.map(|t| t.as_seconds_f64()).unwrap_or(0.0),
+            // self.duration.map(|t|
+            //     format!("{}s {}ms", t.num_seconds(), t.num_milliseconds() - t.num_seconds() * 1000))
+            //     .as_deref()
+            //     .unwrap_or("NONE"),
+            self.description.as_deref().unwrap_or("NONE"),
         )
     }
 }
@@ -91,16 +97,16 @@ impl From<&GpsMetadata> for EafPoint {
             altitude: (gps.altitude as f64 / 5.0) - 500.0,
             heading: Some(gps.heading as f64 / 100.0),
             speed2d: gps.speed as f64 / 1000.0,
-            speed3d: (
-                gps.velocity[0].pow(2) as f64 +
-                gps.velocity[1].pow(2) as f64 +
-                gps.velocity[2].pow(2) as f64
-            ).sqrt() / 100.0,
+            speed3d: (gps.velocity[0].pow(2) as f64
+                + gps.velocity[1].pow(2) as f64
+                + gps.velocity[2].pow(2) as f64)
+                .sqrt()
+                / 100.0,
             datetime: None, // derived from `timestamp_correlation` message
             timestamp: Some(relative_time),
             // duration: None,
             duration: Some(relative_time), // ????
-            description: None
+            description: None,
         }
     }
 }
@@ -121,7 +127,7 @@ impl From<&FitPoint> for EafPoint {
             datetime: None, // derived from `timestamp_correlation` message
             timestamp: Some(point.time),
             duration: None,
-            description: None
+            description: None,
         }
     }
 }
@@ -142,7 +148,7 @@ impl From<&GoProPoint> for EafPoint {
             duration: None,
             // timestamp: point.time.as_ref().map(|ts| ts.relative), // derived from MP4 atom
             // duration: point.time.as_ref().map(|ts| ts.duration), // derived from MP4 atom
-            description: None
+            description: None,
         }
     }
 }
@@ -152,7 +158,7 @@ impl From<&Annotation> for EafPoint {
     /// Convert EAF annotation value to a `Point`.
     /// May fail if annotation value is not in the form
     /// `LAT:55.791765;LON:13.501448;ALT:101.6;TIME:2023-01-25 12:15:45.399`.
-    /// 
+    ///
     /// If timevalues are not set for annotation boundaries,,
     /// `Point::timstamp` and `Point::duration` will be set to `None`.
     // fn try_from(annotation: &Annotation) -> Result<Self, Error> {
@@ -160,14 +166,12 @@ impl From<&Annotation> for EafPoint {
         let value = annotation.value().to_string();
         // TODO add Annotation.duration() -> milliseconds method
         let (timestamp, duration) = match annotation.ts_val() {
-            (Some(t1), Some(t2)) => (
-                Some(t1.milliseconds()),
-                Some((t2-t1).milliseconds())
-            ),
-            _ => (None, None)
+            (Some(t1), Some(t2)) => (Some(t1.milliseconds()), Some((t2 - t1).milliseconds())),
+            _ => (None, None),
         };
         // split LAT:55.791765;LON:13.501448;...
-        let split = value.split(";")
+        let split = value
+            .split(";")
             // split e.g. LAT:55.791765
             .filter_map(|spl| spl.split_once(":"))
             // keep 55.791765
@@ -189,7 +193,7 @@ impl From<&Annotation> for EafPoint {
                 f64::default(),
                 f64::default(),
                 String::default(),
-            )
+            ),
         };
 
         Self {
@@ -200,7 +204,7 @@ impl From<&Annotation> for EafPoint {
             datetime: None, // TODO parse str into datetime
             timestamp,
             duration,
-            .. Self::default()
+            ..Self::default()
         }
     }
 }
@@ -216,8 +220,9 @@ impl EafPoint {
     pub fn datetime_string(&self) -> Option<String> {
         let format = format_description::parse(
             "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour \
-                sign:mandatory]:[offset_minute]")
-            .expect("Failed to create date time format"); // result instead?
+                sign:mandatory]:[offset_minute]",
+        )
+        .expect("Failed to create date time format"); // result instead?
         self.datetime.and_then(|dt| dt.format(&format).ok()) // result instead?
     }
 
@@ -231,10 +236,14 @@ impl EafPoint {
     /// Converts `geoelan::geo::Point` to the corresponding `kml::types::Point`.
     pub fn to_kml_point(&self) -> crate::kml::types::Point {
         crate::kml::types::Point {
-            coord: crate::kml::types::Coord::new(self.longitude, self.latitude, Some(self.altitude)),
+            coord: crate::kml::types::Coord::new(
+                self.longitude,
+                self.latitude,
+                Some(self.altitude),
+            ),
             extrude: false,
             altitude_mode: ::kml::types::AltitudeMode::ClampToGround,
-            attrs: HashMap::new()
+            attrs: HashMap::new(),
         }
     }
 
@@ -245,24 +254,24 @@ impl EafPoint {
         // Constant for converting from semicircles to decimal degrees
         let semi2deg = 180.0 / 2.0_f64.powi(31);
         // GpsMetadata relative timestamp as duration
-        let t = Duration::seconds(point.timestamp as i64) +
-        Duration::milliseconds(point.timestamp_ms as i64);
-        
+        let t = Duration::seconds(point.timestamp as i64)
+            + Duration::milliseconds(point.timestamp_ms as i64);
+
         Self {
             latitude: (point.latitude as f64) * semi2deg,
             longitude: (point.longitude as f64) * semi2deg,
             altitude: (point.altitude as f64 / 5.0) - 500.0,
             heading: Some(point.heading as f64 / 100.0),
             speed2d: point.speed as f64 / 1000.0,
-            speed3d: (
-                point.velocity[0].pow(2) as f64 +
-                point.velocity[1].pow(2) as f64 +
-                point.velocity[2].pow(2) as f64
-            ).sqrt() / 100.0,
+            speed3d: (point.velocity[0].pow(2) as f64
+                + point.velocity[1].pow(2) as f64
+                + point.velocity[2].pow(2) as f64)
+                .sqrt()
+                / 100.0,
             datetime: datetime.map(|dt| dt + t), // derived from `timestamp_correlation` message
             timestamp: Some(t),
             duration: None,
-            description: None
+            description: None,
         }
     }
 
@@ -273,13 +282,12 @@ impl EafPoint {
     /// Returned as a "closed" `Vec<Point>`, i.e. last point is the
     /// same as the first one.
     pub fn circle(&self, radius: f64, vertices: u8) -> Vec<Self> {
-
         let mut circle: Vec<Self> = Vec::new();
         let pi = std::f64::consts::PI;
 
         let vertices = match vertices {
             i if i < 3 => 3,
-            i => i
+            i => i,
         };
 
         for i in 0..vertices {
@@ -288,13 +296,15 @@ impl EafPoint {
             let dx = radius * angle.cos();
             let dy = radius * angle.sin();
 
-            let lat = self.latitude + (180_f64/pi) * (dy/6378137_f64);
-            let lon = self.longitude + (180_f64/pi) * (dx/6378137_f64) / (self.latitude*pi/180_f64).cos();
+            let lat = self.latitude + (180_f64 / pi) * (dy / 6378137_f64);
+            let lon = self.longitude
+                + (180_f64 / pi) * (dx / 6378137_f64) / (self.latitude * pi / 180_f64).cos();
 
             circle.push(Self {
                 latitude: lat,
                 longitude: lon,
-                ..self.to_owned()})
+                ..self.to_owned()
+            })
         }
 
         // Close the circle/polygon for KML/GeoJSON: final point must be the same as the first one

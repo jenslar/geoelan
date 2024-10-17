@@ -1,14 +1,17 @@
 use std::{io::ErrorKind, path::PathBuf};
 
 use fit_rs::{Fit, FitPoint};
-use plotly::{Scatter, common::{Title, Fill}};
+use plotly::{
+    common::{Fill, Title},
+    Scatter, Trace,
+};
 
-use crate::{geo::haversine, files::virb::select_session};
+use crate::{files::virb::select_session, geo::haversine};
 
 pub(crate) fn gps2plot(
     args: &clap::ArgMatches,
-) -> std::io::Result<(Title, Title, Title, Vec<Box<Scatter<f64, f64>>>)> {
-
+// ) -> std::io::Result<(Title, Title, Title, Vec<Box<Scatter<f64, f64>>>)> {
+) -> std::io::Result<(Title, Title, Title, Vec<Box<dyn Trace>>)> {
     let path = args.get_one::<PathBuf>("fit").unwrap(); // verified to exist already
     let y_axis = args.get_one::<String>("y-axis").unwrap(); // sensor type, required arg
     let x_axis = args.get_one::<String>("x-axis"); // optional, default to counts/index
@@ -16,19 +19,21 @@ pub(crate) fn gps2plot(
     let session = *args.get_one::<bool>("session").unwrap();
 
     println!("Compiling data...");
-    
+
     let (fit, range) = match session {
         true => {
             let f = Fit::new(path)?;
             let r = select_session(&f)?.range();
             (f, Some(r))
         }
-        false => (Fit::new(path)?, None)
+        false => (Fit::new(path)?, None),
     };
 
     // Convert to easier to use form
-    let gps: Vec<FitPoint> = fit.gps(range.as_ref())?
-        .iter().map(|g| g.to_point())
+    let gps: Vec<FitPoint> = fit
+        .gps(range.as_ref())?
+        .iter()
+        .map(|g| g.to_point())
         .collect();
 
     println!("Done");
@@ -100,25 +105,26 @@ pub(crate) fn gps2plot(
         }
     };
 
-    let title = Title::new(&format!("GPS [{}]", path.file_name().map(|f| f.to_string_lossy().to_string()).unwrap()));
-    let x_axis_label = Title::new(&format!("{x_axis_name} ({x_axis_units})"));
-    let y_axis_label = Title::new(&format!("{y_axis_name} ({y_axis_units})"));
+    let title_txt = format!(
+        "GPS [{}]",
+        path.file_name()
+            .map(|f| f.to_string_lossy().to_string())
+            .unwrap()
+    );
+    let title = Title::from(title_txt);
+    let x_axis_label_txt = format!("{x_axis_name} ({x_axis_units})");
+    let x_axis_label = Title::from(x_axis_label_txt);
+    let y_axis_label_txt = format!("{y_axis_name} ({y_axis_units})");
+    let y_axis_label = Title::from(y_axis_label_txt);
 
     let x_y_scatter = if fill {
         // Fill, would be better to have an arbitrary Y value to give more height to data
-        Scatter::new(x, y).fill(Fill::ToZeroY)
+        Scatter::new(x, y).fill(Fill::ToZeroY).text(y_axis_units)
     } else {
-        Scatter::new(x, y)
+        Scatter::new(x, y).text(y_axis_units)
     };
 
     println!("Done");
 
-    Ok((
-        title,
-        x_axis_label,
-        y_axis_label,
-        vec![
-            x_y_scatter
-        ]
-    ))
+    Ok((title, x_axis_label, y_axis_label, vec![x_y_scatter]))
 }

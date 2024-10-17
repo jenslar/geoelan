@@ -1,4 +1,15 @@
-GeoELAN v2.6 2023-07-20
+GeoELAN v2.7.0 2024-10-15
+
+Important:
+
+  GoPro Hero 12 Black is not supported since it does not have a GPS
+  module.
+
+  GoPro Hero 13 Black will be supported as soon as I get hold of some
+  raw/unedited sample footage.
+
+  Garmin VIRB Ultra 30 is discontinued. GeoELAN will continue to support
+  these and the FIT-format.
 
 Introduction
 
@@ -6,8 +17,15 @@ GeoELAN is a command-line tool that geo-references time-aligned
 text-annotations of observed phenomena in audiovisual recordings,
 captured with a recent GoPro or Garmin VIRB action camera, see Larsson
 et al 2021. In other words, GeoELAN is used for annotating action camera
-GPS logs with the help of the free annotation tool ELAN. The focus is
-naturally on recordings made on the move.
+GPS logs with the help of the free annotation tool ELAN.
+
+Requirements:
+
+-   GoPro Hero 5 Black - GoPro Hero 11 Black, Hero 13 Black (Hero 12
+    Black is not supported)
+-   Garmin VIRB
+-   FFmpeg (in PATH preferred, but custom path can also be set when
+    running GeoELAN)
 
   GeoELAN is multi-functional command-line tool that can
 
@@ -19,25 +37,22 @@ naturally on recordings made on the move.
   -   locate and match all relevant files belonging to the same
       recording session irrespective of file name (clips,
       telemetry-files).
-  -   automatically join clips for a specific recording session, and
-      generate an ELAN-file with linked media.
+  -   automatically join clips (requires FFmpeg) for a specific
+      recording session, and generate an ELAN-file with linked media.
 
 Any ELAN annotation - be it an on-site utterance, or a plant in view -
-can be geo-referenced. The nature of the workflow also means consultants
+can be geo-referenced as long as the GPS logged coordinates within the
+annotation's timespan. The nature of the workflow also means consultants
 not physically present at the the time of recording can evaluate and
 annotate sections to be geo-referenced post-collection. As the name
 implies, the annotation tool ELAN plays a central role and is required
 to annotate events. The output can be points, polylines, or polygons
 (circles), as KML and GeoJSON-files. "GoPro" refers to a GoPro Hero 5
-Black or later, and "VIRB" to the Garmin VIRB Ultra 30.
+Black - Hero11 Black, and "VIRB" to the Garmin VIRB Ultra 30.
 
   While GeoELAN functionality differs slightly between Garmin and GoPro
   due to differences in formats and file structure, the general workflow
   and the final output are the same.
-
-  Note that the Garmin VIRB Ultra 30 is discontinued. Use a recent GoPro
-  instead. We, and maybe others, still have and use VIRBs, so GeoELAN
-  will continue to support these and the FIT-format.
 
 Acknowledgments
 
@@ -50,11 +65,11 @@ in developing ELAN, and making it available for free.
 
 References
 
-ELAN (Version 6.5) [Computer software]. 2023. Nijmegen: Max Planck
+ELAN (Version 6.8) [Computer software]. 2024. Nijmegen: Max Planck
 Institute for Psycholinguistics, The Language Archive. Retrieved from
 https://archive.mpi.nl/tla/elan
 
-Larsson, J. 2023. GeoELAN Manual. Lund: Lund University Humanities Lab.
+Larsson, J. 2024. GeoELAN Manual. Lund: Lund University Humanities Lab.
 https://github.com/jenslar/geoelan
 
 Larsson et al, 2021. Integrating behavioral and geospatial data on the
@@ -65,8 +80,9 @@ Social Research Methodology, 24:1, 1-13, DOI:
 Requirements
 
 -   An action camera with a built-in GPS. Supported devices are:
-    -   GoPro Hero Black 5 or newer (Max, and Fusion cameras have not
-        been tested)
+    -   GoPro Hero Black 5 - Hero 11 Black, Hero 13 Black. (Hero 12
+        Black is not supported. Max, and Fusion cameras have not been
+        tested)
     -   Garmin VIRB Ultra 30 (documentation) (discontinued)
 -   ELAN (documentation)
 -   FFmpeg (for concatenating video)
@@ -96,20 +112,26 @@ Before you start
 
 Practical advice
 
--   Keep the original files! GeoELAN can only work with unedited files,
-    since these contain all telemetry (GPS log, sensor data etc), and
-    identifiers used for synchronisation. Pre-maturely converting videos
-    will discard both telemetry and identifiers. GeoELAN will use the
-    low-resolution footage the cameras generate for on-device viewing by
-    default for smaller file sizes. Low-resolution clips have a .LRV
-    extension for GoPro, and .GLV for VIRB (these are normal MP4-files).
--   Files can be renamed. GeoELAN does not use file name when matching
-    files, but the file extension should be preserved to distinguish
-    between high (.MP4) and low-resolution (.LRV, .GLV) clips.
--   GoPro: All telemetry is embedded inside the MP4-files.
--   VIRB: All telemetry, such as the GPS-log, is stored as a separate
-    file. Keep all files on the microSD, unless you are absolutely
-    certain which files are relevant.
+-   Keep the original files. GeoELAN can only use unedited files, since
+    these contain all telemetry (GPS log, sensor data etc), and
+    identifiers used for synchronisation.
+    -   Pre-maturely converting videos will discard both telemetry and
+        identifiers, which means there is no data for GeoELAN to work
+        with.
+    -   Low-resolution clips have a .LRV extension for GoPro, and .GLV
+        for VIRB (these are normal MP4-files).
+    -   GeoELAN will automaticall use low-resolution clips for linking
+        in ELAN. Run geoelan cam2eaf --link-high-res to link
+        high-resolution video instead.
+-   You can rename files. GeoELAN does not use file name when matching
+    files as long as the file extension for video is either .MP4, .LRV,
+    or .GLV (case ignored).
+-   Data locations:
+    -   GoPro: All telemetry is embedded inside the MP4-files.
+    -   VIRB: All telemetry, such as the GPS-log, is stored as a
+        separate FIT-file.
+    -   Keep all files on the microSD unless you are absolutely certain
+        which files are relevant.
 
 Running GeoELAN
 
@@ -148,10 +170,11 @@ GPS logging behaviour:
 
 -   GoPro logs dummy coordinates if no lock has been acquired. GeoELAN
     will not use these.
-    -   Verify lock by running: geoelan i -g GH010006.MP4 --gps which
-        will list number of bad points.
--   VIRB does not log position at all until a satellite lock has been
-    acquired.
+    -   Verify lock by running:
+        geoelan inspect --gpmf PATH/TO/GOPRO.MP4 --gps which will list
+        number of bad points.
+-   VIRB seems not to log position at all until a satellite lock has
+    been acquired.
 
 Annotating in ELAN
 
@@ -185,7 +208,8 @@ The basic steps are:
 4.  Use GeoELAN to geo-reference the annotations, resulting in annotated
     KML and GeoJSON files.
 
-Input files:
+Input files (example file names, naming convention may differ sligtly
+depending on model):
 
 -   GoPro:
     -   GH010026.MP4, any clip in a recording session (remaining clips
@@ -204,14 +228,14 @@ Output files:
 Step 1/3: Generate an ELAN-file with linked media files
 
 In step 1 we will locate all video clips (GoPro + VIRB) and FIT-files
-(VIRB) that belong to a specific recording session, process these, join
-clips, and generate an ELAN-file with linked media files.
+(VIRB) that belong to a specific recording session. Video clips are then
+joined, and linked in the resulting ELAN-file.
 
 Command
 
 Command
 
-    geoelan cam2eaf --video INDIR/VIRB_OR_GOPRO_CLIP_.MP4 --indir INDIR/ --outdir OUTDIR/
+    geoelan cam2eaf --video INDIR/VIRB_OR_GOPRO_CLIP.MP4 --indir INDIR/ --outdir OUTDIR/
 
 Output files GoPro
 
@@ -221,6 +245,7 @@ Output files GoPro
     ├── GH010026.wav             Extracted audio for ELAN (concatenated)
     ├── GH010026.eaf             ELAN-file with pre-linked media files
     ├── GH010026.kml             Overview KML-file with all points logged during the recording session
+    ├── GH010026.json            Overview GeoJSON-file with all points logged during the recording session
     └── GH010026.txt             FFmpeg concatenation file, paths to input clips
 
 Output files VIRB
@@ -232,6 +257,7 @@ Output files VIRB
     ├── VIRB0001-1.wav           Extracted audio for ELAN (concatenated)
     ├── VIRB0001-1.eaf           ELAN-file with pre-linked media files
     ├── VIRB0001-1.kml           Overview KML-file with all points logged during the recording session
+    ├── VIRB0001-1.json          Overview GeoJSON-file with all points logged during the recording session
     └── VIRB0001-1.txt           FFmpeg concatenation file, paths to input clips
 
 Explanation of the command
@@ -267,12 +293,12 @@ structure you may need. Tokenized tiers can not be geo-referenced, but
 otherwise any tier is fine, including deeply nested, referred tiers.
 
 GeoELAN will geo-reference annotations from a single tier (selectable in
-step 3). Thus, if you want to generate a KML-file with e.g. indigenous
-place names mentioned on-site during the recording, those place names
-must be limited to a single tier. If there are other spatial categories
-or groupings you wish to explore, simply create a new tier for each. In
-step 3 you can then re-run GeoELAN as many times as required, then
-select a different tier and/or options on each run.
+step 3). Thus, if you want to generate a KML/GeoJSON-file with e.g.
+indigenous place names mentioned on-site during the recording, those
+place names must be limited to a single tier. If there are other spatial
+categories or groupings you wish to explore, simply create a new tier
+for each. In step 3 you can then re-run GeoELAN as many times as
+required, then select a different tier and/or options on each run.
 
 When the annotations are geo-referenced in step 3, the annotation values
 in the selected tier will be used as descriptions for the synchronized,
@@ -385,8 +411,8 @@ Explanation of the command
 The relevant sub-command is eaf2geo. Run geoelan eaf2geo --help for an
 overview.
 
-GeoELAN geo-references all annotations in a single ELAN-tier (you will
-be prompted to select from a list) for the specified ELAN-file, then
+GeoELAN geo-references all annotations in a single tier (you will be
+prompted to select tier from a list) for the specified ELAN-file, then
 generates annotated KML and GeoJSON files where each point represents a
 single annotation.
 
@@ -395,12 +421,12 @@ MP4-clip (--gpmf) or VIRB FIT-file (--fit), GeoELAN will synchronise the
 annotations with the coordinates contained within the MP4/FIT-file.
 Similar to step 1, all files will be automatically located.
 
---geoshape point-single lets GeoELAN know that each, respective
-annotation should be distilled into a single point, meaning that the
-generated KML-file will contain as many points as there are annotations
-in the selected tier. Each point inherits the corresponding annotation
-value as its description. The KML-file is named according to the
-selected --geoshape option, in this case
+--geoshape point-single tells GeoELAN to distill each annotation into a
+single point (an average of all points withing the annotation timespan).
+The generated KML/GeoJSON-file will contain as many points as there are
+annotations in the selected tier. Each point inherits the corresponding
+annotation value as its description. The KML-file is named according to
+the selected --geoshape option, in this case
 GH010026_point-single.kml/VIRB0001-1_point-single.kml.
 
 For the example command for VIRB, the user will be presented with a list
@@ -410,41 +436,41 @@ one specified in step 1, is enough.
 
 Commands
 
-There are six commands:
-
    Command   Alias  Description
   --------- ------- -------------------------------------------------------------------
    cam2eaf    g2e   Generate an ELAN-file, and link concatenated media files
    eaf2geo    e2g   Geo-reference ELAN-annotations and generate annotated KML/GeoJSON
    locate      l    Locate and match video clips and/or FIT-files
-   inspect     i    Inspect the contents of a GoPro MP4-file or any Garmin FIT-file
-    plot       i    Inspect the contents of a GoPro MP4-file or any Garmin FIT-file
+   inspect     i    Inspect the telemetry of a GoPro MP4-file or any Garmin FIT-file
+    plot       p    Plot the telemetry of a GoPro MP4-file or any Garmin FIT-file
    manual      m    View or save this manual to disk
 
-Run geoelan <COMMAND> --help, for an overview and the parameters each
-command can take.
+Run geoelan --help for a general overview, or geoelan <COMMAND> --help,
+for an overview of a specific command.
 
 The most relevant commands are probably cam2eaf and eaf2geo. locate is
 there to help with locating and matching video clips and/or FIT-files
 that belong to the same recording session, but this functionality partly
-exists in cam2eaf as well. inspect will print the data contents of a
-GoPro MP4/Garmin FIT-file, but will do so in an unprocessed form. It is
-intended more as a technical aid for troubleshooting or to verify the
-contents of MP4/FIT-files. Plot can plot some of the GPS and sensor
-data, such as altitude over time. manual is for viewing or saving the
-full manual.
+exists in cam2eaf as well. inspect can be used to print various kinds of
+data in a GoPro MP4/Garmin FIT-file, but will do so in an unprocessed
+form. It is intended more as a technical aid for troubleshooting or to
+verify the contents of MP4/FIT-files. plot is used to plot sensor data
+and some of the GPS data, such as altitude over time. manual is for
+viewing or saving the full manual.
 
-Set GoPro satellite lock level with --gpsfix
+  Note that some parameters in the following sections may only be valid
+  for e.g. GoPro cameras, not VIRB, and vice versa. The description
+  column will be prefixed [GoPro] or [VIRB] to denote this.
+
+Set GoPro satellite lock (--gpsfix) and dilution of position (--gpsdop) thresholds
 
 GoPro cameras log how well they can see satellites. If none is in line
 of sight, dummy coordinates will be logged. GeoELAN will ignore these by
-default, and for cam2eaf a '3D lock' is the default, meaning altitude
-can be derived via GPS. In cases where only 2D lock could be achieved,
-one can lower the threshold for several commands by manually setting
-minimum "lock level" via --gpsfix. Valid values are 0 (no lock), 2 (2D
-lock), and 3 (3D lock). Setting to 0 will result in unusable data for
-eaf2geo if most coordinates are bad, but may be useful with inspect to
-verify the exact number.
+default, and for cam2eaf a '3D lock' (altitude is included) is the
+default. In cases where only 2D lock could be achieved, one can manually
+set minimum "lock level" via --gpsfix. Valid values are 0 (no lock), 2
+(2D lock), and 3 (3D lock). Setting to 0 will result in unusable data
+for eaf2geo if most coordinates are bad.
 
 Time adjustment with --time-offset
 
@@ -455,14 +481,12 @@ will add seven hours to all timestamps.
 
 Reducing the number of coordinates with --downsample
 
-For the commands cam2eaf, and eaf2geo, the output may contain
-coordinates in some form (a KML/GeoJSON-file or as annotations in an
-ELAN-file). Since both cameras log at either 10 or 18Hz, the resulting
-files may become too heavy to work with in some cases. --downsample can
-be used for both ELAN and KML/GeoJSON output to reduce the number of
-coordinates that are imported/exported. It is especially advised for
-KML-files that are to be loaded into Google Earth, since a 2 hour
-recording may contain more than 70 000 logged points.
+The command eaf2geo outputs coordinates as KML and GeoJSON files. Since
+supported cameras log at either 10 or 18Hz, a 2 hour recording may
+contain more than 70 000 logged points. The --downsample parameter can
+be used to reduce the number of coordinates exported. Google Earth does
+not cope well with a large amount of points, whereas dedicated GIS
+software such as QGIS, usually will.
 
 --downsample takes a positive numerical value that is effectively a
 divisor: --downsample 10 means an average coordinate will be calculated
@@ -471,14 +495,16 @@ means the output will contain 700 averaged points and so on. If the user
 sets --downsample to a value that exceeds the total number of points
 logged by the GPS, it will be changed to the largest applicable value
 (resulting in a single point for the entire recording as opposed to none
-at all). Extreme values may also affect the result in unexpected ways,
-depending on gaps in the GPS-data.
+at all).
+
+  Extreme values may affect the result in unexpected ways, depending on
+  gaps in and/or quality of the GPS-data.
 
 VIRB Ultra 30 logs at 10Hz, and GoPro logs at 10 or 18Hz depending on
-model. Only Hero 11 (10Hz) and later timestamps each individual point,
-whereas earlier models only timestamp a cluster of points. In the latter
-case, GeoELAN averages these to a single, timestamped point at the same
-interval the cluster was originally logged (roughly once/second).
+model. Only VIRB Ultra 30 and GoPro Hero 11 (10Hz) and later timestamp
+each individual point, whereas earlier models only timestamp a cluster
+of points. In the latter case, GeoELAN average each cluster to a single,
+timestamped point, resulting in roughly 1 point/second.
 
 If 'cam2eaf' or 'eaf2geo' return errors
 
@@ -488,11 +514,11 @@ corrupt the error message will also be printed.
 
 FFmpeg
 
-For the command cam2eaf FFmpeg is required. If you intend to use the
-static build for FFmpeg as described in the appendix under FFmpeg, point
-to it using --ffmpeg PATH/TO/FFMPEG/ffmpeg (ffmpeg.exe on Windows). If
-the --ffmpeg option is not used, geoelan will assume ffmpeg is available
-as a global command and complain accordingly if it is not.
+The command cam2eaf requires FFmpeg. See the appendix under FFmpeg on
+how to install. If you intend to use the static build, point to it using
+--ffmpeg PATH/TO/FFMPEG/ffmpeg (ffmpeg.exe on Windows). If the --ffmpeg
+option is not used, geoelan will assume ffmpeg is available as a global
+command and complain accordingly if it is not.
 
   TIP: GeoELAN will never overwrite existing files without permission.
   Should you accidentally delete the generated ELAN-file with the output
@@ -519,8 +545,6 @@ default the low-resolution footage is used (if found), use the
 --link-high-res flag to link the high-resolution footage. The
 corresponding coordinates can optionally be added a tier.
 
-Note that the --fit and --uuid parameters are only valid for VIRB.
-
 Flags
 
    Short  Long              Description
@@ -538,13 +562,13 @@ Options
    Short  Long            Description                                       Default      Required
   ------- --------------- ------------------------------------------------ --------- -----------------
           --ffmpeg        Custom path to FFmpeg                             ffmpeg   
-    -f    --fit           [VIRB] FIT-file                                             unless -u or -v
-          --gpsfix        [GoPro] Minimum satellite lock                       3     
     -i    --indir         Input path for locating files                                     yes
     -o    --outdir        Output path for resulting files                   geoelan  
     -t    --time-offset   Time offset in +/- hours                             0     
-    -u    --uuid          [VIRB] UUID for a clip in the relevant session              unless -f or -v
     -v    --video         Clip in the relevant session                                unless -f or -u
+          --gpsfix        [GoPro] Minimum satellite lock                       3     
+    -f    --fit           [VIRB] FIT-file                                             unless -u or -v
+    -u    --uuid          [VIRB] UUID for a clip in the relevant session              unless -f or -v
 
 Example GoPro
 
@@ -571,9 +595,8 @@ Examples VIRB
   is the unique VIRB clip identifier and can be retreived by running
   geoelan inspect --video VIRB0001-1.MP4.
 
-  ❗Using --fullgps together with --geotier will result in very large
-  ELAN-files. Additionally, trying to edit the 'geotier' may make ELAN
-  sluggish or unsresponsive.
+  ❗Using --fullgps (together with --geotier) may slow down ELAN
+  considerably.
 
 VIRB example 1
 
@@ -702,63 +725,62 @@ ELAN annotation values.
 
 point-all
 
-All points logged during the recording session will be exported. Any
-point that intersects with the time span of an annotation will inherit
+All points logged during the recording session will be exported. Only
+points that intersect with the time span of an annotation will inherit
 the annotation value as the coordinate description. Points that do not,
 will have no description.
 
-    ELAN-file
+    ELAN-file:
 
     ─────┼──────────┼──────────┼──────────┼──────>  ELAN time-line
-     00:01:35   00:01:40   00:01:45   00:01:50   
+     00:01:35   00:01:40   00:01:45   00:01:50
     ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
       │ Dayum │           │ Chcuh       │           "Feature" tier
       ├───────┤           ├─────────────┤           with annotations
       │       │           │             │           to geo-reference
                           .             .
                           .             .
-    KML-file              .             .
+    KML/GeoJSON-file:      .             .
                           .             .
       + + +         + + + .             .
-      ┊     + + + +     ┊ +             + <──────── Logged
-      ┊       ┊ ┊       ┊ ┊ +       + + ┊           point
+      ┊     + + + +     ┊ +             +  <────── Logged
+      ┊       ┊ ┊       ┊ ┊ +       + + ┊          points
       ┊       ┊ ┊       ┊ ┊   + + +     ┊
       └───┬───┘ └───┬───┘ └──────┬──────┘
           │         │            │
      Points logged  │            │
       within ELAN   │            │
       annotation    │            │
-      time span     │            Description for each point in section:
-          │         │            "Chcuh" (placename)
+      time span     │            └ Description (each point):
+          │         │              "Chcuh" (placename)
           │         │
-          │         No descriptions for this section,
-          │         since there is no corresponding annotation
+          │         └ Description (each point):
+          │           Nothing, since there is no corresponding annotation
           │
-          Description for each point in section: "Dayum" (placename)
+          └ Description (each point):
+            "Dayum" (placename)
 
 point-multi
 
 Only points that intersect with the time span of an annotation will be
-exported and will inherit the annotation text as the coordinate
+exported. Each point will inherit the annotation text as the coordinate
 description. Points that have no corresponding annotation will be
-discarded. Useful for including points corresponding to marked events
-only.
+discarded.
 
+  Useful for including points corresponding to marked events only.
 
-      + + +               
-      ┊     + +           +             + <──────── Logged
-      ┊       ┊           ┊ +       + + ┊           point
+    KML/GeoJSON-file
+
+      + + +
+      ┊     + +           +             +  <────── Logged
+      ┊       ┊           ┊ +       + + ┊          points
       ┊       ┊           ┊   + + +     ┊
       ┊       ┊           ┊             ┊
       └───┬───┘           └──────┬──────┘
-     Points logged               │
-      within ELAN                │
-      annotation                 │
-      time span                  Description for each point in section:
-          │                      "Chcuh" (placename)
-          │
-          Description for each point in section:
-          "Dayum" (placename)
+          │                      └ Description:
+          │                        "Chcuh" (placename)
+          └ Description:
+            "Dayum" (placename)
 
 point-single
 
@@ -769,52 +791,59 @@ within the annotation's time span. Note that a custom --downsample value
 will be ignored for point-single since it may affect the result
 negatively. --downsample also has little use here, since the number of
 points in the output will not be affected and will be quite low compared
-to the other options. Useful for distilling marked events, such as place
-names, to a single point for each event.
+to the other options.
 
+  Useful for distilling marked events, such as place names, to a single
+  point for each event.
 
-          +               
-          │
-          │                     
-      Average for               +
-     points logged              │
-      within ELAN               │
-      annotation                │
-      time span                 Description for point:
-          │                     "Chcuh" (placename)
-          │
-          Description for point:
-          "Dayum" (placename)
-     
+    KML/GeoJSON-file
+
+      + + +
+      ┊     + +           +             +  <────── Logged
+      ┊       ┊           ┊ +       + + ┊          points
+      ┊       ┊           ┊   + + +     ┊
+      ┊       ┊           ┊             ┊
+      └───┬───┘           └──────┬──────┘
+          ▼                      │
+                                 ▼
+          +
+                                 +         <────── Averaged
+          │                                        points
+          │                      │
+          │                      └ Description:
+          │                        "Chcuh" (placename)
+          └ Description:
+            "Dayum" (placename)
 
 line-all
 
-All points logged during the recording session will be exported,
-resulting in a continuous polyline. Sub-sections that intersect with an
-annotation inherit the annotation value as a description, whereas those
-that do not will have no description.
+Similar to point-all. All points logged during the recording session
+will be exported, resulting in a continuous polyline. Only line-sections
+that intersect with an annotation span inherit the annotation value as a
+description. Those that do not will have no description.
 
     ELAN-file
 
     ─────┼──────────┼──────────┼──────────┼──────>  ELAN time-line
-     00:01:35   00:01:40   00:01:45   00:01:50   
+     00:01:35   00:01:40   00:01:45   00:01:50
     ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
       │ walk down-hill  │        │ walk up-hill │   "Feature" tier
       ├─────────────────┤        ├──────────────┤   with annotations
       │                 │        │              │   to geo-reference
 
 
-    KML-file
-      ____           ___
-      ┊   \         /   \                           Resulting polyline
-      ┊    \_______/    ┊\           ____________   in KML-file, continuous:
-      ┊                 ┊ \         /           ┊   only line-sections with
+    KML/GeoJSON-file
+
+      ____           ___                            Resulting polyline
+      ┊   \         /   \                           in KML/GeoJSON-file:
+      ┊    \_______/    ┊\           ____________   Continuous, but only
+      ┊                 ┊ \         /           ┊   line-sections with
       ┊                 ┊  \_______/            ┊   corresponding annotations
       ┊                 ┊        ┊              ┊   have a description
       └────────┬────────┘        └───────┬──────┘
-               │                         │          Description for
-       'walk down-hill'           'walk up-hill'    line-section
-                                                    in KML
+               │                         │
+               └ Description:            └ Description:
+                 'walk down-hill'          'walk up-hill'
 
 line-multi
 
@@ -827,24 +856,25 @@ paths corresponding to marked events only.
     ELAN-file
 
     ─────┼──────────┼──────────┼──────────┼──────>  ELAN time-line
-     00:01:35   00:01:40   00:01:45   00:01:50   
+     00:01:35   00:01:40   00:01:45   00:01:50
     ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
       │ walk down-hill  │        │ walk up-hill │   "Feature" tier
       ├─────────────────┤        ├──────────────┤   with annotations
       │                 │        │              │   to geo-reference
 
 
-    KML-file
-      ____           ___
-      ┊   \         /   \                           Resulting polyline
-      ┊    \_______/    ┊            ____________   in KML-file, broken-up:
-      ┊                 ┊           /           ┊   line-sections with no
-      ┊                 ┊        __/            ┊   corresponding annotation
-      ┊                 ┊        ┊              ┊   are discarded
+    KML/GeoJSON-file
+
+      ____           ___                            Resulting polyline
+      ┊   \         /   \                           in KML/GeoJSON-file:
+      ┊    \_______/    ┊            ____________   Broken-up, line-sections
+      ┊                 ┊           /           ┊   with no corresponding
+      ┊                 ┊        __/            ┊   annotation are discarded
+      ┊                 ┊        ┊              ┊
       └────────┬────────┘        └───────┬──────┘
-               │                         │          Description for
-       'walk down-hill'           'walk up-hill'    line-section
-                                                    in KML
+               │                         │
+               └ Description:            └ Description:
+                 'walk down-hill'          'walk up-hill'
 
 circle-2d, circle-3d
 
@@ -864,11 +894,12 @@ three more options become available:
 
 The 'cdata' option
 
-Only affects KML-files. Using --cdata will insert extra information into
-the KML-file in the form of HTML inside the <description> element for
-each point (see the CDATA section in Google's KML documentation). This
-will cause an information bubble to pop-up in Google Earth when a point
-is clicked on, as a visual flair for e.g. presentations.
+The --cdata option only affects KML-files. It will insert extra
+information into the KML-file in the form of HTML inside the
+<description> element for each point (see the CDATA section in Google's
+KML documentation). In Google Earth this results in an information
+bubble to pop up when a point is clicked on, as a visual flair for e.g.
+presentations.
 
 locate
 
@@ -897,10 +928,10 @@ Options
   ------- ---------- ------------------------------------------------ ------------- -------------------
     -i     --indir   Input path for locating files                                          yes
     -k      --kind   Camera brand                                      virb, gopro   unless -v, -u, -f
-    -f      --fit    [VIRB] FIT-file for selecting session                          
-    -u      --uuid   [VIRB] UUID for clip in session                                
     -v     --video   Clip in relevant session                                       
            --verify  [GoPro] Verify GPMF data, ignore corrupt files                 
+    -f      --fit    [VIRB] FIT-file for selecting session                          
+    -u      --uuid   [VIRB] UUID for clip in session                                
 
 Example 1
 
@@ -1160,11 +1191,12 @@ This will return the embedded UUID:
     UUID: VIRBactioncameraULTRA30_Expansive_1920_1440_29.9700_3937280306_3af2a648_1_299_2021-05-03-14-23-23.fit
 
 Most FIT-files, from e.g. watches, bike computers, will work with
-inspect. Custom developer data is also supported. However some FIT
-features are exclusive to VIRB, such as UUID and selecting sessions, and
-other features are not implemented, such as compressed timestamp
-headers. In such cases, the tool will report the error and exit. Missing
-features may or may not be implemented in future versions.
+inspect. Custom developer data is also supported (such fields will be
+prefixed 'DEV' when inspecting). However, some FIT features are
+exclusive to VIRB, such as UUID and selecting sessions, and other
+features are not implemented, such as compressed timestamp headers. In
+such cases, the tool will report the error and exit. Missing features
+may or may not be implemented in future versions.
 
   ❗For those who wish to dig deeper, the Garmin FIT Software
   Development Kit contains a spreadsheet, Profile.xlsx, which lists the
@@ -1501,7 +1533,7 @@ both human-readable and fairly straightforward to parse.
 
 GeoELAN Rust crates
 
-GeoELAN is written in Rust and uses three custom libraries (aka crates)
+GeoELAN is written in Rust and uses four custom libraries (aka crates)
 that were developed from scratch in parallel with the tool itself. This
 was partly due to the need to get to know the formats better, partly
 because the only existing option was to create bindings to existing
@@ -1546,7 +1578,7 @@ this yourself. A first pass, extracting and parsing data, should always
 work for both crates. GeoELAN's inspect command with the --verbose flag
 or --type option prints data in this "raw" form.
 
-GeoELAN A4 Guide, v2.6, 2023-07-20
+GeoELAN A4 Guide, v2.7, 2024-02-29
 
 Jens Larsson jens.larsson@humlab.lu.se
 

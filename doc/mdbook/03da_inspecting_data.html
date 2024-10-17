@@ -1,0 +1,362 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Inspecting data - GeoELAN</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item "><a href="01_introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="01a_requirements.html"><strong aria-hidden="true">1.1.</strong> Requirements</a></li><li class="chapter-item "><a href="01b_installation.html"><strong aria-hidden="true">1.2.</strong> Installation</a></li><li class="chapter-item "><a href="01c_before_you_start.html"><strong aria-hidden="true">1.3.</strong> Before you start</a></li></ol></li><li class="chapter-item "><a href="02_example_walkthrough.html"><strong aria-hidden="true">2.</strong> Example walkthrough</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="02a_step_1of3.html"><strong aria-hidden="true">2.1.</strong> 1/3 Generate an ELAN-file</a></li><li class="chapter-item "><a href="02b_step_2of3.html"><strong aria-hidden="true">2.2.</strong> 2/3 Annotate events</a></li><li class="chapter-item "><a href="02c_step_3of3.html"><strong aria-hidden="true">2.3.</strong> 3/3 Generate KML/GeoJSON</a></li></ol></li><li class="chapter-item expanded "><a href="03_commands.html"><strong aria-hidden="true">3.</strong> Commands</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03a_cam2eaf.html"><strong aria-hidden="true">3.1.</strong> cam2eaf</a></li><li class="chapter-item "><a href="03b_eaf2geo.html"><strong aria-hidden="true">3.2.</strong> eaf2geo</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03ba_geoshape.html"><strong aria-hidden="true">3.2.1.</strong> The geoshape option</a></li><li class="chapter-item "><a href="03bb_cdata.html"><strong aria-hidden="true">3.2.2.</strong> The cdata option (KML)</a></li></ol></li><li class="chapter-item "><a href="03c_locate.html"><strong aria-hidden="true">3.3.</strong> locate</a></li><li class="chapter-item expanded "><a href="03d_inspect.html"><strong aria-hidden="true">3.4.</strong> inspect</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item expanded "><a href="03da_inspecting_data.html" class="active"><strong aria-hidden="true">3.4.1.</strong> Inspecting data</a></li></ol></li><li class="chapter-item "><a href="03e_plot.html"><strong aria-hidden="true">3.5.</strong> plot</a></li><li class="chapter-item "><a href="03f_manual.html"><strong aria-hidden="true">3.6.</strong> manual</a></li></ol></li><li class="chapter-item "><a href="04_appendix.html"><strong aria-hidden="true">4.</strong> Appendix</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="04a_formats.html"><strong aria-hidden="true">4.1.</strong> Formats</a></li><li class="chapter-item "><a href="04b_gopro.html"><strong aria-hidden="true">4.2.</strong> GoPro</a></li><li class="chapter-item "><a href="04c_virb.html"><strong aria-hidden="true">4.3.</strong> VIRB</a></li><li class="chapter-item "><a href="04d_ffmpeg.html"><strong aria-hidden="true">4.4.</strong> FFmpeg</a></li><li class="chapter-item "><a href="04e_elan.html"><strong aria-hidden="true">4.5.</strong> ELAN</a></li><li class="chapter-item "><a href="04f_fit_gpmf_eaf_libraries.html"><strong aria-hidden="true">4.6.</strong> FIT, GPMF, EAF libraries</a></li></ol></li><li class="chapter-item "><a href="06_references.html"><strong aria-hidden="true">5.</strong> References</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">GeoELAN</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h3 id="inspecting-telemetry-and-mp4-files"><a class="header" href="#inspecting-telemetry-and-mp4-files">Inspecting telemetry and MP4 files</a></h3>
+<p><code>inspect</code> will mostly print raw values - down to a list of bytes for some kinds of data - that require further processing to be of use. The exact nature of this data differs between GoPro and Garmin. For GPS data, the flag <code>--gps</code> can be used for either device to print a processed GPS-log showing coordinates in decimal degrees etc. Sensor data can also be printed via <code>--sensor &lt;SENSOR_TYPE&gt;</code>. Other GeoELAN commands, such as <code>eaf2geo</code>, always convert data to the relevant forms.</p>
+<p>If a GoPro MP4 or a Garmin FIT-file can not be properly parsed, GeoELAN will often return an error message that may hint at the issue. Try <code>inspect</code> on files that raise errors with the other commands.</p>
+<h4 id="gopro"><a class="header" href="#gopro">GoPro</a></h4>
+<p>GoPro cameras embed all logged telemetry inside the MP4-files. In contrast to Garmin FIT, data types have no numerical identifier (see below) so internally, text descriptions are used instead.</p>
+<p>To list all data types logged in a GoPro MP4-file, run:</p>
+<pre><code class="language-sh">geoelan inspect --gpmf GOPROVIDEO.MP4
+</code></pre>
+<p>This will list all data streams:</p>
+<pre><code>Unique data stream types (1018 DEVC streams in total):
+    Accelerometer
+    Average luminance
+    Exposure time (shutter speed)
+    Face Coordinates and details
+    GPS (Lat., Long., Alt., 2D speed, 3D speed)
+    Gyroscope
+    Image uniformity
+    Predominant hue[[hue, weight], ...]
+    Scene classification[[CLASSIFIER_FOUR_CC,prob], ...]
+    Sensor ISO
+    Sensor read out time
+    White Balance RGB gains
+    White Balance temperature (Kelvin)
+</code></pre>
+<p>Use the data names in the list to print raw data for a specific type (note the citation marks):</p>
+<pre><code class="language-sh">geoelan inspect --gpmf GOPROVIDEO.MP4 --type "GPS (Lat., Long., Alt., 2D speed, 3D speed)"
+</code></pre>
+<p>Earlier GoPro models list GPS data as <code>GPS (Lat., Long., Alt., 2D speed, 3D speed)</code>, whereas Hero 11 Black and later models log more data per point and use <code>GPS (Lat., Long., Alt., 2D, 3D, days, secs, DOP, fix)</code>.</p>
+<p>Print the GPS log in a more conventional form:</p>
+<pre><code class="language-sh">geoelan inspect --gpmf GOPROVIDEO.MP4 --gps
+</code></pre>
+<p>Save the full GPS log as a KML or GeoJSON file:</p>
+<pre><code class="language-sh">geoelan inspect --gpmf GOPROVIDEO.MP4 --kml
+geoelan inspect --gpmf GOPROVIDEO.MP4 --json
+</code></pre>
+<h5 id="gpmf-byte-offsets"><a class="header" href="#gpmf-byte-offsets">GPMF byte offsets</a></h5>
+<p>GoPro telemetry is interleaved as data "chunks" with audio and video samples. To list their location in the file and sizes, run:</p>
+<pre><code class="language-sh">geoelan inspect --video GOPROVIDEO.MP4 --offsets "GoPro MET"
+</code></pre>
+<p><code>GoPro MET</code> is the name of the MP4 track holding GPMF data.</p>
+<p>This returns a table listing byte offset, size, and duration:</p>
+<pre><code>...
+[ 359 GoPro MET/4] @2026761919 size: 7252   duration: 1s1ms
+[ 360 GoPro MET/4] @2031934877 size: 7444   duration: 1s1ms
+[ 361 GoPro MET/4] @2037379676 size: 7380   duration: 1s1ms
+[ 362 GoPro MET/4] @2043168135 size: 7348   duration: 1s1ms
+...
+</code></pre>
+<h5 id="images"><a class="header" href="#images">Images</a></h5>
+<p>Original GoPro JPEG-images can also be inspected. These will contain much less GPMF data than the MP4-files, and are currently not used elsewhere in GeoELAN's workflow. If no named data shows up in the summary, try  <code>geoelan inspect --gpmf GOPROIMAGE.JPG --verbose</code> to print the raw data. Early GoPro models do not embed GPMF data in JPEG-images.</p>
+<h4 id="garmin-fit"><a class="header" href="#garmin-fit">Garmin FIT</a></h4>
+<p>The FIT-format is quite different to GoPro's GPMF, apart from being a separate file. There is among other things, additional information about VIRB recording sessions. The VIRB starts logging to a FIT-file the moment the camera is turned on, and only stops when it is turned off. This means that a single FIT-file may contain data for multiple recording sessions. Data is logged continuously - even between recordings.</p>
+<p>Inside a FIT-file, data is identified by a numerical identifier. For example, GPS data is <code>160</code>, also referred to as <code>gps_metadata</code> in the <a href="https://developer.garmin.com/fit/download/">FIT Software Development Kit</a> (FIT SDK). <code>inspect</code> lists both identifiers in the summary table, but only the numerical identifier is logged inside the FIT-file.</p>
+<p>List all data types logged in a VIRB FIT-file:</p>
+<pre><code class="language-sh">geoelan inspect --fit FITFILE.FIT
+</code></pre>
+<p>This will return a table:</p>
+<pre><code> Global ID | Message type                 | Count
+...................................................
+         0 | file_id                      |      1
+        18 | session                      |      1
+        19 | lap                          |      1
+        20 | record                       |   6209
+        21 | event                        |      1
+        22 | UNKNOWN_TYPE_22              |      2
+        23 | device_info                  |      3
+        34 | activity                     |      1
+        49 | file_creator                 |      1
+       104 | UNKNOWN_TYPE_104             |    104
+       160 | gps_metadata                 |  60114
+       161 | camera_event                 |     24
+       162 | timestamp_correlation        |      1
+       164 | gyroscope_data               |  20405
+       165 | accelerometer_data           |  20405
+       167 | three_d_sensor_calibration   |     59
+       208 | magnetometer_data            |  20405
+       209 | barometer_data               |   6209
+       210 | one_d_sensor_calibration     |      1
+       219 | UNKNOWN_TYPE_219             |      1
+...................................................
+                                    Total:  133948
+</code></pre>
+<p>Find "Global ID" for the data type you wish to inspect further. To print GPS data in its "raw" form, run:</p>
+<pre><code class="language-sh">geoelan inspect --fit FITFILE.FIT --type 160
+</code></pre>
+<p>Print the GPS log in a more conventional form:</p>
+<pre><code class="language-sh">geoelan inspect --fit FITFILE.FIT --gps
+</code></pre>
+<p>Save the full GPS log as a KML or GeoJSON file:</p>
+<pre><code class="language-sh">geoelan inspect --fit FITFILE.FIT --kml
+geoelan inspect --fit FITFILE.FIT --json
+</code></pre>
+<p>Print a single type of data for a specific recording session:</p>
+<pre><code class="language-sh">geoelan inspect --fit FITFILE.FIT --type 160 --session
+</code></pre>
+<p>This will return a table listing all VIRB recording sessions:</p>
+<pre><code> Session | Clips | First UUID in session
+............................................................................................
+  1.     |  1    | VIRBactioncameraULTRA30_Tall_2688_2016_29..._1_17_2017-01-28-05-16-40.fit
+  2.     |  1    | VIRBactioncameraULTRA30_Tall_2688_2016_29..._1_18_2017-01-28-05-16-40.fit
+  3.     |  3    | VIRBactioncameraULTRA30_Tall_2688_2016_29..._1_19_2017-01-28-05-16-40.fit
+         |       | VIRBactioncameraULTRA30_Tall_2688_2016_29..._2_19_2017-01-28-05-16-40.fit
+         |       | VIRBactioncameraULTRA30_Tall_2688_2016_29..._3_19_2017-01-28-05-16-40.fit
+  4.     |  1    | VIRBactioncameraULTRA30_Tall_2688_2016_29..._1_20_2017-01-28-05-16-40.fit
+  5.     |  1    | VIRBactioncameraULTRA30_Tall_2688_2016_29..._1_21_2017-01-28-05-16-40.fit
+............................................................................................
+Select session:
+</code></pre>
+<p>Type the number in the "Session" column for the relevant session. The output will now be limited to the selected recording session. KML and GeoJSON files can be filtered this way as well.</p>
+<p>You could also specify recording session via a VIRB MP4-file to achieve the same result:</p>
+<pre><code class="language-sh">geoelan inspect --video VIRBVIDEO.MP4 --fit FITFILE.MP4
+</code></pre>
+<p>To find out the embedded UUID of a VIRB MP4-file, run:</p>
+<pre><code class="language-sh">geoelan inspect --video VIRBVIDEO.MP4
+</code></pre>
+<p>This will return the embedded UUID:</p>
+<pre><code>UUID: VIRBactioncameraULTRA30_Expansive_1920_1440_29.9700_3937280306_3af2a648_1_299_2021-05-03-14-23-23.fit
+</code></pre>
+<p>Most FIT-files, from e.g. watches, bike computers, will work with <code>inspect</code>. Custom developer data is also supported (such fields will be prefixed '<code>DEV</code>' when inspecting). However, some FIT features are exclusive to VIRB, such as UUID and selecting sessions.</p>
+<p>Compressed timestamp headers are not supported. In such cases, the tool will report the error and exit. Missing features may or may not be implemented in future versions.</p>
+<blockquote>
+<p>❗For those who wish to dig deeper, the <a href="https://developer.garmin.com/fit/download/">Garmin FIT Software Development Kit</a> contains a spreadsheet, <code>Profile.xlsx</code>, which lists the kinds of data a FIT-file may contain. Not all of those apply to every device however, and undocumented data types exist.</p>
+</blockquote>
+<h4 id="videomp4-files"><a class="header" href="#videomp4-files">Video/MP4-files</a></h4>
+<p>Some options apply to any MP4-file. Access these by using the <code>--video</code> option.</p>
+<p>The <code>--meta</code> flag will show raw (i.e. bytes) content for the so-called user data section (a.k.a. <code>udta</code> atom), where some cameras log custom data. GoPro embeds undocumented GPMF data in this section, which will also be listed. Garmin logs a unique identifier here (the "UUID" mentioned above).</p>
+<p>List tracks and information for any MP4 file (GoPro and VIRB files list additional information, such as the unique identifers used for grouping clips into recording sessions):</p>
+<pre><code class="language-sh">geoelan inspect --video VIDEOFILE.MP4
+</code></pre>
+<p>List sample byte offsets for a track in any MP4 file:</p>
+<pre><code class="language-sh">geoelan inspect --video VIDEOFILE.MP4 --offsets &lt;TRACK_ID&gt;
+</code></pre>
+<p>List atom structure in any MP4 file:</p>
+<pre><code class="language-sh">geoelan inspect --video VIDEOFILE.MP4 --atoms
+</code></pre>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="03d_inspect.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="03e_plot.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="03d_inspect.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="03e_plot.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

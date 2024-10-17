@@ -1,7 +1,7 @@
 //! Filtering FIT data on recording session.
 
+use fit_rs::{Fit, FitError, FitSession, FitSessions};
 use std::io::Write;
-use fit_rs::{FitError, Fit, FitSession, FitSessions};
 
 /// Select session from those present in FIT-file
 /// by returning UUID for first clip in session
@@ -11,18 +11,14 @@ pub fn select_session(fit: &Fit) -> Result<FitSession, FitError> {
     // let sessions = fit.sessions()?;
     let sessions = FitSessions::from_fit(fit)?;
     if sessions.is_empty() {
-        return Err(FitError::NoSuchSession)
+        return Err(FitError::NoSuchSession);
     }
 
     println!(" Session | Clips | UUIDs in session");
     println!(".......................{}", ".".repeat(100));
 
     for (i, session) in sessions.iter().enumerate() {
-        print!(
-            " {:2}.     | {:2}    ",
-            i + 1,
-            session.len(),
-        );
+        print!(" {:2}.     | {:2}    ", i + 1, session.len(),);
         for (i, u) in session.iter().enumerate() {
             let prefix = if i == 0 {
                 "".to_owned()
@@ -48,9 +44,7 @@ pub fn select_session(fit: &Fit) -> Result<FitSession, FitError> {
             }
         };
         match sessions.sessions().get(num) {
-            Some(s) => {
-                return Ok(s.to_owned())
-            },
+            Some(s) => return Ok(s.to_owned()),
             None => {
                 println!("No such item");
                 continue;

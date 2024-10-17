@@ -11,45 +11,49 @@ pub enum GeoShape {
     /// Those that intersect with an annotation
     /// timespan inherit the corresponding annotation value
     /// as description.
-    PointAll{height: Option<f64>},
+    PointAll { height: Option<f64> },
     /// Only points that intersect with an annotation
     /// timespan are included. These inherit the
     /// corresponding annotation value
     /// as description.
-    PointMulti{height: Option<f64>},
+    PointMulti { height: Option<f64> },
     /// Points that intersect with an annotation
     /// timespan are averaged to a single point,
     /// which inherits the annotation value.
-    PointSingle{height: Option<f64>},
+    PointSingle { height: Option<f64> },
     /// All points included, and joined as a
     /// poly line.
     /// Those that intersect with an annotation
     /// timespan inherit the corresponding annotation value
     /// as description.
-    LineAll{height: Option<f64>},
+    LineAll { height: Option<f64> },
     /// Only points that intersect with an annotation
     /// timespan are included for polyline generation.
     /// These inherit the corresponding annotation value
     /// as description.
-    LineMulti{height: Option<f64>},
+    LineMulti { height: Option<f64> },
     /// Points that intersect with an annotation
     /// timespan are averaged to a single point,
     /// which inherits the annotation value. A circle is then generated
     /// using the `radius`, `vertices`, and the optional `height` values.
     /// I.e. point selection is exactly the same as for `PointSingle`,
     /// only representation differs.
-    Circle{radius: f64, vertices: u8, height: Option<f64>},
+    Circle {
+        radius: f64,
+        vertices: u8,
+        height: Option<f64>,
+    },
 }
 
 impl GeoShape {
     pub fn to_string(&self) -> String {
         match self {
-            GeoShape::PointAll{..} => "point-all".to_owned(),
-            GeoShape::PointMulti{..} => "point-multi".to_owned(),
-            GeoShape::PointSingle{..} => "point-single".to_owned(),
-            GeoShape::LineAll{..} => "line-all".to_owned(),
-            GeoShape::LineMulti{..} => "line-multi".to_owned(),
-            GeoShape::Circle{..} => "circle".to_owned(),
+            GeoShape::PointAll { .. } => "point-all".to_owned(),
+            GeoShape::PointMulti { .. } => "point-multi".to_owned(),
+            GeoShape::PointSingle { .. } => "point-single".to_owned(),
+            GeoShape::LineAll { .. } => "line-all".to_owned(),
+            GeoShape::LineMulti { .. } => "line-multi".to_owned(),
+            GeoShape::Circle { .. } => "circle".to_owned(),
         }
     }
 }
@@ -80,26 +84,28 @@ pub fn filter_downsample(
 
     // 1. Filter out unmarked clusters for some geoshapes
     let filtered_clusters: Vec<Vec<EafPoint>> = match geoshape {
-        
         // All points preserved
-        GeoShape::PointAll{..} => point_clusters.iter()
+        GeoShape::PointAll { .. } => point_clusters
+            .iter()
             .map(|cluster| downsample(sample_factor, cluster, None))
             .collect(),
 
         // Discard marked points/points without description
-        GeoShape::PointMulti{..} => point_clusters.iter()
-            .filter_map(|cluster|
+        GeoShape::PointMulti { .. } => point_clusters
+            .iter()
+            .filter_map(|cluster| {
                 if is_marked(cluster) {
                     Some(downsample(sample_factor, cluster, None))
                 } else {
                     None
                 }
-            )
+            })
             .collect(),
-            
+
         // All points preserved and transformed to polylines.
         // Alters between marked and unmarked events.
-        GeoShape::LineAll{..} => point_clusters.iter()
+        GeoShape::LineAll { .. } => point_clusters
+            .iter()
             // min 2 points for line
             .map(|cluster| {
                 // Possibly bad way of adding point in previous cluster
@@ -116,34 +122,35 @@ pub fn filter_downsample(
                 downsampled
             })
             .collect(),
-            
+
         // Discard marked points/points without description,
         // then transform to broken-up polylines.
-        GeoShape::LineMulti{..} => point_clusters.iter()
-            .filter_map(|cluster|
+        GeoShape::LineMulti { .. } => point_clusters
+            .iter()
+            .filter_map(|cluster| {
                 if is_marked(cluster) {
                     // minimum of 2 points for polylines
                     Some(downsample(sample_factor, cluster, Some(2)))
                 } else {
                     None
                 }
-            )
+            })
             .collect(),
-            
+
         // Discard marked points/points without description,
         // ignore sample factor,
         // and downsample each cluster to single point or
         // polygonal circle (with single point becoming its center).
-        GeoShape::PointSingle{..}
-        | GeoShape::Circle{..} => point_clusters.iter()
-            .filter_map(|cluster|
+        GeoShape::PointSingle { .. } | GeoShape::Circle { .. } => point_clusters
+            .iter()
+            .filter_map(|cluster| {
                 if is_marked(cluster) {
                     Some(downsample(cluster.len(), cluster, None))
                 } else {
                     None
                 }
-            )
-            .collect()
+            })
+            .collect(),
     };
 
     filtered_clusters

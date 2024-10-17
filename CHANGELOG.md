@@ -1,6 +1,17 @@
+# GeoELAN 2.7
+- NEW \[GOPRO\]: determining whether GoPro files are high/low resolution (`.MP4` or `.LRV`) no longer depends on file extension, only video resolution, i.e. you can rename LRV-files to `.mp4` and GeoELAN will still correctly identify these as low resolution variants.
+- NEW \[GOPRO\] `plot`: removed filtering plots on GPS satellite lock level and dilution of position (see below)
+- NEW \[GOPRO\] `plot`: added satellite lock level/GPS fix as plot option (use `-y fix` or `--y-axis gpsfix`)
+- NEW \[GOPRO\] `plot`: GPS [dilution of precision](https://en.wikipedia.org/wiki/Dilution_of_precision_(navigation)) can now be plotted (use `-y dop` or `--y-axis dilution`)
+- NEW: \[GOPRO\] `cam2eaf`: Specify threshold for dilution of position (`--gpsdop`).
+- CHANGE `inspect`: `--offsets` is no longer connected to `--gpmf` and can be used for any video (MP4, LRV, GLV, MOV), but requires specifying track name (string) or id (positive integer). Run `inspect` first to get a list of these.
+- FIX \[GOPRO\] Fixed GPMF timing errors when merging GoPro MP4-clips that caused timespan overlaps in generated ELAN annotations.
+- Bumped updated crates [`gpmf-rs`](https://github.com/jenslar/gpmf-rs), [`eaf-rs`](https://github.com/jenslar/eaf-rs), [`mp4iter`](https://github.com/jenslar/mp4iter)
+- Various internal changes
+
 # GeoELAN 2.6
 - `plot`: Plot data for the entire session (use `--session`) for both GoPro and VIRB (sensor data, altitude etc), axis titles added, internal fixes.
-- `cam2eaf`: `--batch` flag added, allowing batch processing of of all recording sessions in `--indir`.
+- `cam2eaf`: `--batch` flag added, allowing batch processing of all recording sessions in `--indir`.
 - General: Fixed stalling on older MP4 files and not finding GPMF offsets for Hero 5, and many other internal fixes.
 
 # GeoELAN 2.5

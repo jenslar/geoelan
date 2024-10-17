@@ -1,0 +1,257 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Introduction - GeoELAN</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="01_introduction.html" class="active"><strong aria-hidden="true">1.</strong> Introduction</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="01a_requirements.html"><strong aria-hidden="true">1.1.</strong> Requirements</a></li><li class="chapter-item "><a href="01b_installation.html"><strong aria-hidden="true">1.2.</strong> Installation</a></li><li class="chapter-item "><a href="01c_before_you_start.html"><strong aria-hidden="true">1.3.</strong> Before you start</a></li></ol></li><li class="chapter-item "><a href="02_example_walkthrough.html"><strong aria-hidden="true">2.</strong> Example walkthrough</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="02a_step_1of3.html"><strong aria-hidden="true">2.1.</strong> 1/3 Generate an ELAN-file</a></li><li class="chapter-item "><a href="02b_step_2of3.html"><strong aria-hidden="true">2.2.</strong> 2/3 Annotate events</a></li><li class="chapter-item "><a href="02c_step_3of3.html"><strong aria-hidden="true">2.3.</strong> 3/3 Generate KML/GeoJSON</a></li></ol></li><li class="chapter-item "><a href="03_commands.html"><strong aria-hidden="true">3.</strong> Commands</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03a_cam2eaf.html"><strong aria-hidden="true">3.1.</strong> cam2eaf</a></li><li class="chapter-item "><a href="03b_eaf2geo.html"><strong aria-hidden="true">3.2.</strong> eaf2geo</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03ba_geoshape.html"><strong aria-hidden="true">3.2.1.</strong> The geoshape option</a></li><li class="chapter-item "><a href="03bb_cdata.html"><strong aria-hidden="true">3.2.2.</strong> The cdata option (KML)</a></li></ol></li><li class="chapter-item "><a href="03c_locate.html"><strong aria-hidden="true">3.3.</strong> locate</a></li><li class="chapter-item "><a href="03d_inspect.html"><strong aria-hidden="true">3.4.</strong> inspect</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03da_inspecting_data.html"><strong aria-hidden="true">3.4.1.</strong> Inspecting data</a></li></ol></li><li class="chapter-item "><a href="03e_plot.html"><strong aria-hidden="true">3.5.</strong> plot</a></li><li class="chapter-item "><a href="03f_manual.html"><strong aria-hidden="true">3.6.</strong> manual</a></li></ol></li><li class="chapter-item "><a href="04_appendix.html"><strong aria-hidden="true">4.</strong> Appendix</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="04a_formats.html"><strong aria-hidden="true">4.1.</strong> Formats</a></li><li class="chapter-item "><a href="04b_gopro.html"><strong aria-hidden="true">4.2.</strong> GoPro</a></li><li class="chapter-item "><a href="04c_virb.html"><strong aria-hidden="true">4.3.</strong> VIRB</a></li><li class="chapter-item "><a href="04d_ffmpeg.html"><strong aria-hidden="true">4.4.</strong> FFmpeg</a></li><li class="chapter-item "><a href="04e_elan.html"><strong aria-hidden="true">4.5.</strong> ELAN</a></li><li class="chapter-item "><a href="04f_fit_gpmf_eaf_libraries.html"><strong aria-hidden="true">4.6.</strong> FIT, GPMF, EAF libraries</a></li></ol></li><li class="chapter-item "><a href="06_references.html"><strong aria-hidden="true">5.</strong> References</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">GeoELAN</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <p><strong>GeoELAN v2.7.0 2024-10-16</strong></p>
+<p><strong>Important:</strong></p>
+<blockquote>
+<p><strong>GoPro Hero 12 Black is not supported</strong> since it does not have a GPS module.</p>
+<p><strong>GoPro Hero 13 Black is/will be supported</strong> as soon as I get hold of some raw/unedited sample footage.</p>
+<p><strong>Garmin VIRB Ultra 30 is discontinued</strong>. GeoELAN will continue to support these and the FIT-format.</p>
+</blockquote>
+<h2 id="introduction"><a class="header" href="#introduction">Introduction</a></h2>
+<p>GeoELAN is a command-line tool that geo-references time-aligned text-annotations of observed phenomena in audiovisual recordings, captured with a recent GoPro or Garmin VIRB action camera, see <a href="https://doi.org/10.1080/13645579.2020.1763705">Larsson et al 2021</a>. In other words, GeoELAN is used for annotating action camera GPS logs with the help of the free annotation tool <a href="https://archive.mpi.nl/tla/elan">ELAN</a>.</p>
+<p>Requirements:</p>
+<ul>
+<li>GoPro Hero 5 Black - GoPro Hero 11 Black, Hero 13 Black (Hero 12 Black is not supported)</li>
+<li>Garmin VIRB</li>
+<li><a href="http://ffmpeg.org">FFmpeg</a> (in <code>PATH</code> preferred, but custom path can also be set when running GeoELAN)</li>
+</ul>
+<blockquote>
+<p>GeoELAN is multi-functional command-line tool that can</p>
+<ul>
+<li><strong>geo-reference</strong> ELAN-annotations of GoPro and VIRB footage (i.e. annotate GPS logs) and <strong>generate annotated points, lines, or circles</strong>.</li>
+<li><strong>inspect</strong> the raw content of your GoPro GPMF data, or Garmin FIT-files.</li>
+<li><strong>locate and match</strong> all relevant files belonging to the same recording session irrespective of file name (clips, telemetry-files).</li>
+<li>automatically <strong>join clips</strong> (requires FFmpeg) for a specific recording session, and <strong>generate an ELAN-file</strong> with linked media.</li>
+</ul>
+</blockquote>
+<p>Any ELAN annotation - be it an on-site utterance, or a plant in view - can be geo-referenced as long as the GPS logged coordinates within the annotation's timespan. The nature of the workflow also means consultants not physically present at the the time of recording can evaluate and annotate sections to be geo-referenced post-collection. As the name implies, the annotation tool <a href="https://archive.mpi.nl/tla/elan">ELAN</a> plays a central role and is required to annotate events. The output can be points, polylines, or polygons (circles), as <a href="https://www.ogc.org/standards/kml/">KML</a> and <a href="https://geojson.org">GeoJSON-files</a>. "GoPro" refers to a GoPro Hero 5 Black - Hero11 Black, and "VIRB" to the Garmin VIRB Ultra 30.</p>
+<blockquote>
+<p>While GeoELAN functionality differs slightly between Garmin and GoPro due to differences in formats and file structure,
+the general workflow and the final output are the same.</p>
+</blockquote>
+<h2 id="acknowledgments"><a class="header" href="#acknowledgments">Acknowledgments</a></h2>
+<p>GeoELAN was developed with support from the <a href="https://www.rj.se/en/">Bank of Sweden Tercentenary Foundation</a> (Grant nos <a href="https://www.rj.se/en/grants/2015/language-as-key-to-perceptual-diversity-an-interdisciplinary-approach-to-the-senses/">NHS14-1665:1</a> and <a href="https://www.rj.se/en/grants/2017/digital-multimedia-archive-of-austroasiatic-intangible-heritage-phase-ii-seeding-multidisciplinary-workspaces/">IN17-0183:1</a>).</p>
+<p>We would also like to acknowledge the <a href="https://archive.mpi.nl/tla/">The Language Archive</a>, Max Planck Institute for Psycholinguistics in Nijmegen for their tireless efforts in developing <a href="https://archive.mpi.nl/tla/elan">ELAN</a>, and making it available for free.</p>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<p>ELAN (Version 6.8) [Computer software]. 2024. Nijmegen: Max Planck Institute for Psycholinguistics, The Language Archive. Retrieved from https://archive.mpi.nl/tla/elan</p>
+<p>Larsson, J. 2024. GeoELAN Manual. Lund: Lund University Humanities Lab. <a href="https://github.com/jenslar/geoelan">https://github.com/jenslar/geoelan</a></p>
+<p>Larsson et al, 2021. Integrating behavioral and geospatial data on the timeline: towards new dimensions of analysis, <em>International Journal of Social Research Methodology</em>, 24:1, 1-13, DOI: <a href="https://doi.org/10.1080/13645579.2020.1763705">10.1080/13645579.2020.1763705</a></p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+                            <a rel="next prefetch" href="01a_requirements.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+                    <a rel="next prefetch" href="01a_requirements.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

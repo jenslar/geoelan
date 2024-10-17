@@ -10,18 +10,22 @@ use regex::Regex;
 /// - `whitespace`: character to substitute whitespace character
 /// - `regex`: regular expression pattern to remove
 /// - `len`: maximum character length of output string
-pub fn process_string(value: &str, ascii: Option<&char>, whitespace: Option<&char>, regex: Option<&Regex>, len: Option<usize>) -> String {
-
+pub fn process_string(
+    value: &str,
+    ascii: Option<&char>,
+    whitespace: Option<&char>,
+    regex: Option<&Regex>,
+    len: Option<usize>,
+) -> String {
     // Truncate
     let mut string = match len {
-        Some(l) => {
-            value.chars()
-                .enumerate()
-                .filter(|(i, _)| &l > i)
-                .map(|(_, c)| c)
-                .collect()
-        },
-        None => value.to_owned()
+        Some(l) => value
+            .chars()
+            .enumerate()
+            .filter(|(i, _)| &l > i)
+            .map(|(_, c)| c)
+            .collect(),
+        None => value.to_owned(),
     };
 
     // Remove regex captures
@@ -32,23 +36,17 @@ pub fn process_string(value: &str, ascii: Option<&char>, whitespace: Option<&cha
     // Replace ascii, whitespace. Prio on ascii.
     // Whitespace as specified in https://www.unicode.org/reports/tr44/
     match (ascii, whitespace) {
-        (Some(a), Some(w)) => {
-            string
-                .trim()
-                .replace(|c: char| c.is_whitespace(), &w.to_string())
-                .replace(|c: char| !c.is_ascii(), &a.to_string())
-        },
+        (Some(a), Some(w)) => string
+            .trim()
+            .replace(|c: char| c.is_whitespace(), &w.to_string())
+            .replace(|c: char| !c.is_ascii(), &a.to_string()),
         // prioritise ascii before whitespace
-        (Some(a), None) => {
-            string
-                .trim()
-                .replace(|c: char| !c.is_ascii(), &a.to_string())
-        },
-        (None, Some(w)) => {
-            string
-                .trim()
-                .replace(|c: char| c.is_whitespace(), &w.to_string())
-        },
-        _ => string.to_owned()
+        (Some(a), None) => string
+            .trim()
+            .replace(|c: char| !c.is_ascii(), &a.to_string()),
+        (None, Some(w)) => string
+            .trim()
+            .replace(|c: char| c.is_whitespace(), &w.to_string()),
+        _ => string.to_owned(),
     }
 }

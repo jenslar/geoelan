@@ -1,0 +1,11 @@
+[book]
+authors = ["Jens Larsson"]
+language = "en"
+multilingual = false
+# src = "src"
+src = "."
+title = "GeoELAN"
+
+[output.html.fold]
+enable = true    # whether or not to enable section folding
+level = 0         # the depth to start folding

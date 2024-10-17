@@ -2,13 +2,12 @@
 
 use std::path::PathBuf;
 
-use time::Duration;
 use fit_rs::Fit;
+use time::Duration;
 
 use crate::{files::virb::select_session, geo::EafPoint};
 
 pub fn run(args: &clap::ArgMatches) -> std::io::Result<Vec<EafPoint>> {
-
     let fit_path: &PathBuf = args.get_one("fit").unwrap(); // ensured by clap
     let fit = Fit::new(&fit_path)?;
     let fit_session = select_session(&fit)?;
@@ -40,9 +39,9 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<Vec<EafPoint>> {
     };
 
     // Extract points corresponding to session time span via setting range, derived above.
-    let points: Vec<EafPoint> = fit.gps(Some(&range))
-        .map(|gps| 
-            gps.iter().map(|p_in| {
+    let points: Vec<EafPoint> = fit.gps(Some(&range)).map(|gps| {
+        gps.iter()
+            .map(|p_in| {
                 let mut p_out = EafPoint::from_fit(&p_in, Some(t0));
                 p_out.timestamp = p_out.timestamp.map(|t| {
                     // Subtract relative start time for session
@@ -58,7 +57,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<Vec<EafPoint>> {
                 p_out
             })
             .collect::<Vec<_>>()
-        )?;
+    })?;
 
     Ok(points)
 }

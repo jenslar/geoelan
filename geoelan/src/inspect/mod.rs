@@ -4,8 +4,9 @@ use std::{io::ErrorKind, path::PathBuf};
 
 use fit_rs::VirbFile;
 use gpmf_rs::GoProFile;
+use mp4iter::{track::Track, Mp4};
 
-use crate::model::CameraModel;
+use crate::{files::has_extension_any, model::CameraModel};
 
 mod inspect_fit;
 mod inspect_gpmf;
@@ -24,15 +25,69 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
         let print_atoms = *args.get_one::<bool>("atoms").unwrap();
         let print_meta = *args.get_one::<bool>("meta").unwrap();
+        let track_offsets = args.get_one::<String>("offsets");
+
+        let mut mp4 = match mp4iter::Mp4::new(path) {
+            Ok(v) => v,
+            Err(err) => {
+                let msg = format!("(!) Failed to read MP4: {err}");
+                return Err(std::io::Error::new(ErrorKind::Other, msg));
+            }
+        };
+
+        if let Some(track_id) = track_offsets {
+            // if has_extension(&path, "lrv") || has_extension(&path, "mp4") {
+            if has_extension_any(&path, &["glv", "lrv", "mp4", "mov"]) {
+                let mut mp4 = mp4iter::Mp4::new(&path)?;
+                // let offsets = mp4.offsets("GoPro MET", false)?;
+                let track = match track_id.parse::<u32>() {
+                    Ok(id) => Track::from_id(&mut mp4, id, false)?,
+                    Err(_) => Track::from_name(&mut mp4, &track_id, false)?,
+                };
+
+                for (i, offset) in track.offsets().enumerate() {
+                    println!(
+                        "[{:4} {}/{}] @{:<10} size: {:<6} duration: {}",
+                        i + 1,
+                        track.name(),
+                        track.id(),
+                        offset.position,
+                        offset.size,
+                        offset.duration
+                    )
+                }
+
+                return Ok(());
+            } else {
+                let msg = format!("(!) Incorrect file format for '--offsets', must be a GoPro MP4.\n    Try 'geoelan inspect --video {}", path.display());
+                return Err(std::io::Error::new(ErrorKind::Other, msg));
+            }
+        }
+
+        println!("Tracks:");
+        let tracks = mp4.track_list(false)?;
+        for (i, track) in tracks.iter().enumerate() {
+            print!("  {:2}. {:16} Id: {:2} Duration: {:10.3}s Samples: {:6} Type: ",
+                i+1,
+                track.name(),
+                track.id(),
+                track.duration().as_seconds_f64(),
+                track.offsets().len()
+            );
+            let ttype = track.track_type();
+            match ttype {
+                "vide" => println!("Video ({} x {})", track.width(), track.height()),
+                "soun" => println!("Audio"),
+                _ => println!("{}", ttype)
+            }
+        }
+
+        println!("---");
 
         if print_atoms {
-            let mp4 = match mp4iter::Mp4::new(path) {
-                Ok(v) => v,
-                Err(err) => {
-                    let msg = format!("(!) Failed to read MP4: {err}");
-                    return Err(std::io::Error::new(ErrorKind::Other, msg));
-                }
-            };
+
+            mp4.reset()?;
+
             // Print atom fourcc, size, offsets
             // 'sizes' contains 'atom size - 8' since 8 byte header is already read.
             // Each value will decrease until it's 0 which flags that it shold be removed.
@@ -47,7 +102,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                     if is_container {
                         *size -= 8;
                     } else {
-                        *size -= header.size;
+                        *size -= header.atom_size();
                     }
                     if size == &mut 0 {
                         pop = true;
@@ -57,17 +112,17 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 println!(
                     "{}{} @{} size: {}",
                     "    ".repeat(indent as usize),
-                    header.name.to_str(),
-                    header.offset,
-                    header.size,
+                    header.name().to_str(),
+                    header.offset(),
+                    header.atom_size(),
                 );
                 if is_container {
-                    sizes.push(header.size - 8);
+                    sizes.push(header.atom_size() - 8);
                 }
                 if pop {
                     loop {
                         match sizes.last() {
-                            Some(&0) => _ = sizes.pop(),
+                            Some(&0) => {let _popped = sizes.pop();},
                             _ => break,
                         }
                     }
@@ -96,26 +151,26 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                         }
                     };
                     println!("Metadata (MP4 'udta' atom):");
-                    for field in meta.udta.iter() {
-                        println!("  {} SIZE: {}", field.name.to_str(), field.size);
-                        println!("     RAW: {:?}", field.data.get_ref());
+                    for (name, bytes) in meta.raw.iter() {
+                        println!("  {} SIZE: {}", name, bytes.len());
+                        println!("     RAW: {:?}", bytes);
                     }
-                    for stream in meta.gpmf.iter() {
-                        stream.print(None, None)
-                    }
+
+                    println!("GPMF formatted user data:");
+                    meta.gpmf.print();
                     println!("---");
                 }
 
-                // let dvnm = DeviceName::from_mp4(&path)?;
                 println!(
                     "Identified as {} MP4 file\n  MUID: {:?}\n  GUMI: {:?}",
                     devname.to_str(),
                     gopro.muid,
                     gopro.gumi,
                 );
-                let time_dur = gopro.time()?;
-                println!("Creation time: {}", time_dur.0.to_string());
-                println!("Duration:      {:.3}s", time_dur.1.as_seconds_f64());
+
+                let (gp_start, gp_duration) = (gopro.start(), gopro.duration());
+                println!("Creation time: {}", gp_start.to_string());
+                println!("Duration:      {:.3}s", gp_duration.as_seconds_f64());
                 println!(
                     "To inspect GPMF run 'geoelan inspect --gpmf {}'",
                     path.display()
@@ -141,9 +196,9 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                         }
                     };
                     println!("Metadata (MP4 'udta' atom):");
-                    for field in meta.fields.iter() {
-                        println!("  {} SIZE: {}", field.name.to_str(), field.size);
-                        println!("     RAW: {:?}", field.data.get_ref());
+                    for (name, bytes) in meta.iter() {
+                        println!("  {} SIZE: {}", name, bytes.len());
+                        println!("     RAW: {:?}", bytes);
                     }
                     println!("---");
                 }
@@ -159,8 +214,9 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                             return Err(std::io::Error::new(ErrorKind::Other, msg));
                         }
                     };
-                    let meta = match mp4.udta(true) {
-                        Ok(v) => v,
+
+                    let meta = match mp4.user_data_cursors() {
+                        Ok(m) => m,
                         Err(err) => {
                             let msg = format!("(!) Failed to extract metadata from MP4: {err}");
                             return Err(std::io::Error::new(ErrorKind::Other, msg));
@@ -168,17 +224,26 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                     };
 
                     println!("Metadata (MP4 'udta' atom):");
-                    for field in meta.fields.iter() {
-                        println!("  {} SIZE: {}", field.name.to_str(), field.size);
-                        println!("     RAW: {:?}", field.data.get_ref());
+                    for (name, bytes) in meta.iter() {
+                        println!("  {} SIZE: {}", name, bytes.get_ref().len());
+                        println!("     RAW: {:?}", bytes);
                     }
                     println!("---");
                 }
 
                 if let Ok(gp) = GoProFile::new(&path) {
-                    println!(" Possibly GoPro with no GPMF data and MUID {:?}", gp.muid)
+                    println!("Possibly GoPro with no GPMF data and MUID {:?}", gp.muid)
                 } else {
-                    println!(" No GoPro GPMF data or VIRB UUID found.")
+                    println!("No GoPro GPMF data or VIRB UUID found. Make sure to use the original files.");
+                    let mut mp4 = Mp4::new(&path)?;
+                    let (start, duration) = mp4.time(false)?;
+                    let end = start + duration;
+                    println!(
+                        "{} - {} ({} s)",
+                        start.to_string(),
+                        end.to_string(),
+                        duration.as_seconds_f32()
+                    );
                 }
 
                 return Ok(());

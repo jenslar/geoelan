@@ -4,14 +4,13 @@ use time::Duration;
 
 pub mod geo_fit;
 pub mod geo_gpmf;
-pub mod kml_gen;
-pub mod json_gen;
 pub mod geoshape;
+pub mod json_gen;
+pub mod kml_gen;
 pub mod kml_styles;
 pub mod point;
 pub mod point_cluster;
 
-pub use geoshape::GeoShape;
 pub use point::EafPoint;
 pub use point_cluster::EafPointCluster;
 
@@ -28,26 +27,27 @@ fn average(nums: &[f64]) -> f64 {
 pub fn downsample(
     mut sample_factor: usize,
     points: &[point::EafPoint],
-    min: Option<usize>
+    min: Option<usize>,
 ) -> Vec<point::EafPoint> {
     match sample_factor {
         0 => panic!("Sample factor cannot be 0."), // avoid division by 0
         1 => return points.to_vec(),
         // ensure downsampling will at lest yield a single point
         f if f > points.len() => sample_factor = points.len(),
-        _ => ()
+        _ => (),
     }
 
     // Int division for checking if downsample factor
     // causes fewer than optionally set min number of points
     if let Some(m) = min {
         // if points.len() / sample_factor < 2 { // shouldn't "< 2" be "< m"?
-        if points.len() / sample_factor < m { // 220914 "< m" IS UNTESTED
+        if points.len() / sample_factor < m {
+            // 220914 "< m" IS UNTESTED
             // div_ceil will be in upcoming rust version:
             // https://github.com/rust-lang/rfcs/issues/2844
             // sample_factor = points.len().div_ceil(m)
             // sample_factor = (points.len() as f64 / m as f64).ceil() as usize // should this be .floor()?
-            // 220914 changed to .floor() since otherwise 
+            // 220914 changed to .floor() since otherwise
             sample_factor = (points.len() as f64 / m as f64).floor() as usize // .floor() IS UNTESTED
         }
     }
@@ -61,7 +61,8 @@ pub fn downsample(
     //     average.push(point_cluster_average(&cluster));
     // }
 
-    points.chunks(sample_factor)
+    points
+        .chunks(sample_factor)
         .map(|c| point_cluster_average(c))
         .collect::<Vec<_>>()
 
@@ -88,16 +89,11 @@ pub fn point_cluster_average(points: &[point::EafPoint]) -> point::EafPoint {
     // atan2(y,x) where y = sum((sin(yi)+...+sin(yn))/n), x = sum((cos(xi)+...cos(xn))/n), y, i in radians
     // note that this currently does a f64 conversion/cast from degrees to radians and back to degrees
 
-
-    let description = points.first()
-        .and_then(|p| p.description.to_owned());
-    let ts_first = points.first()
-        .and_then(|p| p.timestamp);
+    let description = points.first().and_then(|p| p.description.to_owned());
+    let ts_first = points.first().and_then(|p| p.timestamp);
     // Note: if points have no duration set, resulting eaf
     //       will have incorrect annotation boundaries on the geotier.
-    let dur_total: Duration = points.iter()
-        .filter_map(|p| p.duration)
-        .sum();
+    let dur_total: Duration = points.iter().filter_map(|p| p.duration).sum();
 
     let deg2rad = std::f64::consts::PI / 180.0; // inverse for radians to degress
 
@@ -123,8 +119,8 @@ pub fn point_cluster_average(points: &[point::EafPoint]) -> point::EafPoint {
         time_as_ms.push(
             pt.timestamp
                 .map(|t| (t.as_seconds_f64() * 1000.0) as i64)
-                .unwrap_or(0)
-            );
+                .unwrap_or(0),
+        );
     }
 
     // AVERAGING LATITUDE DEPENDANT LONGITUDES
@@ -135,7 +131,7 @@ pub fn point_cluster_average(points: &[point::EafPoint]) -> point::EafPoint {
     let alt_avg = average(&alt);
     let hdg_avg = match hdg.is_empty() {
         true => None,
-        false => Some(average(&hdg))
+        false => Some(average(&hdg)),
     };
     let sp2d_avg = average(&sp2d);
     let sp3d_avg = average(&sp3d);
@@ -172,29 +168,27 @@ pub fn point_cluster_average(points: &[point::EafPoint]) -> point::EafPoint {
     }
 }
 
-
-/// Calculate the great circle distance between two points
-/// on the earth (specified in decimal degrees)
+/// Calculate the great circle distance in kilmeters between two points
+/// on earth's surface (specified in decimal degrees)
 pub fn haversine(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
     let deg2rad = std::f64::consts::PI / 180.0; // inverse for radians to degress
-    
-	// convert decimal degrees to radians
-	let (lon1, lat1, lon2, lat2) = (
+
+    // convert decimal degrees to radians
+    let (lon1, lat1, lon2, lat2) = (
         lon1 * deg2rad,
         lat1 * deg2rad,
         lon2 * deg2rad,
-        lat2 * deg2rad
+        lat2 * deg2rad,
     );
 
-	// haversine formula
-	let dlon = lon2 - lon1;
-	let dlat = lat2 - lat1;
+    // haversine formula
+    let dlon = lon2 - lon1;
+    let dlat = lat2 - lat1;
 
-	// let a = sin((dlat)/2)^2 + cos(lat1) * cos(lat2) * sin(dlon/2)^2;
-	let a = (dlat / 2.).sin().powi(2)
-        + lat1.cos() * lat2.cos() * (dlon / 2.).sin().powi(2);
-	let c = 2. * a.sqrt().asin();
-	let r = 6371.; // Radius of earth in kilometers. Use 3956 for miles
+    // let a = sin((dlat)/2)^2 + cos(lat1) * cos(lat2) * sin(dlon/2)^2;
+    let a = (dlat / 2.).sin().powi(2) + lat1.cos() * lat2.cos() * (dlon / 2.).sin().powi(2);
+    let c = 2. * a.sqrt().asin();
+    let r = 6371.; // Radius of earth in kilometers. Use 3956 for miles
 
-	c * r
+    c * r
 }

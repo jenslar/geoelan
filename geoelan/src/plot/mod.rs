@@ -2,19 +2,24 @@
 //! using <https://lib.rs/crates/plotly>.
 //! Export to CSV and import into ELAN as time series, e.g. to find sections with
 //! altitude changes as annotation targets.
-//! 
+//!
 //! Currently only does a time series 2D plot, e.g. air pressure (VIRB) over time.
 
 use std::io::ErrorKind;
 
-mod sensors;
-mod sensor_gopro;
-mod sensor_virb;
 mod gps_gopro;
 mod gps_virb;
+mod sensor_gopro;
+mod sensor_virb;
+mod sensors;
 
 // https://lib.rs/crates/plotly
-use plotly::{Plot, Scatter, Layout, common::Title, layout::Axis, color::Rgb};
+use plotly::{
+    color::Rgb,
+    common::{HoverInfo, Label, Line, LineShape, Title},
+    layout::{Axis, HoverMode},
+    Layout, Plot, Scatter, Trace,
+};
 
 use self::sensors::print_table;
 
@@ -55,7 +60,8 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let title: Title;
     let x_axis_label: Title;
     let y_axis_label: Title;
-    let traces: Vec<Box<Scatter<f64, f64>>>;
+    // let traces: Vec<Box<Scatter<f64, f64>>>;
+    let traces: Vec<Box <dyn Trace>>;
 
     // GoPro
     if is_gopro {
@@ -65,7 +71,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
             | "grv" | "gravity"
             | "bar" | "barometer"
             | "mag" | "magnetometer" => sensor_gopro::sensor2plot(args)?,
-            _ => gps_gopro::gps2plot(&args)?
+            _ => gps_gopro::gps2plot(&args)?,
         }
     // FIT, VIRB
     } else if is_fit {
@@ -75,25 +81,35 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
             | "grv" | "gravity"
             | "bar" | "barometer"
             | "mag" | "magnetometer" => sensor_virb::sensor2plot(args)?,
-            _ => gps_virb::gps2plot(args)?
+            _ => gps_virb::gps2plot(args)?,
         };
     } else {
         let msg = "(!) No data file specified.";
-        return Err(std::io::Error::new(ErrorKind::Other, msg))
+        return Err(std::io::Error::new(ErrorKind::Other, msg));
     }
 
     // Create plot canvas
     let mut plot = Plot::new();
     let layout = Layout::new()
         .height(600)
-        .x_axis(Axis::new().title(x_axis_label).grid_color(Rgb::new(255, 255, 255)))
-        .y_axis(Axis::new().title(y_axis_label).grid_color(Rgb::new(255, 255, 255)))
+        .x_axis(
+            Axis::new()
+                .title(x_axis_label)
+                .grid_color(Rgb::new(255, 255, 255)),
+        )
+        .y_axis(
+            Axis::new()
+                .title(y_axis_label)
+                .grid_color(Rgb::new(255, 255, 255)),
+        )
         .plot_background_color(Rgb::new(229, 229, 229))
+        .hover_mode(HoverMode::XUnified)
         .title(title);
     plot.set_layout(layout);
 
     // Add traces to plot canvas
     for trace in traces.into_iter() {
+        // plot.add_trace(trace.hover_text("some text"))
         plot.add_trace(trace)
     }
 

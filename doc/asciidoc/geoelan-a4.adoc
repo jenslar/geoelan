@@ -1,0 +1,93 @@
+[[geoelan-a4-guide-v27-2024-02-29]]
+===== GeoELAN A4 Guide, v2.7, 2024-02-29
+
+Jens Larsson jens.larsson@humlab.lu.se
+
+[cols="<,<",]
+|===
+|`+geoelan --help+` |General help
+
+|`+geoelan COMMAND --help+` |Help for specific COMMAND, e.g.
+`+geoelan eaf2geo --help+`
+|===
+
+'''''
+
+[cols="<,<,<",options="header",]
+|===
+| |Workflow |Example
+|_1._ |Concatenate media files, generate ELAN-file
+|`+geoelan virb2eaf --video VIRB0001-1.MP4 --indir DIR_TO_SEARCH/ --outdir OUTDIR/+`
+
+|_2._ |Annotate the generated ELAN-file. One tier for each event type. |
+
+|_3._ |Geo-reference annotations on selected tier. Outputs KML/GeoJSON.
+|`+geoelan eaf2geo --eaf VIRB0001-1.eaf --fit FITFILE.fit --geoshape point-single+`
+|===
+
+'''''
+
+[cols="<,<,<",options="header",]
+|===
+|Command |Description |Example
+|`+cam2eaf+` |[GoPro] Generate ELAN-file with geo-tier
+|`+geoelan cam2eaf -v VIDEO.MP4 -i INDIR/ -o OUTDIR/ --geo-tier+`
+
+|`+cam2eaf+` |[VIRB] Generate ELAN-file with geo-tier
+|`+geoelan cam2eaf -v VIDEO.MP4 -i INDIR/ -o OUTDIR/ --geo-tier+`
+
+|`+eaf2geo+` |Geo-reference annotations and generate KML-file
+|`+geoelan eaf2geo -e ELANFILE.eaf -f FITFILE.fit --geoshape point-single+`
+
+|`+locate+` |Locate and match MP4 and/or FIT-files
+|`+geoelan locate -i INDIR/ --csv+`
+
+|`+inspect+` |Print the contents of a FIT/GPMF-file
+|`+geoelan inspect -f FITFILE.fit --verbose+`
+
+| | |`+geoelan inspect -g GOPRO_VIDEO.mp4 --verbose+`
+
+|`+manual+` |View or save manual as PDF |`+geoelan manual --pdf+`
+|===
+
+'''''
+
+[cols="<,<,<,<",options="header",]
+|===
+|Argument |Description |Applicable to |Possible values
+|`+--downsample+` |Point output divisor (e.g. `+10+`: 7200 points -> 720
+points) |`+gopro2eaf+`, `+virb2eaf+`, `+eaf2geo+` |1 (default) to max
+number of logged points
+
+|`+--geoshape+` |Point/s or line/s in output KML |`+eaf2geo+` |See table
+below
+
+|`+--cdata+` |Extended information bubble in Google Earth |`+eaf2geo+` |
+|===
+
+'''''
+
+[cols="<,<,<,<",options="header",]
+|===
+|`+geoshape+` value |Description |Shape |Note
+|`+point-all+` |Points intersecting with an annotation will gain a
+description |Points |
+
+|`+point-multi+` |Points intersecting with an annotation will be
+exported |Points |
+
+|`+point-single+` |Each annotation will be averaged to a _single point_
+|Points |Ignores `+--downsample+`
+
+|`+line-all+` |Points intersecting with an annotation will gain a
+description |Line, continuous |
+
+|`+line-multi+` |Each annotation will be exported as a line |Line,
+broken-up |
+
+|`+circle-2d+` |Each annotation will generate a circle (c.f.
+`+point-single+`) |Circle |Ignores `+--downsample+`
+
+|`+circle-3d+` |Each annotation will generate a cylinder (c.f.
+`+point-single+`) |Circle |Ignores `+--downsample+`
+|===

@@ -26,7 +26,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
             CameraModel::Unknown => {
                 let msg = "(!) Unknown or unsupported device.";
                 Err(std::io::Error::new(ErrorKind::Other, msg))
-            },
+            }
         }
     } else {
         let msg = "(!) Failed to process input parameters.";

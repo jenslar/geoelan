@@ -1,0 +1,297 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>VIRB - GeoELAN</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item "><a href="01_introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="01a_requirements.html"><strong aria-hidden="true">1.1.</strong> Requirements</a></li><li class="chapter-item "><a href="01b_installation.html"><strong aria-hidden="true">1.2.</strong> Installation</a></li><li class="chapter-item "><a href="01c_before_you_start.html"><strong aria-hidden="true">1.3.</strong> Before you start</a></li></ol></li><li class="chapter-item "><a href="02_example_walkthrough.html"><strong aria-hidden="true">2.</strong> Example walkthrough</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="02a_step_1of3.html"><strong aria-hidden="true">2.1.</strong> 1/3 Generate an ELAN-file</a></li><li class="chapter-item "><a href="02b_step_2of3.html"><strong aria-hidden="true">2.2.</strong> 2/3 Annotate events</a></li><li class="chapter-item "><a href="02c_step_3of3.html"><strong aria-hidden="true">2.3.</strong> 3/3 Generate KML/GeoJSON</a></li></ol></li><li class="chapter-item "><a href="03_commands.html"><strong aria-hidden="true">3.</strong> Commands</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03a_cam2eaf.html"><strong aria-hidden="true">3.1.</strong> cam2eaf</a></li><li class="chapter-item "><a href="03b_eaf2geo.html"><strong aria-hidden="true">3.2.</strong> eaf2geo</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03ba_geoshape.html"><strong aria-hidden="true">3.2.1.</strong> The geoshape option</a></li><li class="chapter-item "><a href="03bb_cdata.html"><strong aria-hidden="true">3.2.2.</strong> The cdata option (KML)</a></li></ol></li><li class="chapter-item "><a href="03c_locate.html"><strong aria-hidden="true">3.3.</strong> locate</a></li><li class="chapter-item "><a href="03d_inspect.html"><strong aria-hidden="true">3.4.</strong> inspect</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03da_inspecting_data.html"><strong aria-hidden="true">3.4.1.</strong> Inspecting data</a></li></ol></li><li class="chapter-item "><a href="03e_plot.html"><strong aria-hidden="true">3.5.</strong> plot</a></li><li class="chapter-item "><a href="03f_manual.html"><strong aria-hidden="true">3.6.</strong> manual</a></li></ol></li><li class="chapter-item expanded "><a href="04_appendix.html"><strong aria-hidden="true">4.</strong> Appendix</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="04a_formats.html"><strong aria-hidden="true">4.1.</strong> Formats</a></li><li class="chapter-item "><a href="04b_gopro.html"><strong aria-hidden="true">4.2.</strong> GoPro</a></li><li class="chapter-item expanded "><a href="04c_virb.html" class="active"><strong aria-hidden="true">4.3.</strong> VIRB</a></li><li class="chapter-item "><a href="04d_ffmpeg.html"><strong aria-hidden="true">4.4.</strong> FFmpeg</a></li><li class="chapter-item "><a href="04e_elan.html"><strong aria-hidden="true">4.5.</strong> ELAN</a></li><li class="chapter-item "><a href="04f_fit_gpmf_eaf_libraries.html"><strong aria-hidden="true">4.6.</strong> FIT, GPMF, EAF libraries</a></li></ol></li><li class="chapter-item "><a href="06_references.html"><strong aria-hidden="true">5.</strong> References</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">GeoELAN</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h3 id="garmin-virb"><a class="header" href="#garmin-virb">Garmin VIRB</a></h3>
+<p>Note that the Garmin VIRB Ultra 30 is no longer available for purchase. Garmin currently has no replacement product.</p>
+<h4 id="file-structure"><a class="header" href="#file-structure">File structure</a></h4>
+<p>Example VIRB SDCard file structure:</p>
+<pre><code>├── DCIM
+│   └── 100_VIRB
+│       ├── VIRB0001-1.GLV           Recording session split up
+│       ├── VIRB0001-1.MP4           as 10 minutes clips. Low (GLV)
+│       ├── VIRB0001-2.GLV           and high (MP4) resolution clips.
+│       └── VIRB0001-2.MP4
+└── GMetrix
+    ├── 2017-01-01-12-00-00.fit      Telemetry files, a.k.a "FIT-files".
+    └── 2017-01-02-12-00-00.fit      May contain data, such as GPS-logs,
+                                     for multiple recording sessions.
+</code></pre>
+<h4 id="the-virb-and-the-fit-format"><a class="header" href="#the-virb-and-the-fit-format">The VIRB and the FIT-format</a></h4>
+<p>To pair and match VIRB video clips belonging to the same recording sessions with a FIT-file unique identifiers (UUID) are embedded both within the original video clips and the FIT-files. Preserving these are key to synchronise and extract relevant GPS-data.</p>
+<p>When synchronising and locating data, GeoELAN will sometimes list all sessions present in the FIT-file. As a help, the number of video clips and the <em>UUID for the first clip</em> in each session is listed.</p>
+<p>A single FIT-file may contain telemetry for multiple recording sessions. When the camera is turned on, it immediately starts logging data into a new FIT-file, regardless of a video being recorded or not. The camera will keep logging to this file until completely turned off. If turned on again, a new FIT-file will be created. All data points in a FIT-file are explicitly timestamped, which technically allows synchronisation against any data type in the file. Further, with the help of the built-in GPS, absolute timestamps can be derived for all data types. These can be used for documentation purposes or to synchronise against external data sources.</p>
+<p>For geo-referenced annotations, GeoELAN always embeds absolute timestamps in the resulting KML-file.</p>
+<p>The VIRB cameras split up recording sessions into video clips, each approximately 10 minutes in length, with no option to turn this off. To link VIRB video to its corresponding telemetry (e.g. coordinates logged by the GPS during the recording session), both the clips and the FIT-file contain UUIDs. When the user starts recording, a "video recording session start" message is logged to the current FIT-file together with the UUID embedded in the first clip, denoting the start of a recording session. Similarly, when recording ends, a "video recording session end" message is logged together with the UUID embedded in the last clip in the session. Since all logged FIT-data is timestamped, this creates a timeline for the session that can be related to any logged data in the FIT-file.</p>
+<p><strong>Matching MP4 and FIT-files via embedded UUIDs</strong></p>
+<pre><code>                                           ╭─────╮
+                    UUID                   │ MP4 │      VIRB001-1.MP4
+                   ╭───────────────────&gt;   │     │
+                   │                       ╰─────╯
+                   │
+  "VIRBactioncameraULTRA30_Tall_2688_2016_29.9700       UUID (unique identifier)
+   _3937280306_32eed236_1_17_2017-01-28-05-16-40.fit"
+                   │
+                   │                       ╭─────╮
+                   ╰───────────────────&gt;   │ FIT │      2019-01-03-14-23-54.fit
+                   Session start/end       │     │
+                   message containing UUID ╰─────╯
+</code></pre>
+<p><strong>Logging telemetry and boundaries for a recording session in a FIT-file</strong></p>
+<pre><code>   VIRB turned on    Recording session                    VIRB turned off
+          │         ├─────────────────┤                          │
+Time    ──┼─────────┼─────────────────┼──────────────────────────┼────&gt;
+          .         .                 .                          .
+          .         .                 .                          .
+          .         ╭─────┬─────┬─────╮                          .
+          .         │ MP4 │ MP4 │ MP4 │   Video clips            .
+          .         │     │     │     │   in recording session   .
+          .         ╰─────┴─────┴─────╯                          .
+          .         .  │     │     │  .                          .
+          .   VIRB001-1.MP4  │     │  .                          .
+          .         VIRB001-2.MP4  │  .                          .
+          .         .     VIRB001-3.MP4                          .
+          .         .                 .                          .
+FIT-file  .         .                 .                          .
+time span ├─────────┼─────────────────┼─────────────────────────&gt;│
+          │         │                 │                          │
+       Logging   Session           Session                    Logging
+       starts     start              end                       stops
+          .      message           message                       .
+          .                                                      .
+          └──────────────────────────┬───────────────────────────┘
+                                  ╭─────╮
+                                  │ FIT │
+                                  │     │
+                                  ╰─────╯
+                          2019-01-03-14-23-54.fit
+</code></pre>
+<p>The VIRB logs location, barometric pressure, and rotation among many other data types. Since the FIT-format is not a text based data format, and thus cannot be inspected using a text editor, the <code>inspect</code> command allows for some exploration of a FIT-file (see command <em>inspect</em>). GeoELAN will also help out with matching recording sessions to the corresponding FIT-files (see commands <em>virb2eaf</em>, and <em>locate</em>).</p>
+<h4 id="preserving-uuids"><a class="header" href="#preserving-uuids">Preserving UUIDs</a></h4>
+<p>Concatenating or converting the video clips will usually discard the UUIDs, so the user is advised to save the original video clips. The <code>inspect</code> command can be used to display the UUID for a specific VIRB MP4-file, just run <code>geoelan inspect --video VIRBVIDEO.MP4</code> with no other options.</p>
+<p>Most of the commands allow for selecting UUID from those present in the relevant FIT-file when matching files or geo-referencing annotations. The <code>locate</code> command can also be used to locate all files for a specific session.</p>
+<h4 id="video-file-management-and-options"><a class="header" href="#video-file-management-and-options">Video file management and options</a></h4>
+<p>On the VIRB MicroSD card, the low-resolution clips have a <code>.GLV</code> extension. These are generated by the VIRB for quick viewing on the internal camera display. If available, GeoELAN will prefer to link these in the ELAN-file over the high-resolution video due to their smaller size (both resolutions will still be concatenated by default). GeoELAN will not be able to identify the low-resolution <code>.GLV</code> as such if renamed to <code>.MP4</code> and they may even be mistaken for the high-resolution versions. If you only require the low-resolution videos to be concatenated, use the <code>--low-res-only</code> flag when running <code>virb2eaf</code>. This will ignore the high-resolution <code>.MP4</code>-files as a concatenation target, with an option to copy these as-is (<code>--copy</code>) to the output directory (see the <em>virb2eaf</em> section for further information).</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="04b_gopro.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="04d_ffmpeg.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="04b_gopro.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="04d_ffmpeg.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

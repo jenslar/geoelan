@@ -1,18 +1,18 @@
 //! GPS related functions for Garmin VIRB.
 
-use fit_rs::{Fit, FitError};
 use super::EafPoint;
+use fit_rs::{Fit, FitError};
 
 /// Sets the datetime field in `Point` structs generated from Garmin VIRB FIT data.
-/// 
+///
 /// GoPro GPMF already generates datetime.
-/// 
+///
 /// `timestamp`/`253` will be used for e.g. watches that store absolute datetime here
 /// and not via a blanket value in `timestamp_correlation` (VIRB).
 pub fn set_datetime_fit(points: &mut [EafPoint], fit: &Fit, offset: i64) -> Result<(), FitError> {
     // let t0 = fit.t0(offset, true).unwrap().naive_utc();
     let t0 = fit.t0(offset, true).unwrap();
-    
+
     for point in points.iter_mut() {
         // .timestamp is available for both FIT + GoPro MP4,
         // but is not present in raw GPMF streams. GeoELAN,

@@ -1,6 +1,6 @@
 //! GeoELAN manual embedding.
 
-use std::{path::Path, io::ErrorKind};
+use std::{io::ErrorKind, path::Path};
 
 // MAIN MANUAL SUB-COMMAND
 pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
@@ -11,12 +11,9 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     if Some(&true) == args.get_one::<bool>("pdf") {
         content = include_bytes!("../../doc/pdf/geoelan.pdf");
         outpath = Path::new("geoelan.pdf");
-    } else if Some(&true) == args.get_one::<bool>("pdf-a4") {
-        content = include_bytes!("../../doc/pdf/geoelan-a4.pdf");
-        outpath = Path::new("geoelan-a4.pdf");
     } else {
         println!("{}", include_str!("../../doc/txt/geoelan.txt"));
-        return Ok(())
+        return Ok(());
     }
 
     // write selected file to disk, asks for confirmation if file exists
@@ -25,8 +22,8 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         Ok(false) => println!("User aborted writing documentation."),
         Err(err) => {
             let msg = format!("(!) Failed to write '{}': {err}", outpath.display());
-            return Err(std::io::Error::new(ErrorKind::Other, msg))
-        },
+            return Err(std::io::Error::new(ErrorKind::Other, msg));
+        }
     }
 
     Ok(())

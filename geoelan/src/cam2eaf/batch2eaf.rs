@@ -21,7 +21,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     match args.get_one::<String>("batch").map(|s| s.as_str()) {
         // Batch GoPro sessions
         Some("g" | "gopro") => {
-            let sessions = GoProSession::sessions_from_path(&indir, None, false, true);
+            let sessions = GoProSession::sessions_from_path(&indir, None, false, true, true)?;
             for (i, session) in sessions.iter().enumerate() {
                 println!("--[Session {:02}.]--------", i + 1);
                 match gopro2eaf_session::run(args, session) {
@@ -48,6 +48,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                         continue;
                     }
                 }
+                println!("-----------------------\n");
             }
 
             Ok(())

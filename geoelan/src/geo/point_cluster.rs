@@ -7,15 +7,19 @@ use fit_rs::GpsMetadata;
 use geojson::GeoJson;
 use gpmf_rs::GoProPoint;
 use kml::KmlDocument;
-use time::{PrimitiveDateTime, Duration};
+use time::{Duration, PrimitiveDateTime};
 
 use crate::files::writefile;
 
-use super::{EafPoint, kml_gen::{kml_point, kml_from_placemarks, kml_to_string}, json_gen::{geojson_from_features, geojson_point}};
+use super::{
+    json_gen::{geojson_from_features, geojson_point},
+    kml_gen::{kml_from_placemarks, kml_point, kml_to_string},
+    EafPoint,
+};
 
 /// Point cluster with optional description.
 #[derive(Debug, Default, Clone)]
-pub struct EafPointCluster{
+pub struct EafPointCluster {
     pub points: Vec<EafPoint>,
     pub description: Option<String>,
     // pub geoshape: GeoShape
@@ -23,9 +27,9 @@ pub struct EafPointCluster{
 
 impl From<Vec<GoProPoint>> for EafPointCluster {
     fn from(points: Vec<GoProPoint>) -> Self {
-        Self { 
+        Self {
             points: points.iter().map(|p| EafPoint::from(p)).collect(),
-            description: None
+            description: None,
         }
     }
 }
@@ -34,7 +38,7 @@ impl EafPointCluster {
     pub fn new(points: &[EafPoint], description: Option<&str>) -> Self {
         Self {
             points: points.to_owned(),
-            description: description.map(String::from)
+            description: description.map(String::from),
         }
     }
 
@@ -44,17 +48,18 @@ impl EafPointCluster {
         description: Option<&str>,
         t0: &PrimitiveDateTime,
         end: &Duration,
-        offset_hrs: Option<i64>
+        offset_hrs: Option<i64>,
     ) -> Self {
         let mut cluster = Self::default();
 
         cluster.description = description.map(String::from);
-        cluster.points = points.iter()
+        cluster.points = points
+            .iter()
             .map(|point| EafPoint::from(point).with_offset_hrs(offset_hrs.unwrap_or(0)))
             .collect();
-        
+
         cluster.set_timedelta(Some(t0), end);
-        
+
         cluster
     }
 
@@ -63,18 +68,19 @@ impl EafPointCluster {
         points: &[GoProPoint],
         description: Option<&str>,
         end: &Duration,
-        offset_hrs: Option<i64>
+        offset_hrs: Option<i64>,
     ) -> Self {
         let mut cluster = Self::default();
 
         cluster.description = description.map(String::from);
-        cluster.points = points.iter()
+        cluster.points = points
+            .iter()
             .map(|point| EafPoint::from(point).with_offset_hrs(offset_hrs.unwrap_or(0)))
             .collect();
 
         // 230424 added setting delta for gopro here instead of in gpmf crate, removed duration for gpmf-points
         cluster.set_timedelta(None, end);
-        
+
         cluster
     }
 
@@ -86,7 +92,9 @@ impl EafPointCluster {
         // LAT:55.481439;LON:13.026942;ALT:9.4;TIME:2021-05-03 13:04:34.571
         // let regex = Regex::new(r"LAT:([0-9]*[.][0-9]+);LON:([0-9]*[.][0-9]+);ALT:([0-9]*[.][0-9]+);TIME:(\d{4}-\d{2}-\d{2}.\d{2}:\d{2}:\d{2}\.\d+)");
         if let Some(tier) = eaf.get_tier(tier_id) {
-            let points = tier.annotations.iter()
+            let points = tier
+                .annotations
+                .iter()
                 .map(EafPoint::from)
                 .collect::<Vec<_>>();
             let description = points.first().and_then(|p| p.description.to_owned());
@@ -99,16 +107,19 @@ impl EafPointCluster {
 
     /// Generate KML object that can be serialized into a string.
     pub fn to_kml(&self, indexed: bool) -> KmlDocument {
-        let kml_points: Vec<_> = self.points.iter().enumerate()
+        let kml_points: Vec<_> = self
+            .points
+            .iter()
+            .enumerate()
             .map(|(i, p)| {
                 let name = match indexed {
-                    true => Some((i+1).to_string()),
-                    false => None
+                    true => Some((i + 1).to_string()),
+                    false => None,
                 };
                 kml_point(p, name.as_deref(), None, false, None)
             })
             .collect();
-        
+
         kml_from_placemarks(&kml_points, &[])
     }
 
@@ -124,11 +135,14 @@ impl EafPointCluster {
 
     /// Generate GeoJson object that can be serialized into a string.
     pub fn to_json(&self, indexed: bool) -> GeoJson {
-        let json_points: Vec<_> = self.points.iter().enumerate()
+        let json_points: Vec<_> = self
+            .points
+            .iter()
+            .enumerate()
             .map(|(i, p)| {
                 let name = match indexed {
-                    true => Some(i+1),
-                    false => None
+                    true => Some(i + 1),
+                    false => None,
                 };
                 geojson_point(p, name)
             })
@@ -149,9 +163,12 @@ impl EafPointCluster {
     /// Set time offset in hours.
     pub fn offset_hrs(&mut self, offset: i64) -> Self {
         Self {
-            points: self.points.iter()
+            points: self
+                .points
+                .iter()
                 .map(|point| EafPoint {
-                    datetime: point.datetime
+                    datetime: point
+                        .datetime
                         .map(|dt| dt + Duration::hours(offset))
                         .to_owned(),
                     ..point.to_owned()
@@ -163,47 +180,42 @@ impl EafPointCluster {
 
     /// Set time offset in hours.
     pub fn offset_hrs_mut(&mut self, offset: i64) {
-        self.points.iter_mut()
-            .for_each(|point| {
-                // Add time offset 
-                if let Some(dt) = point.datetime {
-                    point.datetime = Some(dt + Duration::hours(offset))
-                }
-            });
+        self.points.iter_mut().for_each(|point| {
+            // Add time offset
+            if let Some(dt) = point.datetime {
+                point.datetime = Some(dt + Duration::hours(offset))
+            }
+        });
     }
 
     /// Get first point.
     pub fn first(&self) -> Option<&EafPoint> {
         self.points.first()
     }
-    
+
     /// Get last point.
     pub fn last(&self) -> Option<&EafPoint> {
         self.points.last()
     }
-    
+
     /// Iterate over points.
     pub fn iter(&self) -> impl Iterator<Item = &EafPoint> {
         self.points.iter()
     }
-    
+
     /// Mutably iterate over points.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut EafPoint> {
         self.points.iter_mut()
     }
-    
+
     /// Number of points in cluster.
     pub fn len(&self) -> usize {
         self.points.len()
     }
-    
+
     /// Downsample points. A `sample_factor` of 10 means 1000 points
     /// will be averaged into 100 points and so on.
-    pub fn downsample(
-        &self,
-        sample_factor: usize,
-        min: Option<usize>
-    ) -> Self {
+    pub fn downsample(&self, sample_factor: usize, min: Option<usize>) -> Self {
         Self {
             points: super::downsample(sample_factor, &self.points, min),
             ..self.to_owned()
@@ -220,7 +232,7 @@ impl EafPointCluster {
     pub fn start_datetime(&self) -> Option<&PrimitiveDateTime> {
         self.points.first().and_then(|p| p.datetime.as_ref())
     }
-    
+
     /// Returns date time for last point.
     pub fn end_datetime(&self) -> Option<&PrimitiveDateTime> {
         self.points.last().and_then(|p| p.datetime.as_ref())
@@ -238,13 +250,16 @@ impl EafPointCluster {
         // 1. Populate timestamp/duration/delta
         //    Can't iter_mut with .windows()?
         for (i, points) in self.points.windows(2).enumerate() {
-            if let (Some(t1), Some(t2)) = (points.get(0).and_then(|p| p.timestamp), points.get(1).and_then(|p| p.timestamp)) {
+            if let (Some(t1), Some(t2)) = (
+                points.get(0).and_then(|p| p.timestamp),
+                points.get(1).and_then(|p| p.timestamp),
+            ) {
                 delta.push(t2 - t1);
                 if i == max {
                     delta.push(end.to_owned() - t2);
                 }
             }
-        };
+        }
 
         assert_eq!(self.points.len(), delta.len());
 

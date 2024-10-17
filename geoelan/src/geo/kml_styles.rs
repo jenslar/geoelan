@@ -54,21 +54,21 @@ impl KmlStyle {
 pub struct KmlIconStyle {
     pub color: Rgba,
     pub href: String, // <Icon><href>path</href></Icon>
-    pub scale: f32, // 1.0 = 100%
-    pub heading: f32
+    pub scale: f32,   // 1.0 = 100%
+    pub heading: f32,
 }
 
 pub struct KmlLabelStyle {
     pub color: Rgba,
     /// Scale 1.0 = 100%
-    pub scale: f32
+    pub scale: f32,
 }
 
 impl Default for KmlLabelStyle {
     fn default() -> Self {
         Self {
             color: Rgba::default(),
-            scale: 1.0
+            scale: 1.0,
         }
     }
 }
@@ -76,9 +76,9 @@ impl Default for KmlLabelStyle {
 /// ```xml
 /// <LineStyle id="ID">
 ///   <!-- inherited from ColorStyle -->
-///   <color>ffffffff</color>            <!-- kml:color -->
-///   <colorMode>normal</colorMode>      <!-- colorModeEnum: normal or random -->
-///   <!-- specific to LineStyle -->
+///   <color>ffffffff</color>                     <!-- kml:color -->
+///   <colorMode>normal</colorMode>               <!-- colorModeEnum: normal or random -->
+///   <!-- Below specific to LineStyle -->
 ///   <width>1</width>                            <!-- float -->
 ///   <gx:outerColor>ffffffff</gx:outerColor>     <!-- kml:color -->
 ///   <gx:outerWidth>0.0</gx:outerWidth>          <!-- float -->
@@ -126,17 +126,17 @@ impl KmlLineStyle {
         color.name = "color".to_owned();
         color.content = Some(self.color.to_kml());
         line_style.children.push(color);
-        
+
         let mut width = Element::default();
         width.name = "width".to_owned();
         width.content = Some(self.width.to_string());
         line_style.children.push(width);
-        
+
         // let mut outer_color = Element::default();
         // outer_color.name = "outerColor".to_owned();
         // outer_color.content = self.outer_color.as_ref().map(|c| c.to_kml());
         // line_style.children.push(outer_color);
-        
+
         // let mut outer_width = Element::default();
         // outer_width.name = "outerWidth".to_owned();
         // outer_width.content = self.outer_width.map(|w| w.to_string());
@@ -163,7 +163,7 @@ impl Default for KmlPolyStyle {
             color: Rgba::default(),
             color_mode: KmlColorMode::Normal,
             fill: true,
-            outline: true
+            outline: true,
         }
     }
 }
@@ -189,13 +189,13 @@ impl KmlPolyStyle {
 
         let mut fill = Element::default();
         fill.name = "fill".to_owned();
-        let fill_value = if self.fill == true {1} else {0};
+        let fill_value = if self.fill == true { 1 } else { 0 };
         fill.content = Some(fill_value.to_string());
         poly_style.children.push(fill);
 
         let mut outline = Element::default();
         outline.name = "outline".to_owned();
-        let outline_value = if self.outline == true {1} else {0};
+        let outline_value = if self.outline == true { 1 } else { 0 };
         outline.content = Some(outline_value.to_string());
         poly_style.children.push(outline);
 
@@ -206,14 +206,14 @@ impl KmlPolyStyle {
 #[derive(Debug, Clone)]
 pub enum KmlColorMode {
     Normal,
-    Random
+    Random,
 }
 
 impl KmlColorMode {
     pub fn to_string(&self) -> String {
         match self {
             KmlColorMode::Normal => "normal".to_owned(),
-            KmlColorMode::Random => "random".to_owned()
+            KmlColorMode::Random => "random".to_owned(),
         }
     }
 }
@@ -229,20 +229,30 @@ impl Default for Rgba {
     }
 }
 
-impl Rgba{
+impl Rgba {
     /// Generate hexadecimal string.
     pub fn to_hex(&self) -> String {
-        format!("{:02x?}{:02x?}{:02x?}{:02x?}", self.0, self.1, self.2, self.3)
+        format!(
+            "{:02x?}{:02x?}{:02x?}{:02x?}",
+            self.0, self.1, self.2, self.3
+        )
     }
 
     /// Generate CSS style hexadecimal string, prefixed with `#`.
     pub fn to_css(&self) -> String {
-        format!("#{:02x?}{:02x?}{:02x?}{:02x?}", self.0, self.1, self.2, self.3)
+        format!(
+            "#{:02x?}{:02x?}{:02x?}{:02x?}",
+            self.0, self.1, self.2, self.3
+        )
     }
 
     /// Generate KML style hexadecimal string: alpha, blue, green, red.
     pub fn to_kml(&self) -> String {
-        format!("{:02x?}{:02x?}{:02x?}{:02x?}", self.3, self.2, self.1, self.0)
+        format!(
+            // "{:02x?}{:02x?}{:02x?}{:02x?}",
+            "{:02x}{:02x}{:02x}{:02x}",
+            self.3, self.2, self.1, self.0
+        )
     }
 
     /// Random color with optional transparency.
@@ -257,12 +267,7 @@ impl Rgba{
     }
 
     pub fn with_alpha(&self, alpha: u8) -> Self {
-        Rgba(
-            self.0,
-            self.1,
-            self.2,
-            alpha,
-        )
+        Rgba(self.0, self.1, self.2, alpha)
     }
 
     /// Solid red.
