@@ -10,8 +10,8 @@ use walkdir::WalkDir;
 pub mod gopro;
 pub mod virb;
 
-/// Used for any acknowledgement, e.g. overwrite file.
-pub fn acknowledge(message: &str) -> std::io::Result<bool> {
+/// Used for any confirmation, e.g. overwrite file.
+pub fn confirm(message: &str) -> std::io::Result<bool> {
     loop {
         print!("(!) {} (y/n): ", message);
         stdout().flush()?;
@@ -43,7 +43,7 @@ pub fn has_extension_any(path: &Path, exts: &[&str]) -> bool {
 /// Write file with user confirmation if path exists.
 pub fn writefile(content: &[u8], path: &Path) -> std::io::Result<bool> {
     let write = if path.exists() {
-        acknowledge(&format!("{} already exists. Overwrite?", path.display()))?
+        confirm(&format!("{} already exists. Overwrite?", path.display()))?
     } else {
         true
     };
@@ -64,12 +64,20 @@ pub fn affix_file_name(
     prefix: Option<&str>,
     suffix: Option<&str>,
     extension: Option<&str>,
+    substitute_space: Option<&str>
 ) -> PathBuf {
     let prefix = prefix.unwrap_or("");
     let suffix = suffix.unwrap_or("");
 
     let new_path = match path.file_stem().and_then(|s| s.to_str()) {
-        Some(stem) => path.with_file_name(format!("{prefix}{stem}{suffix}")),
+        // Some(stem) => path.with_file_name(file_name),
+        Some(stem) => {
+            let mut file_name = format!("{prefix}{stem}{suffix}");
+            if let Some(c) = substitute_space {
+                file_name = file_name.replace(" ", c);
+            }
+            path.with_file_name(file_name)
+        },
         None => path.to_owned(),
     };
 
@@ -107,4 +115,37 @@ pub fn paths(dir: &Path, ext: &[&str]) -> Vec<PathBuf> {
             }
         })
         .collect()
+}
+
+pub enum Units {
+    Bytes(u64),
+    Kilo(f64),
+    Mega(f64),
+    Giga(f64),
+    Tera(f64),
+}
+
+impl From<u64> for Units {
+    fn from(value: u64) -> Self {
+        match value as f64 {
+            _z @ ..1e3 => Self::Bytes(value),
+            z @ 1e3..1e6 => Self::Kilo(z / 1e3),
+            z @ 1e6..1e9 => Self::Mega(z / 1e6),
+            z @ 1e9..1e12 => Self::Giga(z / 1e9),
+            z @ 1e12..1e15 => Self::Tera(z / 1e12),
+            z => Self::Tera(z / 1e12),
+        }
+    }
+}
+
+impl std::fmt::Display for Units {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Units::Bytes(n) => write!(f, "{n} bytes"),
+            Units::Kilo(fl) => write!(f, "{fl:.2}KB", ),
+            Units::Mega(fl) => write!(f, "{fl:.2}MB", ),
+            Units::Giga(fl) => write!(f, "{fl:.2}GB", ),
+            Units::Tera(fl) => write!(f, "{fl:.2}TB", ),
+        }
+    }
 }

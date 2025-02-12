@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="en" class="light" dir="ltr">
+<html lang="en" class="light sidebar-visible" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 
 
         <!-- Custom HTML head -->
-        
+
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
@@ -30,15 +30,17 @@
 
         <!-- Custom theme stylesheets -->
 
-    </head>
-    <body class="sidebar-visible no-js">
-    <div id="body-container">
+
         <!-- Provide site root to javascript -->
         <script>
             var path_to_root = "";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
-
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
             try {
@@ -60,19 +62,16 @@
             var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
-            var html = document.querySelector('html');
+            const html = document.documentElement;
             html.classList.remove('light')
             html.classList.add(theme);
-            var body = document.querySelector('body');
-            body.classList.remove('no-js')
-            body.classList.add('js');
+            html.classList.add("js");
         </script>
 
         <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            var body = document.querySelector('body');
             var sidebar = null;
             var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
@@ -82,45 +81,25 @@
                 sidebar = 'hidden';
             }
             sidebar_toggle.checked = sidebar === 'visible';
-            body.classList.remove('sidebar-visible');
-            body.classList.add("sidebar-" + sidebar);
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item "><a href="01_introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="01a_requirements.html"><strong aria-hidden="true">1.1.</strong> Requirements</a></li><li class="chapter-item "><a href="01b_installation.html"><strong aria-hidden="true">1.2.</strong> Installation</a></li><li class="chapter-item "><a href="01c_before_you_start.html"><strong aria-hidden="true">1.3.</strong> Before you start</a></li></ol></li><li class="chapter-item "><a href="02_example_walkthrough.html"><strong aria-hidden="true">2.</strong> Example walkthrough</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="02a_step_1of3.html"><strong aria-hidden="true">2.1.</strong> 1/3 Generate an ELAN-file</a></li><li class="chapter-item "><a href="02b_step_2of3.html"><strong aria-hidden="true">2.2.</strong> 2/3 Annotate events</a></li><li class="chapter-item "><a href="02c_step_3of3.html"><strong aria-hidden="true">2.3.</strong> 3/3 Generate KML/GeoJSON</a></li></ol></li><li class="chapter-item expanded "><a href="03_commands.html"><strong aria-hidden="true">3.</strong> Commands</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03a_cam2eaf.html"><strong aria-hidden="true">3.1.</strong> cam2eaf</a></li><li class="chapter-item expanded "><a href="03b_eaf2geo.html"><strong aria-hidden="true">3.2.</strong> eaf2geo</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item expanded "><a href="03ba_geoshape.html" class="active"><strong aria-hidden="true">3.2.1.</strong> The geoshape option</a></li><li class="chapter-item "><a href="03bb_cdata.html"><strong aria-hidden="true">3.2.2.</strong> The cdata option (KML)</a></li></ol></li><li class="chapter-item "><a href="03c_locate.html"><strong aria-hidden="true">3.3.</strong> locate</a></li><li class="chapter-item "><a href="03d_inspect.html"><strong aria-hidden="true">3.4.</strong> inspect</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03da_inspecting_data.html"><strong aria-hidden="true">3.4.1.</strong> Inspecting data</a></li></ol></li><li class="chapter-item "><a href="03e_plot.html"><strong aria-hidden="true">3.5.</strong> plot</a></li><li class="chapter-item "><a href="03f_manual.html"><strong aria-hidden="true">3.6.</strong> manual</a></li></ol></li><li class="chapter-item "><a href="04_appendix.html"><strong aria-hidden="true">4.</strong> Appendix</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="04a_formats.html"><strong aria-hidden="true">4.1.</strong> Formats</a></li><li class="chapter-item "><a href="04b_gopro.html"><strong aria-hidden="true">4.2.</strong> GoPro</a></li><li class="chapter-item "><a href="04c_virb.html"><strong aria-hidden="true">4.3.</strong> VIRB</a></li><li class="chapter-item "><a href="04d_ffmpeg.html"><strong aria-hidden="true">4.4.</strong> FFmpeg</a></li><li class="chapter-item "><a href="04e_elan.html"><strong aria-hidden="true">4.5.</strong> ELAN</a></li><li class="chapter-item "><a href="04f_fit_gpmf_eaf_libraries.html"><strong aria-hidden="true">4.6.</strong> FIT, GPMF, EAF libraries</a></li></ol></li><li class="chapter-item "><a href="06_references.html"><strong aria-hidden="true">5.</strong> References</a></li></ol>
-            </div>
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
             </div>
         </nav>
 
-        <!-- Track and set sidebar scroll position -->
-        <script>
-            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
-            sidebarScrollbox.addEventListener('click', function(e) {
-                if (e.target.tagName === 'A') {
-                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
-                }
-            }, { passive: true });
-            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
-            sessionStorage.removeItem('sidebar-scroll');
-            if (sidebarScrollTop) {
-                // preserve sidebar scroll position when navigating via links within sidebar
-                sidebarScrollbox.scrollTop = sidebarScrollTop;
-            } else {
-                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
-                var activeSection = document.querySelector('#sidebar .active');
-                if (activeSection) {
-                    activeSection.scrollIntoView({ block: 'center' });
-                }
-            }
-        </script>
-
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
                         <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -173,152 +152,8 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h2 id="the-geoshape-option"><a class="header" href="#the-geoshape-option">The <em>geoshape</em> option</a></h2>
-<p>Different geographical representations can be generated, including points and lines. Six possible <code>--geoshape</code> values are accepted:</p>
-<div class="table-wrapper"><table><thead><tr><th style="text-align: center">Option</th><th style="text-align: left">Description</th></tr></thead><tbody>
-<tr><td style="text-align: center"><code>point-all</code></td><td style="text-align: left">All logged points exported (default if no option passed)</td></tr>
-<tr><td style="text-align: center"><code>point-multi</code></td><td style="text-align: left">Exported points correspond to marked/annotated events only</td></tr>
-<tr><td style="text-align: center"><code>point-single</code></td><td style="text-align: left">A single, averaged point for each annotation</td></tr>
-<tr><td style="text-align: center"><code>line-all</code></td><td style="text-align: left">Polyline from all logged points</td></tr>
-<tr><td style="text-align: center"><code>line-multi</code></td><td style="text-align: left">Polyline, corresponds to marked/annotated events only</td></tr>
-<tr><td style="text-align: center"><code>circle-2d</code></td><td style="text-align: left">2D polygon, corresponds to marked/annotated events only</td></tr>
-<tr><td style="text-align: center"><code>circle-3d</code></td><td style="text-align: left">3D polygon, corresponds to marked/annotated events only</td></tr>
-</tbody></table>
-</div>
-<p><code>--downsample</code> can be used with all these options, but will be ignored for <code>point-single</code>, <code>circle-2d</code>/<code>circle-3d</code> since these will only ever result in a single point per annotation. <code>circle-2d</code> and <code>circle-3d</code> allow for further customisation, such as radius and height (<code>circle-3d</code>, KML-only). The circle options work in the same way as <code>point-single</code> and are currently only a visual flair, since radius and height are not yet derived from ELAN annotation values.</p>
-<h3 id="point-all"><a class="header" href="#point-all"><code>point-all</code></a></h3>
-<p>All points logged during the recording session will be exported. Only points that intersect with the time span of an annotation will inherit the annotation value as the coordinate description. Points that do not, will have no description.</p>
-<pre><code>ELAN-file:
+                        <h1 id="the-geoshape-option"><a class="header" href="#the-geoshape-option">The geoshape option</a></h1>
 
-─────┼──────────┼──────────┼──────────┼──────&gt;  ELAN time-line
- 00:01:35   00:01:40   00:01:45   00:01:50
-─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
-  │ Dayum │           │ Chcuh       │           "Feature" tier
-  ├───────┤           ├─────────────┤           with annotations
-  │       │           │             │           to geo-reference
-                      .             .
-                      .             .
-KML/GeoJSON-file:      .             .
-                      .             .
-  + + +         + + + .             .
-  ┊     + + + +     ┊ +             +  &lt;────── Logged
-  ┊       ┊ ┊       ┊ ┊ +       + + ┊          points
-  ┊       ┊ ┊       ┊ ┊   + + +     ┊
-  └───┬───┘ └───┬───┘ └──────┬──────┘
-      │         │            │
- Points logged  │            │
-  within ELAN   │            │
-  annotation    │            │
-  time span     │            └ Description (each point):
-      │         │              "Chcuh" (placename)
-      │         │
-      │         └ Description (each point):
-      │           Nothing, since there is no corresponding annotation
-      │
-      └ Description (each point):
-        "Dayum" (placename)
-</code></pre>
-<h3 id="point-multi"><a class="header" href="#point-multi"><code>point-multi</code></a></h3>
-<p>Only points that intersect with the time span of an annotation will be exported. Each point will inherit the annotation text as the coordinate description. Points that have no corresponding annotation will be discarded.</p>
-<blockquote>
-<p>Useful for including points corresponding to marked events only.</p>
-</blockquote>
-<pre><code>KML/GeoJSON-file
-
-  + + +
-  ┊     + +           +             +  &lt;────── Logged
-  ┊       ┊           ┊ +       + + ┊          points
-  ┊       ┊           ┊   + + +     ┊
-  ┊       ┊           ┊             ┊
-  └───┬───┘           └──────┬──────┘
-      │                      └ Description:
-      │                        "Chcuh" (placename)
-      └ Description:
-        "Dayum" (placename)
-</code></pre>
-<h3 id="point-single"><a class="header" href="#point-single"><code>point-single</code></a></h3>
-<p>Only points that intersect with the time span of an annotation will be considered for export. The difference to <code>point-multi</code> is that each annotation will only generate a single point: an average of those logged within the annotation's time span. Note that a custom <code>--downsample</code> value will be ignored for <code>point-single</code> since it may affect the result negatively. <code>--downsample</code> also has little use here, since the number of points in the output will not be affected and will be quite low compared to the other options.</p>
-<blockquote>
-<p>Useful for distilling marked events, such as place names, to a single point for each event.</p>
-</blockquote>
-<pre><code>KML/GeoJSON-file
-
-  + + +
-  ┊     + +           +             +  &lt;────── Logged
-  ┊       ┊           ┊ +       + + ┊          points
-  ┊       ┊           ┊   + + +     ┊
-  ┊       ┊           ┊             ┊
-  └───┬───┘           └──────┬──────┘
-      ▼                      │
-                             ▼
-      +
-                             +         &lt;────── Averaged
-      │                                        points
-      │                      │
-      │                      └ Description:
-      │                        "Chcuh" (placename)
-      └ Description:
-        "Dayum" (placename)
-</code></pre>
-<h3 id="line-all"><a class="header" href="#line-all"><code>line-all</code></a></h3>
-<p>Similar to <code>point-all</code>. All points logged during the recording session will be exported, resulting in a continuous polyline. Only line-sections that intersect with an annotation span inherit the annotation value as a description. Those that do not will have no description.</p>
-<pre><code>ELAN-file
-
-─────┼──────────┼──────────┼──────────┼──────&gt;  ELAN time-line
- 00:01:35   00:01:40   00:01:45   00:01:50
-─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
-  │ walk down-hill  │        │ walk up-hill │   "Feature" tier
-  ├─────────────────┤        ├──────────────┤   with annotations
-  │                 │        │              │   to geo-reference
-
-
-KML/GeoJSON-file
-
-  ____           ___                            Resulting polyline
-  ┊   \         /   \                           in KML/GeoJSON-file:
-  ┊    \_______/    ┊\           ____________   Continuous, but only
-  ┊                 ┊ \         /           ┊   line-sections with
-  ┊                 ┊  \_______/            ┊   corresponding annotations
-  ┊                 ┊        ┊              ┊   have a description
-  └────────┬────────┘        └───────┬──────┘
-           │                         │
-           └ Description:            └ Description:
-             'walk down-hill'          'walk up-hill'
-</code></pre>
-<h3 id="line-multi"><a class="header" href="#line-multi"><code>line-multi</code></a></h3>
-<p>Only points that intersect with the time span of an annotation will be exported, resulting in a broken-up line. Each sub-section inherits the value of the annotation it intersects with. <em>Useful for representing paths corresponding to marked events only</em>.</p>
-<pre><code>
-ELAN-file
-
-─────┼──────────┼──────────┼──────────┼──────&gt;  ELAN time-line
- 00:01:35   00:01:40   00:01:45   00:01:50
-─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
-  │ walk down-hill  │        │ walk up-hill │   "Feature" tier
-  ├─────────────────┤        ├──────────────┤   with annotations
-  │                 │        │              │   to geo-reference
-
-
-KML/GeoJSON-file
-
-  ____           ___                            Resulting polyline
-  ┊   \         /   \                           in KML/GeoJSON-file:
-  ┊    \_______/    ┊            ____________   Broken-up, line-sections
-  ┊                 ┊           /           ┊   with no corresponding
-  ┊                 ┊        __/            ┊   annotation are discarded
-  ┊                 ┊        ┊              ┊
-  └────────┬────────┘        └───────┬──────┘
-           │                         │
-           └ Description:            └ Description:
-             'walk down-hill'          'walk up-hill'
-</code></pre>
-<h3 id="circle-2d-circle-3d"><a class="header" href="#circle-2d-circle-3d"><code>circle-2d</code>, <code>circle-3d</code></a></h3>
-<p><code>circle-2d</code>, and <code>circle-3d</code> work almost exactly like <code>point-single</code> with the difference that a circle is generated around the calculated average point. It is mostly a visual flair and its shape is currently not affected by annotation values. <code>circle-2d</code> is flat against the ground, whereas <code>circle-3d</code> can take a height value to become a cylindrical 3D shape (only applies to KML, not GeoJSON). If circle output is specified, three more options become available:</p>
-<div class="table-wrapper"><table><thead><tr><th style="text-align: center">Option</th><th style="text-align: left">Description</th><th style="text-align: left">Default</th></tr></thead><tbody>
-<tr><td style="text-align: center"><code>--height</code></td><td style="text-align: left">Height relative to ground in meters (<code>circle-3d</code>)</td><td style="text-align: left"></td></tr>
-<tr><td style="text-align: center"><code>--radius</code></td><td style="text-align: left">Radius in meters (<code>circle-2d</code>, <code>circle-3d</code>)</td><td style="text-align: left"><code>2.0</code></td></tr>
-<tr><td style="text-align: center"><code>--vertices</code></td><td style="text-align: left">Roundness, valid range 3 - 255 (3 will literally be triangle)</td><td style="text-align: left"><code>40</code></td></tr>
-</tbody></table>
-</div>
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">

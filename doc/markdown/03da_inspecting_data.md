@@ -39,7 +39,7 @@ Use the data names in the list to print raw data for a specific type (note the c
 geoelan inspect --gpmf GOPROVIDEO.MP4 --type "GPS (Lat., Long., Alt., 2D speed, 3D speed)"
 ```
 
-Earlier GoPro models list GPS data as `GPS (Lat., Long., Alt., 2D speed, 3D speed)`, whereas Hero 11 Black and later models log more data per point and use `GPS (Lat., Long., Alt., 2D, 3D, days, secs, DOP, fix)`.
+Earlier GoPro models list GPS data as `GPS (Lat., Long., Alt., 2D speed, 3D speed)`, whereas Hero 11 Black and later models log more data for each point and use `GPS (Lat., Long., Alt., 2D, 3D, days, secs, DOP, fix)`. Hero 11 Black logs both the old and the new variants, whereas Hero 13 Black only logs to the newer format. Hero 12 Black does not have a GPS module.
 
 Print the GPS log in a more conventional form:
 
@@ -47,7 +47,7 @@ Print the GPS log in a more conventional form:
 geoelan inspect --gpmf GOPROVIDEO.MP4 --gps
 ```
 
-Save the full GPS log as a KML or GeoJSON file:
+Export the GPS log as a KML or GeoJSON file:
 
 ```sh
 geoelan inspect --gpmf GOPROVIDEO.MP4 --kml
@@ -56,7 +56,7 @@ geoelan inspect --gpmf GOPROVIDEO.MP4 --json
 
 ##### GPMF byte offsets
 
-GoPro telemetry is interleaved as data "chunks" with audio and video samples. To list their location in the file and sizes, run:
+GoPro telemetry is stored as samples, interleaved between audio and video samples (and other tracks' samples). To list the sample locations and sizes, run:
 
 ```sh
 geoelan inspect --video GOPROVIDEO.MP4 --offsets "GoPro MET"
@@ -64,7 +64,7 @@ geoelan inspect --video GOPROVIDEO.MP4 --offsets "GoPro MET"
 
 `GoPro MET` is the name of the MP4 track holding GPMF data.
 
-This returns a table listing byte offset, size, and duration:
+This returns a table listing the samples' byte offsets (e.g. `@2026761919`), their sizes in bytes, and durations:
 
 ```
 ...
@@ -74,6 +74,20 @@ This returns a table listing byte offset, size, and duration:
 [ 362 GoPro MET/4] @2043168135 size: 7348   duration: 1s1ms
 ...
 ```
+
+Similarly, you can print raw sample data for a track:
+
+```sh
+geoelan inspect --video GOPROVIDEO.MP4 --samples "GoPro MET"
+```
+
+ Save all track samples as a file (similar to FFmpeg's track export):
+
+```sh
+geoelan inspect --video GOPROVIDEO.MP4 --dump "GoPro MET"
+```
+
+Note that the video data may be many GB in size. GeoELAN will list the total size and prompt the user before exporting.
 
 ##### Images
 

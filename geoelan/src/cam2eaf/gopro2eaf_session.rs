@@ -8,7 +8,8 @@ use super::cam2eaf;
 pub fn run(args: &clap::ArgMatches, gopro_session: &GoProSession) -> std::io::Result<()> {
     let time_offset = args.get_one::<isize>("time-offset").unwrap().to_owned(); // clap: has default value
     let fullgps = *args.get_one::<bool>("fullgps").unwrap();
-    let gpsfix = *args.get_one::<u32>("gpsfix").unwrap(); // defaults to 2 (2D lock)
+    // let gpsfix = *args.get_one::<u32>("gpsfix").unwrap(); // defaults to 2 (2D lock)
+    let gpsfix = args.get_one::<u32>("gpsfix"); // defaults to 2 (2D lock)
     let gpsdop = args.get_one::<f64>("gpsdop"); // defaults to 3 (3D lock)
     let geotier = *args.get_one::<bool>("geotier").unwrap();
 
@@ -26,7 +27,7 @@ pub fn run(args: &clap::ArgMatches, gopro_session: &GoProSession) -> std::io::Re
         println!(" Done");
         print!(
             "Extracting GPS data (minimum satellite lock = {}) with time offset {} hours... ",
-            gpsfix, time_offset
+            gpsfix.unwrap_or(&0), time_offset
         );
 
         let downsample_factor =
@@ -38,7 +39,7 @@ pub fn run(args: &clap::ArgMatches, gopro_session: &GoProSession) -> std::io::Re
             };
 
         // Extract points, prune those below satellite lock threshold. Defaults to 3D lock.
-        let gps = gpmf.gps().prune(gpsfix, gpsdop.copied());
+        let gps = gpmf.gps().prune(gpsfix.copied(), gpsdop.copied());
         let end = match gpmf.duration() {
             Ok(d) => d,
             Err(err) => {

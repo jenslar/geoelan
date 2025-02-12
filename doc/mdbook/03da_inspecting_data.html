@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="en" class="light" dir="ltr">
+<html lang="en" class="light sidebar-visible" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
@@ -7,7 +7,7 @@
 
 
         <!-- Custom HTML head -->
-        
+
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
@@ -30,15 +30,17 @@
 
         <!-- Custom theme stylesheets -->
 
-    </head>
-    <body class="sidebar-visible no-js">
-    <div id="body-container">
+
         <!-- Provide site root to javascript -->
         <script>
             var path_to_root = "";
             var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
         </script>
-
+        <!-- Start loading toc.js asap -->
+        <script src="toc.js"></script>
+    </head>
+    <body>
+    <div id="body-container">
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
         <script>
             try {
@@ -60,19 +62,16 @@
             var theme;
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
-            var html = document.querySelector('html');
+            const html = document.documentElement;
             html.classList.remove('light')
             html.classList.add(theme);
-            var body = document.querySelector('body');
-            body.classList.remove('no-js')
-            body.classList.add('js');
+            html.classList.add("js");
         </script>
 
         <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
 
         <!-- Hide / unhide sidebar before it is displayed -->
         <script>
-            var body = document.querySelector('body');
             var sidebar = null;
             var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
             if (document.body.clientWidth >= 1080) {
@@ -82,45 +81,25 @@
                 sidebar = 'hidden';
             }
             sidebar_toggle.checked = sidebar === 'visible';
-            body.classList.remove('sidebar-visible');
-            body.classList.add("sidebar-" + sidebar);
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
         </script>
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
-            <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item "><a href="01_introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="01a_requirements.html"><strong aria-hidden="true">1.1.</strong> Requirements</a></li><li class="chapter-item "><a href="01b_installation.html"><strong aria-hidden="true">1.2.</strong> Installation</a></li><li class="chapter-item "><a href="01c_before_you_start.html"><strong aria-hidden="true">1.3.</strong> Before you start</a></li></ol></li><li class="chapter-item "><a href="02_example_walkthrough.html"><strong aria-hidden="true">2.</strong> Example walkthrough</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="02a_step_1of3.html"><strong aria-hidden="true">2.1.</strong> 1/3 Generate an ELAN-file</a></li><li class="chapter-item "><a href="02b_step_2of3.html"><strong aria-hidden="true">2.2.</strong> 2/3 Annotate events</a></li><li class="chapter-item "><a href="02c_step_3of3.html"><strong aria-hidden="true">2.3.</strong> 3/3 Generate KML/GeoJSON</a></li></ol></li><li class="chapter-item expanded "><a href="03_commands.html"><strong aria-hidden="true">3.</strong> Commands</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03a_cam2eaf.html"><strong aria-hidden="true">3.1.</strong> cam2eaf</a></li><li class="chapter-item "><a href="03b_eaf2geo.html"><strong aria-hidden="true">3.2.</strong> eaf2geo</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="03ba_geoshape.html"><strong aria-hidden="true">3.2.1.</strong> The geoshape option</a></li><li class="chapter-item "><a href="03bb_cdata.html"><strong aria-hidden="true">3.2.2.</strong> The cdata option (KML)</a></li></ol></li><li class="chapter-item "><a href="03c_locate.html"><strong aria-hidden="true">3.3.</strong> locate</a></li><li class="chapter-item expanded "><a href="03d_inspect.html"><strong aria-hidden="true">3.4.</strong> inspect</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item expanded "><a href="03da_inspecting_data.html" class="active"><strong aria-hidden="true">3.4.1.</strong> Inspecting data</a></li></ol></li><li class="chapter-item "><a href="03e_plot.html"><strong aria-hidden="true">3.5.</strong> plot</a></li><li class="chapter-item "><a href="03f_manual.html"><strong aria-hidden="true">3.6.</strong> manual</a></li></ol></li><li class="chapter-item "><a href="04_appendix.html"><strong aria-hidden="true">4.</strong> Appendix</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="04a_formats.html"><strong aria-hidden="true">4.1.</strong> Formats</a></li><li class="chapter-item "><a href="04b_gopro.html"><strong aria-hidden="true">4.2.</strong> GoPro</a></li><li class="chapter-item "><a href="04c_virb.html"><strong aria-hidden="true">4.3.</strong> VIRB</a></li><li class="chapter-item "><a href="04d_ffmpeg.html"><strong aria-hidden="true">4.4.</strong> FFmpeg</a></li><li class="chapter-item "><a href="04e_elan.html"><strong aria-hidden="true">4.5.</strong> ELAN</a></li><li class="chapter-item "><a href="04f_fit_gpmf_eaf_libraries.html"><strong aria-hidden="true">4.6.</strong> FIT, GPMF, EAF libraries</a></li></ol></li><li class="chapter-item "><a href="06_references.html"><strong aria-hidden="true">5.</strong> References</a></li></ol>
-            </div>
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
             </div>
         </nav>
 
-        <!-- Track and set sidebar scroll position -->
-        <script>
-            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
-            sidebarScrollbox.addEventListener('click', function(e) {
-                if (e.target.tagName === 'A') {
-                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
-                }
-            }, { passive: true });
-            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
-            sessionStorage.removeItem('sidebar-scroll');
-            if (sidebarScrollTop) {
-                // preserve sidebar scroll position when navigating via links within sidebar
-                sidebarScrollbox.scrollTop = sidebarScrollTop;
-            } else {
-                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
-                var activeSection = document.querySelector('#sidebar .active');
-                if (activeSection) {
-                    activeSection.scrollIntoView({ block: 'center' });
-                }
-            }
-        </script>
-
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky">
                     <div class="left-buttons">
                         <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -200,20 +179,20 @@
 <p>Use the data names in the list to print raw data for a specific type (note the citation marks):</p>
 <pre><code class="language-sh">geoelan inspect --gpmf GOPROVIDEO.MP4 --type "GPS (Lat., Long., Alt., 2D speed, 3D speed)"
 </code></pre>
-<p>Earlier GoPro models list GPS data as <code>GPS (Lat., Long., Alt., 2D speed, 3D speed)</code>, whereas Hero 11 Black and later models log more data per point and use <code>GPS (Lat., Long., Alt., 2D, 3D, days, secs, DOP, fix)</code>.</p>
+<p>Earlier GoPro models list GPS data as <code>GPS (Lat., Long., Alt., 2D speed, 3D speed)</code>, whereas Hero 11 Black and later models log more data for each point and use <code>GPS (Lat., Long., Alt., 2D, 3D, days, secs, DOP, fix)</code>. Hero 11 Black logs both the old and the new variants, whereas Hero 13 Black only logs to the newer format. Hero 12 Black does not have a GPS module.</p>
 <p>Print the GPS log in a more conventional form:</p>
 <pre><code class="language-sh">geoelan inspect --gpmf GOPROVIDEO.MP4 --gps
 </code></pre>
-<p>Save the full GPS log as a KML or GeoJSON file:</p>
+<p>Export the GPS log as a KML or GeoJSON file:</p>
 <pre><code class="language-sh">geoelan inspect --gpmf GOPROVIDEO.MP4 --kml
 geoelan inspect --gpmf GOPROVIDEO.MP4 --json
 </code></pre>
 <h5 id="gpmf-byte-offsets"><a class="header" href="#gpmf-byte-offsets">GPMF byte offsets</a></h5>
-<p>GoPro telemetry is interleaved as data "chunks" with audio and video samples. To list their location in the file and sizes, run:</p>
+<p>GoPro telemetry is stored as samples, interleaved between audio and video samples (and other tracks' samples). To list the sample locations and sizes, run:</p>
 <pre><code class="language-sh">geoelan inspect --video GOPROVIDEO.MP4 --offsets "GoPro MET"
 </code></pre>
 <p><code>GoPro MET</code> is the name of the MP4 track holding GPMF data.</p>
-<p>This returns a table listing byte offset, size, and duration:</p>
+<p>This returns a table listing the samples' byte offsets (e.g. <code>@2026761919</code>), their sizes in bytes, and durations:</p>
 <pre><code>...
 [ 359 GoPro MET/4] @2026761919 size: 7252   duration: 1s1ms
 [ 360 GoPro MET/4] @2031934877 size: 7444   duration: 1s1ms
@@ -221,6 +200,13 @@ geoelan inspect --gpmf GOPROVIDEO.MP4 --json
 [ 362 GoPro MET/4] @2043168135 size: 7348   duration: 1s1ms
 ...
 </code></pre>
+<p>Similarly, you can print raw sample data for a track:</p>
+<pre><code class="language-sh">geoelan inspect --video GOPROVIDEO.MP4 --samples "GoPro MET"
+</code></pre>
+<p>Save all track samples as a file (similar to FFmpeg's track export):</p>
+<pre><code class="language-sh">geoelan inspect --video GOPROVIDEO.MP4 --dump "GoPro MET"
+</code></pre>
+<p>Note that the video data may be many GB in size. GeoELAN will list the total size and prompt the user before exporting.</p>
 <h5 id="images"><a class="header" href="#images">Images</a></h5>
 <p>Original GoPro JPEG-images can also be inspected. These will contain much less GPMF data than the MP4-files, and are currently not used elsewhere in GeoELAN's workflow. If no named data shows up in the summary, try  <code>geoelan inspect --gpmf GOPROIMAGE.JPG --verbose</code> to print the raw data. Early GoPro models do not embed GPMF data in JPEG-images.</p>
 <h4 id="garmin-fit"><a class="header" href="#garmin-fit">Garmin FIT</a></h4>

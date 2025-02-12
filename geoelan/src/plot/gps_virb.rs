@@ -2,8 +2,7 @@ use std::{io::ErrorKind, path::PathBuf};
 
 use fit_rs::{Fit, FitPoint};
 use plotly::{
-    common::{Fill, Title},
-    Scatter, Trace,
+    common::{Fill, Title}, layout::Shape, Scatter, Trace
 };
 
 use crate::{files::virb::select_session, geo::haversine};
@@ -11,7 +10,7 @@ use crate::{files::virb::select_session, geo::haversine};
 pub(crate) fn gps2plot(
     args: &clap::ArgMatches,
 // ) -> std::io::Result<(Title, Title, Title, Vec<Box<Scatter<f64, f64>>>)> {
-) -> std::io::Result<(Title, Title, Title, Vec<Box<dyn Trace>>)> {
+) -> std::io::Result<(Title, Title, Title, Vec<Box<dyn Trace>>, Option<Shape>)> {
     let path = args.get_one::<PathBuf>("fit").unwrap(); // verified to exist already
     let y_axis = args.get_one::<String>("y-axis").unwrap(); // sensor type, required arg
     let x_axis = args.get_one::<String>("x-axis"); // optional, default to counts/index
@@ -36,7 +35,7 @@ pub(crate) fn gps2plot(
         .map(|g| g.to_point())
         .collect();
 
-    println!("Done");
+    println!("Done ({} points)", gps.len());
 
     println!("Generating plot...");
 
@@ -58,6 +57,14 @@ pub(crate) fn gps2plot(
                 dist.push(d)
             }
             dist
+        },
+        Some("c" | "count") => {
+            x_axis_units = "";
+            x_axis_name = "Sample count";
+            (0..gps.len())
+                .into_iter()
+                .map(|i| (i + 1) as f64)
+                .collect::<Vec<_>>()
         }
         other => {
             let msg = format!(
@@ -68,6 +75,8 @@ pub(crate) fn gps2plot(
             return Err(std::io::Error::new(ErrorKind::Other, msg));
         }
     };
+
+    println!("[X-axis '{x_axis_name}'] {} values, units: {}", x.len(), if x_axis_units == "" {"N/A"} else {x_axis_units});
 
     let y_axis_units: &str;
     let y_axis_name: &str;
@@ -105,6 +114,10 @@ pub(crate) fn gps2plot(
         }
     };
 
+    println!("[Y-axis '{y_axis_name}'] {} values, units: {y_axis_units}", y.len());
+
+    assert_eq!(x.len(), y.len(), "(!) X and Y differ in size.");
+
     let title_txt = format!(
         "GPS [{}]",
         path.file_name()
@@ -126,5 +139,5 @@ pub(crate) fn gps2plot(
 
     println!("Done");
 
-    Ok((title, x_axis_label, y_axis_label, vec![x_y_scatter]))
+    Ok((title, x_axis_label, y_axis_label, vec![x_y_scatter], None))
 }

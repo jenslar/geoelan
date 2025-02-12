@@ -1,4 +1,4 @@
-**GeoELAN v2.7.0 2024-10-16**
+**GeoELAN v2.7.5 2025-02-12**
 
 **Important:**
 > **GoPro Hero 12 Black is not supported** since it does not have a GPS module.
@@ -12,7 +12,7 @@
 GeoELAN is a command-line tool that geo-references time-aligned text-annotations of observed phenomena in audiovisual recordings, captured with a recent GoPro or Garmin VIRB action camera, see [Larsson et al 2021](https://doi.org/10.1080/13645579.2020.1763705). In other words, GeoELAN is used for annotating action camera GPS logs with the help of the free annotation tool [ELAN](https://archive.mpi.nl/tla/elan).
 
 Requirements:
-- GoPro Hero 5 Black - GoPro Hero 11 Black, Hero 13 Black (Hero 12 Black is not supported)
+- GoPro Hero 5 Black - GoPro Hero 11 Black, Hero 13 Black (Hero 12 Black is not supported, but some data can still be inspected and plotted)
 - Garmin VIRB
 - [FFmpeg](http://ffmpeg.org) (in `PATH` preferred, but custom path can also be set when running GeoELAN)
 

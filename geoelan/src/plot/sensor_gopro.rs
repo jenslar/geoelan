@@ -4,12 +4,12 @@ use std::{
 };
 
 use gpmf_rs::{GoProSession, Gpmf};
-use plotly::{common::Title, Scatter, Trace};
+use plotly::{common::Title, layout::Shape, Scatter, Trace};
 
 pub(crate) fn sensor2plot(
     args: &clap::ArgMatches,
     // ) -> std::io::Result<(Title, Title, Title, Vec<Box<Scatter<f64, f64>>>)> {
-) -> std::io::Result<(Title, Title, Title, Vec<Box<dyn Trace>>)> {
+) -> std::io::Result<(Title, Title, Title, Vec<Box<dyn Trace>>, Option<Shape>)> {
     let path = args.get_one::<PathBuf>("gpmf").unwrap();
     let y_axis = args.get_one::<String>("y-axis").unwrap(); // sensor type, required arg
     let x_axis = args.get_one::<String>("x-axis"); // optional, default to counts/index
@@ -35,7 +35,33 @@ pub(crate) fn sensor2plot(
     println!("Compiling data...");
 
     let gpmf = match session {
-        true => GoProSession::from_path(&path, Some(&indir), false, true, true)?.gpmf()?,
+        true => {
+            let session = GoProSession::from_path(&path, Some(&indir), false, true, true)?;
+
+            println!("Located the following session files:");
+            for (i, gopro_file) in session.iter().enumerate() {
+                println!(
+                    "{:4}. MP4: {}",
+                    i + 1,
+                    gopro_file
+                        .mp4
+                        .as_ref()
+                        .and_then(|f| f.to_str())
+                        .unwrap_or("High-resolution MP4 not set")
+                );
+                println!(
+                    "      LRV: {}",
+                    gopro_file
+                        .lrv
+                        .as_ref()
+                        .and_then(|f| f.to_str())
+                        .unwrap_or("Low-resolution MP4 not set")
+                );
+            }
+            
+            println!("Merging GPMF-data for {} files...", session.len());
+            session.gpmf()?
+        },
         false => Gpmf::new(&path, false)?,
     };
 
@@ -86,18 +112,24 @@ pub(crate) fn sensor2plot(
         ),
     };
 
+    println!("[Y-axis] X: {} values, Y: {} values, Z: {} values", y_axis_x.len(), y_axis_y.len(), y_axis_z.len());
+    assert_eq!(y_axis_x.len(), y_axis_y.len(), "X and Y differ in sensor sample size");
+    assert_eq!(y_axis_x.len(), y_axis_z.len(), "X and Z differ in sensor sample size");
+
     // x-axis values
     let x_axis_name: &str;
     let x_axis_units: &str;
-    // !!! check whether unwraps are ok for gpmf sensor implementation
-    let (total, duration) = sensor_data
-        .last()
-        .map(|s| (s.total, s.timestamp.unwrap() + s.duration.unwrap()))
-        .unwrap();
-    let x_axis: Vec<f64> = match x_axis.map(|s| s.as_str()) {
+    let x: Vec<f64> = match x_axis.map(|s| s.as_str()) {
         Some("t" | "time") => {
+            let duration = sensor_data
+                .last()
+                // !!! return errors instead of unwrap/expect
+                // .map(|s| (s.total, s.timestamp.unwrap() + s.duration.unwrap())) // !!! total samples so far does not include final sample cluster
+                .map(|s| s.timestamp.unwrap() + s.duration.unwrap()) // !!! total samples so far does not include final sample cluster
+                .unwrap(); // already checked that at least one sample exists
             x_axis_units = " (seconds)";
             x_axis_name = "Time";
+            let total = y_axis_x.len();
             let sample_rate = total as f64 / duration.as_seconds_f64();
             let t_incr = 1. / sample_rate;
             (0..total)
@@ -106,6 +138,11 @@ pub(crate) fn sensor2plot(
                 .collect::<Vec<_>>()
         }
         Some("c" | "count") => {
+            // let total = sensor_data
+            //     .last()
+            //     .map(|s| s.total)
+            //     .unwrap(); // already checked that at least one sample exists
+            let total = y_axis_x.len();
             x_axis_units = "";
             x_axis_name = "Sample count";
             (0..total)
@@ -121,6 +158,9 @@ pub(crate) fn sensor2plot(
             return Err(std::io::Error::new(ErrorKind::Other, msg));
         }
     };
+
+    println!("[X-axis '{x_axis_name}'] {} values, units: {}", x.len(), if x_axis_units == "" {"N/A"} else {x_axis_units});
+    assert_eq!(x.len(), y_axis_x.len(), "X-axis and Y-axis differ in size");
 
     let title_txt = format!(
         "{} [{}]",
@@ -142,13 +182,14 @@ pub(crate) fn sensor2plot(
         x_axis_label,
         y_axis_label,
         vec![
-            Scatter::new(x_axis.to_owned(), y_axis_x)
+            Scatter::new(x.to_owned(), y_axis_x)
                 .name("x")
                 .text(y_axis_units),
-            Scatter::new(x_axis.to_owned(), y_axis_y)
+            Scatter::new(x.to_owned(), y_axis_y)
                 .name("y")
                 .text(y_axis_units),
-            Scatter::new(x_axis, y_axis_z).name("z").text(y_axis_units),
+            Scatter::new(x, y_axis_z).name("z").text(y_axis_units),
         ],
+        None
     ));
 }

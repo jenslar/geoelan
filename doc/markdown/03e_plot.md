@@ -40,7 +40,7 @@ Possible Y-axis values:
 - `alt`, `altitude`
 - `s2d`, `speed2d`
 - `s3d`, `speed3d` (scalar only)
-- `dop`, `dilution` (dilution of position)
+- `dop`, `dilution` (dilution of precision)
 - `fix`, `gpsfix` (satellite lock level)
 
 Possible X-axis value:

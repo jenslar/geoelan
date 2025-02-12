@@ -255,7 +255,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     // Serialize to KML v2.2. No line breaks/indentation.
     let kml_doc = kml_to_string(&kml);
-    let kml_path = files::affix_file_name(&eaf_path, None, Some(geoshape_arg), Some("kml"));
+    let kml_path = files::affix_file_name(&eaf_path, None, Some(geoshape_arg), Some("kml"), None);
 
     match files::writefile(&kml_doc.as_bytes(), &kml_path) {
         Ok(true) => println!("Wrote {}", kml_path.display()),
@@ -268,7 +268,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     // Serialize GeoJSON. Not indented (= smaller size for web use).
     let geojson_doc = geojson.to_string();
-    let geojson_path = files::affix_file_name(&eaf_path, None, Some(geoshape_arg), Some("json"));
+    let geojson_path = files::affix_file_name(&eaf_path, None, Some(geoshape_arg), Some("json"), None);
 
     match files::writefile(&geojson_doc.as_bytes(), &geojson_path) {
         Ok(true) => println!("Wrote {}", geojson_path.display()),

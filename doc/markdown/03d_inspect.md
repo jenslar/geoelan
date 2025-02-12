@@ -11,26 +11,29 @@
 
 **Flags**
 
-| Short | Long                | Description
+| Short | Long        | Description
 | :---: | :---------- | :--------------------------------
 |       | `--debug`   | Print FIT definitions and data while parsing
 |       | `--kml`     | Generate a KML-file
 |       | `--ikml`    | Generate an indexed KML-file
-|       | `--json`    | Generate a GeoJSON-file.
-|       | `--verbose` | Print raw data
+|       | `--json`    | Generate a GeoJSON-file
+|       | `--fullgps` | Use full resolution GPS log for KML/JSON (10-18Hz)
+|       | `--verbose` | Print all raw data
 |       | `--gps`     | Print processed GPS log
 |       | `--meta`    | Print MP4 custom user data (`udta` atom)
 |       | `--atoms`   | Print MP4 atom hierarchy
-| `-s`  | `--session` | GoPro: Merge session data. VIRB: Select from a list.
+| `-s`  | `--session` | GoPro: Merge session data. VIRB: Select from a list
 
 **Options**
 
-| Short | Long           | Description                       |  Required
-| :---: | :------------- | :-------------------------------- |  :------:
-| `-t`  | `--type`       | Data type to print                |
-| `-v`  | `--video`      | MP4-file                          | unless `-g`, `-f`
-| `-o`  | `--offsets`    | Print byte offsets for specified track |
-| `-g`  | `--gpmf`       | \[GoPro\]-file (MP4 or raw GPMF-file) |  unless `-f`, `-v`
-| `-f`  | `--fit`        | \[VIRB\]FIT-file                      |  unless `-g`, `-v`
+| Short | Long           | Description                               |  Required
+| :---: | :------------- | :---------------------------------------- |  :------:
+| `-t`  | `--type`       | Data type to print                        |
+| `-v`  | `--video`      | MP4-file                                  | unless `-g`, `-f`
+|       | `--offsets`    | Print byte offsets for specified track    |
+|       | `--samples`    | Print raw sample data for specified track |
+|       | `--dump`       | Export raw sample data to file for specified track |
+| `-g`  | `--gpmf`       | \[GoPro\]-file (MP4 or raw GPMF-file)     |  unless `-f`, `-v`
+| `-f`  | `--fit`        | \[VIRB\]FIT-file                          |  unless `-g`, `-v`
 
 Note that `--type` takes a string for GoPro and a numerical identifier for VIRB. `--video` accepts any MP4-file. See the sections below.

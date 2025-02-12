@@ -1,9 +1,16 @@
+# GeoELAN 2.7.5
+- NEW `plot`: export the plot to HTML, PNG, SVG files (`--export PATH`).
+- NEW [\GOPRO\] `plot`: added static line representing ideal thresholds to dilution of precision (`--dilution-of-precision`, below 5 = good precision) and GPS satellite lock level (`--gpsfix`, 3 = 3D fix).
+- NEW `inspect` with `--video` lists all tracks in the MP4 file.
+- NEW `inspect` with `--samples` prints all raw sample data in the MP4 file (specify track name or ID). Prints warning with confirmation due to large data size.
+- NEW `inspect` with `--dump` saves all raw sample data in the MP4 file to disk (specify track name or ID). Prints warning with confirmation due to large data size.
+
 # GeoELAN 2.7
 - NEW \[GOPRO\]: determining whether GoPro files are high/low resolution (`.MP4` or `.LRV`) no longer depends on file extension, only video resolution, i.e. you can rename LRV-files to `.mp4` and GeoELAN will still correctly identify these as low resolution variants.
-- NEW \[GOPRO\] `plot`: removed filtering plots on GPS satellite lock level and dilution of position (see below)
+- NEW \[GOPRO\] `plot`: removed filtering plots on GPS satellite lock level and dilution of precision (see below)
 - NEW \[GOPRO\] `plot`: added satellite lock level/GPS fix as plot option (use `-y fix` or `--y-axis gpsfix`)
 - NEW \[GOPRO\] `plot`: GPS [dilution of precision](https://en.wikipedia.org/wiki/Dilution_of_precision_(navigation)) can now be plotted (use `-y dop` or `--y-axis dilution`)
-- NEW: \[GOPRO\] `cam2eaf`: Specify threshold for dilution of position (`--gpsdop`).
+- NEW: \[GOPRO\] `cam2eaf`: Specify threshold for dilution of precision (`--gpsdop`).
 - CHANGE `inspect`: `--offsets` is no longer connected to `--gpmf` and can be used for any video (MP4, LRV, GLV, MOV), but requires specifying track name (string) or id (positive integer). Run `inspect` first to get a list of these.
 - FIX \[GOPRO\] Fixed GPMF timing errors when merging GoPro MP4-clips that caused timespan overlaps in generated ELAN annotations.
 - Bumped updated crates [`gpmf-rs`](https://github.com/jenslar/gpmf-rs), [`eaf-rs`](https://github.com/jenslar/eaf-rs), [`mp4iter`](https://github.com/jenslar/mp4iter)

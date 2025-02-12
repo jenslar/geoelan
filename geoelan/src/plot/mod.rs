@@ -5,7 +5,7 @@
 //!
 //! Currently only does a time series 2D plot, e.g. air pressure (VIRB) over time.
 
-use std::io::ErrorKind;
+use std::{io::ErrorKind, path::PathBuf};
 
 mod gps_gopro;
 mod gps_virb;
@@ -17,7 +17,7 @@ mod sensors;
 use plotly::{
     color::Rgb,
     common::{HoverInfo, Label, Line, LineShape, Title},
-    layout::{Axis, HoverMode},
+    layout::{Axis, HoverMode, Shape},
     Layout, Plot, Scatter, Trace,
 };
 
@@ -36,24 +36,40 @@ fn is_sensor(value: &str) -> bool {
 }
 
 pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
-    // 'kind': what sensor data to plot:
-    // - 'gyro' / 'gyroscope' (GP/VIRB)
-    // - 'accl' / 'accelerometer' (GP/VIRB)
-    // - 'baro' / 'barometer' (VIRB), seemingly pascal (normal around 100 kPa), check Profile.xslx
-    // - 'alt' / 'altitude' - GPS altitude (GP/VIRB)
-    // - 'sp2d' / 'speed2d' - GPS 2D speed (GP/VIRB)
-    // - 'sp3d' / 'speed3d' - GPS 3D speed (GP/VIRB)
-    // - 'hdg' / 'heading' - GPS heading (VIRB - GP N/Y but possible via accelerometer)
-    // - 'fix' / 'gpsfix' - GPS satellite lock/fix (GP - may exist in VIRB undocumented fields?)
-    // - 'dop' / 'dilution' - GPS dilution of position (GP - may exist in VIRB undocumented fields?)
+    // y-axis sensor data to plot:
+    // - 'gyro' / 'gyroscope'     GP/VIRB
+    // - 'accl' / 'accelerometer' GP/VIRB
+    // - 'baro' / 'barometer'     VIRB, seemingly pascal (normal around 100 kPa), check Profile.xslx
+    // - 'alt'  / 'altitude'      (GPS) altitude, GP/VIRB
+    // - 'sp2d' / 'speed2d'       (GPS) 2D speed, GP/VIRB
+    // - 'sp3d' / 'speed3d'       (GPS) 3D speed, GP/VIRB
+    // - 'hdg'  / 'heading'       (GPS) heading, VIRB. GP N/A but possible via accelerometer)
+    // - 'fix'  / 'gpsfix'        (GPS) satellite lock/fix, GP - VIRB may exist in undocumented gps_metadata fields?
+    // - 'dop'  / 'dilution'      (GPS) dilution of precision, GP - VIRB may exist in undocumented gps_metadata fields?
     let y_axis = args.get_one::<String>("y-axis").unwrap(); // sensor type, required arg
     let is_gopro = args.contains_id("gpmf");
     let is_fit = args.contains_id("fit");
-    // let print_sensor_table = *args.get_one::<bool>("sensor-table").unwrap();
 
-    // if print_sensor_table {
-    //     return print_table()
-    // }
+    // File path or dir (use fit/gpmf filestem if dir)
+    let export_path = args.get_one::<PathBuf>("export");
+    // Extract file stem if dir
+    let export_file = match (args.get_one::<PathBuf>("fit"), args.get_one::<PathBuf>("gpmf")) {
+        (Some(p), None) | (None, Some(p)) => {
+            if let Some(path) = export_path {
+                match path.is_dir() {
+                    // User specified dir -> generate file name using fit/gpmf file stem
+                    true => p.file_stem().map(|p| path.join(p).with_extension("html")),
+                    // User specified file path, ensure extension is html
+                    false => Some(path.with_extension("html")),
+                }
+            } else {
+                None
+            }
+        },
+        _ => None
+    };
+    let width = *args.get_one::<usize>("width").unwrap_or(&1920);
+    let height = *args.get_one::<usize>("height").unwrap_or(&1440);
 
     // Data in tuples (DATA, SECONDS) as [(f64, f64), ...]
 
@@ -62,10 +78,11 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let y_axis_label: Title;
     // let traces: Vec<Box<Scatter<f64, f64>>>;
     let traces: Vec<Box <dyn Trace>>;
+    let static_line: Option<Shape>;
 
     // GoPro
     if is_gopro {
-        (title, x_axis_label, y_axis_label, traces) = match y_axis.as_str() {
+        (title, x_axis_label, y_axis_label, traces, static_line) = match y_axis.as_str() {
             "acc" | "accelerometer"
             | "gyr" | "gyroscope"
             | "grv" | "gravity"
@@ -75,7 +92,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         }
     // FIT, VIRB
     } else if is_fit {
-        (title, x_axis_label, y_axis_label, traces) = match y_axis.as_str() {
+        (title, x_axis_label, y_axis_label, traces, static_line) = match y_axis.as_str() {
             "acc" | "accelerometer"
             | "gyr" | "gyroscope"
             | "grv" | "gravity"
@@ -90,7 +107,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     // Create plot canvas
     let mut plot = Plot::new();
-    let layout = Layout::new()
+    let mut layout = Layout::new()
         .height(600)
         .x_axis(
             Axis::new()
@@ -105,6 +122,9 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         .plot_background_color(Rgb::new(229, 229, 229))
         .hover_mode(HoverMode::XUnified)
         .title(title);
+    if let Some(line) = static_line {
+        layout.add_shape(line);
+    }
     plot.set_layout(layout);
 
     // Add traces to plot canvas
@@ -113,7 +133,20 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         plot.add_trace(trace)
     }
 
-    plot.show();
+    if let Some(path) = export_file {
+        plot.write_html(&path);
+        println!("Exported HTML to {}", path.display());
+
+        let png_path = path.with_extension("png");
+        plot.write_image(&png_path, plotly::ImageFormat::PNG, width, height, 1.0);
+        println!("Exported PNG to {}", png_path.display());
+
+        let svg_path = path.with_extension("svg");
+        plot.write_image(&svg_path, plotly::ImageFormat::SVG, width, height, 1.0);
+        println!("Exported SVG to {}", svg_path.display());
+    } else {
+        plot.show();
+    }
 
     Ok(())
 }

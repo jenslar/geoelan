@@ -59,6 +59,7 @@ impl Media {
                 prefix,
                 suffix,
                 Some("mp4"),
+                None
             );
 
             let audio_out = affix_file_name(
@@ -66,6 +67,7 @@ impl Media {
                 prefix,
                 suffix,
                 Some("wav"),
+                None
             );
 
             let concatenation_list_path = affix_file_name(
@@ -73,6 +75,7 @@ impl Media {
                 prefix,
                 suffix,
                 Some("txt"),
+                None
             );
 
             // concatenation_list_path.set_extension("txt");

@@ -18,7 +18,7 @@ mod model;
 mod plot;
 mod text;
 
-const VERSION: &'static str = "2.7.0";
+const VERSION: &'static str = "2.7.5";
 const AUTHOR: &'static str = "Jens Larsson";
 const REPO: &'static str = "https://github.com/jenslar/geoelan";
 
@@ -164,7 +164,7 @@ SOURCE:
                 ])
                 .value_parser(clap::value_parser!(u32)))
             .arg(Arg::new("gpsdop")
-                .help("Min GPS dilution of position threshold. 5.0 = good precision.")
+                .help("Max GPS dilution of precision threshold (ideally < 5.0).")
                 .long("gpsdop")
                 .conflicts_with_all(&[
                     "fit", "uuid" // VIRB only
@@ -273,14 +273,6 @@ Geoshape options:
                 .long("cdata")
                 .action(ArgAction::SetTrue))
 
-            .next_help_heading("VIRB")
-            .arg(Arg::new("fit")
-                .help("[VIRB] Garmin VIRB FIT-file")
-                .short('f')
-                .long("fit")
-                .value_parser(clap::value_parser!(PathBuf))
-                .required_unless_present_any(["gpmf", "geotier"]))
-
             .next_help_heading("GoPro")
             .arg(Arg::new("gpmf")
                 .help("GoPro MP4-file")
@@ -305,10 +297,19 @@ Geoshape options:
                 .conflicts_with_all(["fit", "geotier"])
                 .value_parser(clap::value_parser!(u32)))
             .arg(Arg::new("gpsdop")
-                .help("Min GPS dilution of position threshold. 5.0 = good precision.")
+                .help("Min GPS dilution of precision threshold. 5.0 = good precision.")
                 .long("gpsdop")
                 .conflicts_with_all(["fit", "geotier"])
                 .value_parser(clap::value_parser!(f64)))
+
+            .next_help_heading("VIRB")
+            .arg(Arg::new("fit")
+                .help("[VIRB] Garmin VIRB FIT-file")
+                .short('f')
+                .long("fit")
+                .value_parser(clap::value_parser!(PathBuf))
+                .required_unless_present_any(["gpmf", "geotier"]))
+
         )
 
         // Locate and match files belonging to the same recording session.
@@ -343,8 +344,8 @@ Geoshape options:
                 .help("Do not print file-by-file search progress")
                 .long("quiet")
                 .action(ArgAction::SetTrue))
-            .arg(Arg::new("halt-on-error")
-                .help("Halts on errors relating to locating clips.")
+            .arg(Arg::new("ignore-errors")
+                .help("Whether to ignore errors relating to locating clips.")
                 .long("ignore-errors")
                 .action(ArgAction::SetTrue))
             .arg(Arg::new("verbose")
@@ -397,12 +398,24 @@ Geoshape options:
                 .requires("video")
                 .conflicts_with_all(["gpmf", "fit", "atoms"]))
             .arg(Arg::new("offsets")
-                .help("Print sample byte offsets for specified track in MP4-file.")
+                .help("Print sample byte offsets for specified MP4 track.")
                 .long("offsets")
-                .short('o')
-                .value_parser(clap::value_parser!(String))
-                .requires("video")) // list all conflicts...?
-                .arg(Arg::new("sensor")
+                .requires("video")
+                .conflicts_with_all(["gpmf", "fit"])
+                .value_parser(clap::value_parser!(String)))
+            .arg(Arg::new("samples")
+                .help("Print raw sample data for specified MP4 track. Warning: tracks may be multiple GB in size.")
+                .long("samples")
+                .requires("video")
+                .conflicts_with_all(["gpmf", "fit"])
+                .value_parser(clap::value_parser!(String)))
+            .arg(Arg::new("dump")
+                .help("Dump raw sample data to file for specified MP4 track. Warning: tracks may be multiple GB in size.")
+                .long("dump")
+                .requires("video")
+                .conflicts_with_all(["gpmf", "fit", "session"])
+                .value_parser(clap::value_parser!(String)))
+            .arg(Arg::new("sensor")
                 .help("Print sensor data. Sensors differ between brands and models.")
                 .long("sensor")
                 .value_parser(PossibleValuesParser::new([
@@ -418,7 +431,7 @@ Geoshape options:
                 .short('s')
                 .action(ArgAction::SetTrue))
             .arg(Arg::new("kml")
-                .help("Generate a KML file from GPS-logs. Points only, downsampled to roughly 1 point/second.")
+                .help("Generate a KML file from GPS-logs. Downsampled to roughly 1 point/second.")
                 .long("kml")
                 .action(ArgAction::SetTrue))
             .arg(Arg::new("indexed-kml")
@@ -426,7 +439,7 @@ Geoshape options:
                 .long("ikml")
                 .action(ArgAction::SetTrue))
             .arg(Arg::new("json")
-                .help("Generate a GeoJSON file from GPS-logs. Points only, downsampled to roughly 1 point/second.")
+                .help("Generate a GeoJSON file from GPS-logs. Downsampled to roughly 1 point/second.")
                 .long("json")
                 .action(ArgAction::SetTrue))
             .arg(Arg::new("fullgps")
@@ -482,7 +495,7 @@ Geoshape options:
                 .requires("gpmf")
                 .value_parser(clap::value_parser!(u32)))
             .arg(Arg::new("gpsdop")
-                .help("Min GPS dilution of position threshold. 5.0 = good precision.")
+                .help("Max GPS dilution of precision threshold. < 5.0 = good precision.")
                 .long("gpsdop")
                 .requires("gpmf")
                 .value_parser(clap::value_parser!(f64)))
@@ -520,7 +533,7 @@ Geoshape options:
                 .requires("gpmf")
                 .value_parser(clap::value_parser!(PathBuf)))
             .arg(Arg::new("gps5")
-                .help("Force the use of GPS5 for cameras that log both (currently only Hero11).")
+                .help("Force the use of GPS5 for cameras that log both (Hero 11 Black only).")
                 .long("gps5")
                 .requires("gpmf")
                 .action(clap::ArgAction::SetTrue))
@@ -539,6 +552,21 @@ Geoshape options:
                 .long("session")
                 .short('s')
                 .action(ArgAction::SetTrue))
+            .arg(Arg::new("export")
+                .help("Dir to export the plot as HTML, PNG, and SVG.")
+                .long("export")
+                .short('e')
+                .value_parser(clap::value_parser!(PathBuf)))
+            .arg(Arg::new("width")
+                .help("Pixel width of exported plot.")
+                .long("width")
+                .requires("export")
+                .value_parser(clap::value_parser!(usize)))
+            .arg(Arg::new("height")
+                .help("Pixel height of exported plot.")
+                .long("height")
+                .requires("export")
+                .value_parser(clap::value_parser!(usize)))
             .arg(Arg::new("y-axis")
                 .help("Data to plot on Y-axis.")
                 .long("y-axis")
@@ -558,7 +586,7 @@ Geoshape options:
                     "alt", "altitude",
                     "s2d", "speed2d",
                     "s3d", "speed3d",
-                    "dop", "dilution",  // GoPro dilution of precision, GoPro 11 and later
+                    "dop", "dilution-of-precision",  // GoPro dilution of precision, GoPro 11 and later
                     "fix", "gpsfix",   // GoPro satellite lock level/GPS fix, 2D or 3D lock etc
                 ]))
             .arg(Arg::new("x-axis")

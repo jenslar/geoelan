@@ -90,7 +90,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                         .unwrap_or("Could not determine creation time".to_owned())
                 );
                 println!(
-                    "┃      MP4: {}",
+                    "┃       HI: {}",
                     virbfile
                         .mp4()
                         .and_then(|f| f.to_str())
@@ -98,7 +98,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 );
             } else {
                 println!(
-                    "┃{:3}.  MP4: {}",
+                    "┃{:3}.   HI: {}",
                     i2 + 1,
                     virbfile
                         .mp4()
@@ -107,7 +107,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 );
             }
             println!(
-                "┃      GLV: {}",
+                "┃       LO: {}",
                 virbfile
                     .glv()
                     .and_then(|f| f.to_str())
@@ -118,7 +118,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     }
 
     println!("Done ({:?})", timer.elapsed());
-    println!("Sessions are sorted by time for start of recording, but may be misreprepresentative, depending on camera setup.");
+    println!("Sessions sorted by start time of recording. May be misreprepresentative, depending on device.");
 
     Ok(())
 }

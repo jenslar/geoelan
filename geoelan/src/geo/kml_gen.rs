@@ -245,6 +245,7 @@ pub fn kml_point(
         name: name.map(String::from),
         description,
         geometry: Some(Geometry::Point(kml_point)),
+        style_url: None,
         attrs: HashMap::new(),
         children, // styles, cdata etc
     }
@@ -300,6 +301,7 @@ pub fn kml_linestring(
         name: name.map(String::from),
         description,
         geometry: Some(Geometry::LineString(linestring)),
+        style_url: None,
         attrs: HashMap::new(),
         children, // styles, cdata etc
     }
@@ -362,6 +364,7 @@ pub fn kml_linearring(
         // description:  if cdata {None} else {description},
         description,
         geometry: Some(Geometry::LinearRing(linearring)),
+        style_url: None,
         attrs: HashMap::new(),
         children, // styles, cdata etc
     }

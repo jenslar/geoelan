@@ -4,8 +4,9 @@ use std::io::{ErrorKind, Write};
 use std::path::PathBuf;
 use std::{fs::File, path::Path};
 
-use gpmf_rs::{DataType, FourCC, GoProFile, GoProSession, Gpmf, GpmfError, SensorType};
+use gpmf_rs::{DataType, FourCC, GoProFile, GoProSession, Gpmf, SensorType};
 
+use crate::files::Units;
 use crate::{
     files::{affix_file_name, has_extension},
     geo::{downsample, point::EafPoint, EafPointCluster},
@@ -14,6 +15,7 @@ use crate::{
 pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
     let path = args.get_one::<PathBuf>("gpmf").unwrap(); // clap: required arg
     let indir = match args.get_one::<PathBuf>("input-directory") {
+        // Some(p) => p.to_owned().canonicalize()?, // derive absolute path, must exist
         Some(p) => p.to_owned(),
         None => match path.parent() {
             Some(d) => {
@@ -35,8 +37,8 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
     let print_gps = *args.get_one::<bool>("gps").unwrap(); // clap: conflicts with debug, verbose
     let full_gps = *args.get_one::<bool>("fullgps").unwrap();
     let sensor_type = args.get_one::<String>("sensor");
-    let min_gps_fix = args.get_one::<u32>("gpsfix");
-    let max_dilution = args.get_one::<f64>("dilution-of-precision").map(|d| *d);
+    let min_fix = args.get_one::<u32>("gpsfix").map(|n| *n);
+    let max_dop = args.get_one::<f64>("gpsdop").map(|n| *n);
     let (save_kml, indexed_kml) = (
         *args.get_one::<bool>("kml").unwrap() || *args.get_one::<bool>("indexed-kml").unwrap(),
         *args.get_one::<bool>("indexed-kml").unwrap(),
@@ -49,27 +51,8 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
 
     let timer_gpmf = std::time::Instant::now();
 
-    // if offsets {
-    //     if has_extension(&path, "lrv") || has_extension(&path, "mp4") {
-    //         let mut mp4 = mp4iter::Mp4::new(&path)?;
-    //         let offsets = mp4.offsets("GoPro MET", false)?;
-
-    //         for (i, offset) in offsets.iter().enumerate() {
-    //             println!(
-    //                 "[{:4}] DEVC @{:<10} size: {:<6} duration: {}ms",
-    //                 i + 1,
-    //                 offset.position,
-    //                 offset.size,
-    //                 offset.duration
-    //             )
-    //         }
-
-    //         return Ok(());
-    //     } else {
-    //         let msg = format!("(!) Incorrect file format for '--offsets', must be a GoPro MP4.\n    Try 'geoelan inspect --video {}", path.display());
-    //         return Err(std::io::Error::new(ErrorKind::Other, msg));
-    //     }
-    // }
+    // Max size if reading as raw GPMF file, e.g. when extracting track via FFmpeg.
+    let max_raw_size: u64 = 50_000_000;
 
     if has_extension(&path, "jpg") {
         let gpmf = Gpmf::from_jpg(&path, debug)?;
@@ -101,17 +84,9 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
     if session {
         println!("Locating GoPro-files and parsing GPMF-data...");
 
-        // TODO 220813 REGRESSION CHECK: DONE. GoProSession::from_path 2-3x slower with new code if parsing immediately. Code change to only parse when files in the same session have been matched. Only Stream::new/compile remains as performance issue now (20-30ms slower with new code on M1)
-
         // Compile GoPro files, parse GPMF-data
-        // let gopro_session = match GoProSession::from_path(&path, Some(&indir), verify_gpmf, true) {
         let gopro_session = GoProSession::from_path(&path, Some(&indir), verify_gpmf, true, false)?;
-        // let gopro_session = match GoProSession::from_path(&path, Some(&indir), verify_gpmf, true) {
-        //     Some(session) => session,
-        //     None => {
-        //         return Err(GpmfError::NoSession).map_err(|e| e.into());
-        //     }
-        // };
+
         // If 'session' flag is passed the file/s must parse as MP4s
         println!("Located the following session files:");
         for (i, gopro_file) in gopro_session.iter().enumerate() {
@@ -140,8 +115,10 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
             Err(err) => {
                 // Print error then retry to parse as binary GPMF file
                 println!("(!) Failed to merge GPMF: {err}");
-                println!("--> Retrying specified file as raw GPMF-track...");
-                Gpmf::from_raw(&path, debug)?
+                println!("--> Retrying specified file as raw GPMF-track (max file size {})...",
+                    Units::from(max_raw_size)
+                );
+                Gpmf::from_raw(&path, Some(max_raw_size), debug)?
             }
         };
 
@@ -151,30 +128,33 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
             if debug { ", debug parse" } else { "" }
         );
     } else {
-        let gopro_file = match GoProFile::new(&path) {
-            Ok(gp) => gp,
-            Err(err) => {
-                let msg = format!("(!) Failed to read MP4: {err}");
-                return Err(std::io::Error::new(ErrorKind::Other, msg));
-            }
-        };
-        gpmf = match gopro_file.gpmf() {
-            Ok(g) => g,
-            Err(err) => {
-                println!("(!) Failed to extract GPMF: {err}");
-                println!("--> Retrying as raw GPMF-track...");
-                Gpmf::from_raw(&path, debug)?
+        gpmf = match GoProFile::new(&path) {
+            Ok(gp) => match gp.gpmf() {
+                    Ok(g) => g,
+                    Err(err) => {
+                        let msg = format!("(!) Failed to extract GPMF: {err}");
+                        return Err(std::io::Error::new(ErrorKind::Other, msg));
+                    }
+                },
+            Err(_err) => {
+                println!("Not an MP4, reading as raw GPMF-track (at most {})...",
+                    Units::from(max_raw_size)
+                );
+                match Gpmf::from_raw(&path, Some(max_raw_size), debug) {
+                    Ok(g) => g,
+                    Err(err) => {
+                        let msg = format!("(!) Failed to extract GPMF: {err}");
+                        return Err(std::io::Error::new(ErrorKind::Other, msg));
+                    },
+                }
             }
         };
     }
 
     let size = gpmf.len();
+    println!("Extracted {} streams", size);
     let mut gps = gpmf.gps();
-    let pruned_len = if let Some(fix) = min_gps_fix {
-        gps.prune_mut(*fix, max_dilution)
-    } else {
-        0
-    };
+    let pruned_len = gps.prune_mut(min_fix, max_dop);
 
     if print_gps {
         let mut csv: Vec<String> = vec![
@@ -213,7 +193,7 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
         if save_csv {
             // Re-use and filename from e.g. GH010006.MP4 to GH010006_GPS,csv
             // !!! TODO change affix_file_name to return Option<PathBuf> to avoid overwriting
-            let csv_path = affix_file_name(&path, None, Some("_GPS"), Some("csv"));
+            let csv_path = affix_file_name(&path, None, Some("_GPS"), Some("csv"), None);
             let mut csv_file = File::create(&csv_path)?;
             csv_file.write_all(csv.join("\n").as_bytes())?;
             println!("Wrote {}", csv_path.display());
@@ -221,18 +201,28 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
 
         println!("---");
         println!("Points: {}", gps.len());
-        if min_gps_fix.is_none() {
+        if min_fix.is_none() && max_dop.is_none() {
             println!("Showing all points, including those with no satellite lock.")
         } else {
-            let lock = match min_gps_fix {
+            let lock = match min_fix {
                 Some(0) | None => "No lock",
                 Some(2) => "2D lock",
                 Some(3) => "3D lock",
                 Some(_) => "Invalid value, must be one of 0, 2, 3.",
             };
+            let dop = match max_dop {
+                Some(x) => {
+                    if x.is_sign_negative() {
+                        "Invalid value: {x}. DOP must be positive."
+                    } else {
+                        &format!("> {x}")
+                    }
+                },
+                None => "No threshold set",
+            };
             println!(
-                "{} points pruned due to bad satellite lock (< {} = {})",
-                pruned_len, min_gps_fix.unwrap_or(&0), lock
+                "{} points pruned due to bad satellite lock (< {} = {}) and/or high dilution of precision ({})",
+                pruned_len, min_fix.unwrap_or(0), lock, dop
             )
         }
         println!("---");
@@ -287,7 +277,7 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
 
         if save_csv {
             // Re-use and filename from e.g. GH010006.MP4 to GH010006_GPS,csv
-            let csv_path = affix_file_name(&path, None, Some(&format!("_{}", sensor)), Some("csv"));
+            let csv_path = affix_file_name(&path, None, Some(&format!("_{}", sensor)), Some("csv"), None);
             let mut csv_file = File::create(&csv_path)?;
             csv_file.write_all(csv.join("\n").as_bytes())?;
             println!("Wrote {}", csv_path.display());
@@ -317,7 +307,7 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
 
         // Generate KML and save to disk
         if save_kml {
-            let kml_path = affix_file_name(&path, None, Some("_points"), Some("kml"));
+            let kml_path = affix_file_name(&path, None, Some("_points"), Some("kml"), None);
             match cluster.write_kml(indexed_kml, &kml_path) {
                 Ok(true) => println!("Wrote {}", kml_path.display()),
                 Ok(false) => println!("Aborted writing KML-file"),
@@ -330,7 +320,7 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
 
         // Generate GeiJSON and save to disk
         if save_json {
-            let geojson_path = affix_file_name(&path, None, Some("_points"), Some("json"));
+            let geojson_path = affix_file_name(&path, None, Some("_points"), Some("json"), None);
             match cluster.write_json(indexed_kml, &geojson_path) {
                 Ok(true) => println!("Wrote {}", geojson_path.display()),
                 Ok(false) => println!("Aborted writing GeoJSON-file"),
@@ -347,7 +337,7 @@ pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
     for name in &gpmf.types() {
         println!("    {name}");
     }
-    match (gps.t0_as_string(min_gps_fix.copied()), gps.t_last_as_string()) {
+    match (gps.t0_as_string(min_fix), gps.t_last_as_string()) {
         (Some(t1), Some(t2)) => println!("  Start time:       {t1}\n  End time:         {t2}"),
         _ => (),
     }

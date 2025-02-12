@@ -2,7 +2,7 @@ use std::process::Command;
 fn main() {
     // Compile full manual asciidoc -> pdf, html+txt
     // geoelan only bundles the pdf + txt
-    println!("cargo:rerun-if-changed=../doc/");
+    // println!("cargo:rerun-if-changed=../doc/");
 
     // 1. MD -> TXT, pandoc concatenate from ../doc/markdown:
     //    pandoc --defaults ../doc/pandoc/include.yaml -f gfm -t plain -o ../doc/txt/geoelan.txt

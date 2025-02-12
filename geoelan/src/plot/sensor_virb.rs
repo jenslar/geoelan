@@ -1,14 +1,14 @@
 use std::{io::ErrorKind, path::PathBuf};
 
 use fit_rs::{Fit, SensorType};
-use plotly::{common::Title, Scatter, Trace};
+use plotly::{common::Title, layout::Shape, Scatter, Trace};
 
 use crate::files::virb::select_session;
 
 pub(crate) fn sensor2plot(
     args: &clap::ArgMatches,
 // ) -> std::io::Result<(Title, Title, Title, Vec<Box<Scatter<f64, f64>>>)> {
-) -> std::io::Result<(Title, Title, Title, Vec<Box<dyn Trace>>)> {
+) -> std::io::Result<(Title, Title, Title, Vec<Box<dyn Trace>>, Option<Shape>)> {
     let path = args.get_one::<PathBuf>("fit").unwrap();
     let y_axis = args.get_one::<String>("y-axis").unwrap(); // sensor type, required arg
     let x_axis = args.get_one::<String>("x-axis"); // optional, default to counts/index
@@ -139,5 +139,6 @@ pub(crate) fn sensor2plot(
                 .text(&y_axis_units),
             Scatter::new(x_axis, y_axis_z).name("z").text(&y_axis_units),
         ],
+        None
     ));
 }

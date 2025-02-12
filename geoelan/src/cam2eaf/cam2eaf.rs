@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     elan::generate_eaf,
-    files::writefile,
+    files::{confirm, writefile},
     geo::{EafPoint, EafPointCluster},
     media::Media,
 };
@@ -27,8 +27,34 @@ pub fn run(
         };
         p.canonicalize()?
     };
-    let low_res_only = *args.get_one::<bool>("low-res-only").unwrap();
-    let link_high_res = *args.get_one::<bool>("link-high-res").unwrap();
+
+    let mut low_res_only = *args.get_one::<bool>("low-res-only").unwrap();
+    let mut link_high_res = *args.get_one::<bool>("link-high-res").unwrap();
+
+    if session_hi.len() != session_lo.len() {
+        println!("(!) High and low-resolution clips vary in number.");
+        println!("      High-resolution clips: {}", session_hi.len());
+        for (i, clip) in session_hi.iter().enumerate() {
+            println!("      {:2}. {}", i + 1, clip.display());
+        }
+        println!("      Low-resolution clips:  {}", session_lo.len());
+        for (i, clip) in session_lo.iter().enumerate() {
+            println!("      {:2}. {}", i + 1, clip.display());
+        }
+
+        if !confirm("Continue anyway?")? {
+            let msg = "Aborted by user.";
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
+        };
+
+        if session_hi.len() > session_lo.len() && !link_high_res {
+            link_high_res = confirm("There are more high-res clips than low-res clips. Link high-res clips?")?;
+            if link_high_res {
+                low_res_only = false;
+            }
+        }
+    }
+
     let geotier = *args.get_one::<bool>("geotier").unwrap();
     let dryrun = *args.get_one::<bool>("dryrun").unwrap();
 

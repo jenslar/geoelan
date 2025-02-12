@@ -125,7 +125,7 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
                 if save_csv {
                     // Re-use and filename from e.g. GH010006.MP4 to GH010006_GPS,csv
                     // !!! TODO change affix_file_name to return Option<PathBuf> to avoid overwriting
-                    let csv_path = affix_file_name(&path, None, Some("_GPS"), Some("csv"));
+                    let csv_path = affix_file_name(&path, None, Some("_GPS"), Some("csv"), None);
                     let mut csv_file = File::create(&csv_path)?;
                     csv_file.write_all(csv.join("\n").as_bytes())?;
                     println!("Wrote {}", csv_path.display());
@@ -145,7 +145,7 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
                 if save_kml {
                     let kml_doc =
                         EafPointCluster::new(&downsampled_points, None).to_kml_string(indexed_kml);
-                    let kml_path = affix_file_name(&path, None, Some("_points"), Some("kml"));
+                    let kml_path = affix_file_name(&path, None, Some("_points"), Some("kml"), None);
                     match writefile(&kml_doc.as_bytes(), &kml_path) {
                         Ok(true) => println!("Wrote {}", kml_path.display()),
                         Ok(false) => println!("User aborted writing KML-file"),
@@ -158,7 +158,7 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
                     let geojson_doc =
                         EafPointCluster::new(&downsampled_points, None).to_json_string(indexed_kml);
                     let geojson_path =
-                        affix_file_name(&path, None, Some("points"), Some("json"));
+                        affix_file_name(&path, None, Some("points"), Some("json"), None);
                     match writefile(&geojson_doc.as_bytes(), &geojson_path) {
                         Ok(true) => println!("Wrote {}", geojson_path.display()),
                         Ok(false) => println!("User aborted writing GeoJSON-file"),

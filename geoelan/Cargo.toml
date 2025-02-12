@@ -1,26 +1,24 @@
 [package]
 name = "geoelan"
-version = "2.7.0"
+version = "2.7.5"
 authors = ["Jens Larsson <jens.dev@fastmail.com>"]
 description = "GeoELAN is a command-line tool for annotating GoPro/Garmin VIRB GPS logs using ELAN"
 edition = "2021"
+license = "Apache-2.0"
 repository = "https://github.com/jenslar/geoelan"
 keywords = ["elan", "gopro", "virb", "action camera", "annotation", "geo", "gps"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-clap = {version = "4.5", features = ["wrap_help"]}
-time = "0.3.35"
+clap = {version = "4.5.27", features = ["wrap_help"]}
+time = "0.3.37"
 geojson = {version = "0.24", features = ["geo-types"]}
-serde_json = "1.0.127"
+serde_json = "1.0.137"
 kml = "0.8.5"
 walkdir = "2"
-rand = "0.8.5"
+rand = "0.9.0"
 regex = "1.10"
-plotly = {version = "0.10", features = ["plotly_embed_js"]}
+plotly = {version = "0.12.1", features = ["plotly_embed_js", "kaleido"]}
 fit-rs = {git = "https://github.com/jenslar/fit-rs.git"}
 gpmf-rs = {git = "https://github.com/jenslar/gpmf-rs.git"}
 eaf-rs = {git = "https://github.com/jenslar/eaf-rs.git"}
 mp4iter = {git = "https://github.com/jenslar/mp4iter.git"}
-leaflet = "0.4"

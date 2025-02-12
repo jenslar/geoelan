@@ -36,7 +36,7 @@ pub fn generate_eaf(
             let t = point
                 .timestamp
                 .to_owned()
-                .expect("(!) No relative timestamp for point");
+                .expect(&format!("(!) No relative timestamp for point {}", i+1));
             let mut ts_val1 = t.whole_milliseconds() as i64; // i128 -> i64: i64::MAX = ca 1100hrs so should be ok for video
                                                              // VIRB only (?): FIT-start time is relative to FIT-file start, not session start
                                                              //                Need to substract from each EAF time slot.

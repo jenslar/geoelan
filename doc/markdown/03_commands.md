@@ -15,7 +15,7 @@ The most relevant commands are probably `cam2eaf` and `eaf2geo`. `locate` is the
 
 > Note that some parameters in the following sections may only be valid for e.g. GoPro cameras, not VIRB, and vice versa. The description column will be prefixed \[GoPro\] or \[VIRB\] to denote this.
 
-### Set GoPro satellite lock (`--gpsfix`) and dilution of position (`--gpsdop`) thresholds
+### Set GoPro satellite lock (`--gpsfix`) and dilution of precision (`--gpsdop`) thresholdsldosfhds
 
 GoPro cameras log how well they can see satellites. If none is in line of sight, dummy coordinates will be logged. GeoELAN will ignore these by default, and for `cam2eaf` a '3D lock' (altitude is included) is the default. In cases where only 2D lock could be achieved, one can manually set minimum "lock level" via `--gpsfix`. Valid values are `0` (no lock), `2` (2D lock), and `3` (3D lock). Setting to `0` will result in unusable data for `eaf2geo` if most coordinates are bad.
 

@@ -27,22 +27,16 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     let video = args.get_one::<PathBuf>("video");
     let verify_gpmf = *args.get_one::<bool>("verify").unwrap();
     let verbose = *args.get_one::<bool>("verbose").unwrap();
-    let halt_on_error = *args.get_one::<bool>("halt-on-error").unwrap();
+    let ignore_errors = *args.get_one::<bool>("ignore-errors").unwrap();
 
     let mut sessions = GoProSession::sessions_from_path(
         &indir,
         video.map(|p| p.as_path()),
         verify_gpmf,
         true,
-        !halt_on_error,
+        !ignore_errors,
     )?;
-    // let sessions = GoProSession::sessions_from_path_par(
-    //     &indir,
-    //     video.map(|p| p.as_path()),
-    //     verify_gpmf,
-    //     true,
-    //     Some(path2string),
-    // );
+
     sessions.sort_by_key(|s| s.start().unwrap_or(GOPRO_DATETIME_DEFAULT)); // Add this to sessions_from_path instead
 
     println!("---");
@@ -76,7 +70,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                     file.first_frame().to_string()
                 );
                 println!(
-                    "┃     MP4: {}",
+                    "┃     HI: {}",
                     file.mp4
                         .as_ref()
                         .and_then(|f| f.to_str())
@@ -84,7 +78,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 );
             } else {
                 println!(
-                    "┃{:2}.  MP4: {}",
+                    "┃{:2}.  HI: {}",
                     i2 + 1,
                     file.mp4
                         .as_ref()
@@ -93,7 +87,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 );
             }
             println!(
-                "┃     LRV: {}",
+                "┃     LO: {}",
                 file.lrv
                     .as_ref()
                     .and_then(|f| f.to_str())
@@ -112,7 +106,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
             " Run with '--verify' to skip clips with GPMF errors."
         }
     );
-    println!("Sessions are sorted by time for start of recording, but may be misreprepresentative, depending on camera setup.");
+    println!("Sessions sorted by start time of recording. May be misreprepresentative, depending on device.");
 
     Ok(())
 }
