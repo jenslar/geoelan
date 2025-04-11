@@ -18,7 +18,7 @@ mod model;
 mod plot;
 mod text;
 
-const VERSION: &'static str = "2.7.5";
+const VERSION: &'static str = "2.7.6";
 const AUTHOR: &'static str = "Jens Larsson";
 const REPO: &'static str = "https://github.com/jenslar/geoelan";
 

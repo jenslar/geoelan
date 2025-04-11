@@ -1,4 +1,4 @@
-GeoELAN v2.7.5 2025-02-12
+GeoELAN v2.7.6 2025-04-11
 
 Important:
 
@@ -21,25 +21,22 @@ GPS logs with the help of the free annotation tool ELAN.
 
 Requirements:
 
--   GoPro Hero 5 Black - GoPro Hero 11 Black, Hero 13 Black (Hero 12
-    Black is not supported, but some data can still be inspected and
-    plotted)
--   Garmin VIRB
--   FFmpeg (in PATH preferred, but custom path can also be set when
-    running GeoELAN)
+- GoPro Hero 5 Black - GoPro Hero 11 Black, Hero 13 Black (Hero 12 Black
+  is not supported, but some data can still be inspected and plotted)
+- Garmin VIRB
+- FFmpeg (in PATH preferred, but custom path can also be set when
+  running GeoELAN)
 
   GeoELAN is multi-functional command-line tool that can
 
-  -   geo-reference ELAN-annotations of GoPro and VIRB footage (i.e.
-      annotate GPS logs) and generate annotated points, lines, or
-      circles.
-  -   inspect the raw content of your GoPro GPMF data, or Garmin
-      FIT-files.
-  -   locate and match all relevant files belonging to the same
-      recording session irrespective of file name (clips,
-      telemetry-files).
-  -   automatically join clips (requires FFmpeg) for a specific
-      recording session, and generate an ELAN-file with linked media.
+  - geo-reference ELAN-annotations of GoPro and VIRB footage (i.e.
+    annotate GPS logs) and generate annotated points, lines, or circles.
+  - inspect the raw content of your GoPro GPMF data, or Garmin
+    FIT-files.
+  - locate and match all relevant files belonging to the same recording
+    session irrespective of file name (clips, telemetry-files).
+  - automatically join clips (requires FFmpeg) for a specific recording
+    session, and generate an ELAN-file with linked media.
 
 Any ELAN annotation - be it an on-site utterance, or a plant in view -
 can be geo-referenced as long as the GPS logged coordinates within the
@@ -80,22 +77,21 @@ Social Research Methodology, 24:1, 1-13, DOI:
 
 Requirements
 
--   An action camera with a built-in GPS. Supported devices are:
-    -   GoPro Hero Black 5 - Hero 11 Black, Hero 13 Black. (Hero 12
-        Black is not supported. Max, and Fusion cameras have not been
-        tested)
-    -   Garmin VIRB Ultra 30 (documentation) (discontinued)
--   ELAN (documentation)
--   FFmpeg (for concatenating video)
--   Rust toolchain (optional, only required for compiling GeoELAN from
-    source)
+- An action camera with a built-in GPS. Supported devices are:
+  - GoPro Hero Black 5 - Hero 11 Black, Hero 13 Black. (Hero 12 Black is
+    not supported. Max, and Fusion cameras have not been tested)
+  - Garmin VIRB Ultra 30 (documentation) (discontinued)
+- ELAN (documentation)
+- FFmpeg (for concatenating video)
+- Rust toolchain (optional, only required for compiling GeoELAN from
+  source)
 
 Installation
 
--   Download the zip-file from https://github.com/jenslar/geoelan or use
-    git clone https://github.com/jenslar/geoelan.git.
--   See the bin directory for pre-compiled executables for Linux, macOS,
-    and Windows.
+- Download the zip-file from https://github.com/jenslar/geoelan or use
+  git clone https://github.com/jenslar/geoelan.git.
+- See the bin directory for pre-compiled executables for Linux, macOS,
+  and Windows.
 
 Compile and install from source
 
@@ -113,40 +109,39 @@ Before you start
 
 Practical advice
 
--   Keep the original files. GeoELAN can only use unedited files, since
-    these contain all telemetry (GPS log, sensor data etc), and
-    identifiers used for synchronisation.
-    -   Pre-maturely converting videos will discard both telemetry and
-        identifiers, which means there is no data for GeoELAN to work
-        with.
-    -   Low-resolution clips have a .LRV extension for GoPro, and .GLV
-        for VIRB (these are normal MP4-files).
-    -   GeoELAN will automaticall use low-resolution clips for linking
-        in ELAN. Run geoelan cam2eaf --link-high-res to link
-        high-resolution video instead.
--   You can rename files. GeoELAN does not use file name when matching
-    files as long as the file extension for video is either .MP4, .LRV,
-    or .GLV (case ignored).
--   Data locations:
-    -   GoPro: All telemetry is embedded inside the MP4-files.
-    -   VIRB: All telemetry, such as the GPS-log, is stored as a
-        separate FIT-file.
-    -   Keep all files on the microSD unless you are absolutely certain
-        which files are relevant.
+- Keep the original files. GeoELAN can only use unedited files, since
+  these contain all telemetry (GPS log, sensor data etc), and
+  identifiers used for synchronisation.
+  - Pre-maturely converting videos will discard both telemetry and
+    identifiers, which means there is no data for GeoELAN to work with.
+  - Low-resolution clips have a .LRV extension for GoPro, and .GLV for
+    VIRB (these are normal MP4-files).
+  - GeoELAN will automaticall use low-resolution clips for linking in
+    ELAN. Run geoelan cam2eaf --link-high-res to link high-resolution
+    video instead.
+- You can rename files. GeoELAN does not use file name when matching
+  files as long as the file extension for video is either .MP4, .LRV, or
+  .GLV (case ignored).
+- Data locations:
+  - GoPro: All telemetry is embedded inside the MP4-files.
+  - VIRB: All telemetry, such as the GPS-log, is stored as a separate
+    FIT-file.
+  - Keep all files on the microSD unless you are absolutely certain
+    which files are relevant.
 
 Running GeoELAN
 
--   GeoELAN is a command line tool and has no graphical user interface.
--   FFmpeg is required to concatenate clips. (cam2eaf)
--   If you use macOS and GeoELAN does not run, see
-    https://support.apple.com/en-us/HT202491.
+- GeoELAN is a command line tool and has no graphical user interface.
+- FFmpeg is required to concatenate clips. (cam2eaf)
+- If you use macOS and GeoELAN does not run, see
+  https://support.apple.com/en-us/HT202491.
 
 Device compatibility
 
--   GoPro: Only "main line" Hero cameras with GPS have been tested, but
-    Max and Fusion cameras may still work.
--   Garmin: Only VIRB Ultra 30 has been tested extensively, but earlier
-    VIRB models may still work.
+- GoPro: Only "main line" Hero cameras with GPS have been tested, but
+  Max and Fusion cameras may still work.
+- Garmin: Only VIRB Ultra 30 has been tested extensively, but earlier
+  VIRB models may still work.
 
 GPS
 
@@ -156,11 +151,11 @@ the camera for a while or have traveled far between uses.
 
 Verifying a satellite lock:
 
--   For VIRB, the GPS-icon should be steady, not blinking (it may log
-    coordinates while the icon is still blinking, but do not rely on
-    this being the norm).
--   For GoPro, the GPS-icon should be white, not gray. The icon only
-    shows under settings, not on the main screen.
+- For VIRB, the GPS-icon should be steady, not blinking (it may log
+  coordinates while the icon is still blinking, but do not rely on this
+  being the norm).
+- For GoPro, the GPS-icon should be white, not gray. The icon only shows
+  under settings, not on the main screen.
 
   It may be difficult to acquire a satellite lock and/or reliably log
   position in areas with heavy overhead vegetation or dense cities with
@@ -169,23 +164,23 @@ Verifying a satellite lock:
 
 GPS logging behaviour:
 
--   GoPro logs dummy coordinates if no lock has been acquired. GeoELAN
-    will not use these.
-    -   Verify lock by running:
-        geoelan inspect --gpmf PATH/TO/GOPRO.MP4 --gps which will list
-        number of bad points.
--   VIRB seems not to log position at all until a satellite lock has
-    been acquired.
+- GoPro logs dummy coordinates if no lock has been acquired. GeoELAN
+  will not use these.
+  - Verify lock by running:
+    geoelan inspect --gpmf PATH/TO/GOPRO.MP4 --gps which will list
+    number of bad points.
+- VIRB seems not to log position at all until a satellite lock has been
+  acquired.
 
 Annotating in ELAN
 
--   It is best to limit each kind of observed phenomena you wish to
-    geo-reference to a single ELAN-tier, so...
--   ...to keep e.g. place names and plant sightings within the same
-    ELAN-file, make a separate tier for each (see the example
-    walkthrough in the next section). Then you can just re-run GeoELAN
-    on the same ELAN-file and select another tier to geo-reference along
-    with changing other output options as required.
+- It is best to limit each kind of observed phenomena you wish to
+  geo-reference to a single ELAN-tier, so...
+- ...to keep e.g. place names and plant sightings within the same
+  ELAN-file, make a separate tier for each (see the example walkthrough
+  in the next section). Then you can just re-run GeoELAN on the same
+  ELAN-file and select another tier to geo-reference along with changing
+  other output options as required.
 
 Example walkthrough
 
@@ -212,19 +207,19 @@ The basic steps are:
 Input files (example file names, naming convention may differ sligtly
 depending on model):
 
--   GoPro:
-    -   GH010026.MP4, any clip in a recording session (remaining clips
-        located automatically)
--   VIRB:
-    -   VIRB0001-1.MP4, any clip in a recording session (remaining clips
-        located automatically)
-    -   FIT-file with corresponding GPS-data (located automatically)
+- GoPro:
+  - GH010026.MP4, any clip in a recording session (remaining clips
+    located automatically)
+- VIRB:
+  - VIRB0001-1.MP4, any clip in a recording session (remaining clips
+    located automatically)
+  - FIT-file with corresponding GPS-data (located automatically)
 
 Output files:
 
--   GoPro + VIRB:
-    -   KML and GeoJSON files with ELAN annotation content synchronised
-        and mapped to the corresponding points as descriptions.
+- GoPro + VIRB:
+  - KML and GeoJSON files with ELAN annotation content synchronised and
+    mapped to the corresponding points as descriptions.
 
 Step 1/3: Generate an ELAN-file with linked media files
 
@@ -315,10 +310,10 @@ each kind.
 
   Points could concern documenting:
 
-  -   the location of a plant or a geographical feature, e.g. annotate
-      the timespan either is visible in the video.
-  -   an uttered place name or an animal cry, e.g. annotate the timespan
-      of the on-site utterance or cry.
+  - the location of a plant or a geographical feature, e.g. annotate the
+    timespan either is visible in the video.
+  - an uttered place name or an animal cry, e.g. annotate the timespan
+    of the on-site utterance or cry.
 
   For these specific cases, the exact time spans of the annotations are
   not that important. It should be enough to ensure the annotation lasts
@@ -331,15 +326,15 @@ each kind.
 
   Lines could concern documenting:
 
-  -   various types of movement through the landscape. To annotate the
-      movement of "walking up-hill" as it is observed visually in the
-      recording, set the annotation's start time at the bottom of the
-      hill and its end at the top, or for as long as the motion can be
-      observed.
-  -   a narrative reflecting on the immediate surroundings as they
-      change over time. E.g. comments on visible landscape features, or
-      perhaps the re-construction of an historical event as it unfolded
-      over space and time.
+  - various types of movement through the landscape. To annotate the
+    movement of "walking up-hill" as it is observed visually in the
+    recording, set the annotation's start time at the bottom of the hill
+    and its end at the top, or for as long as the motion can be
+    observed.
+  - a narrative reflecting on the immediate surroundings as they change
+    over time. E.g. comments on visible landscape features, or perhaps
+    the re-construction of an historical event as it unfolded over space
+    and time.
 
 Step 3/3: Generate a KML-file from geo-referenced ELAN annotations
 
@@ -353,16 +348,16 @@ your annotated phenomena. Here are suggestions for the examples in step
 
   Points:
 
-  -   the location of a plant or a geographical feature
-  -   an uttered place name or an animal cry
+  - the location of a plant or a geographical feature
+  - an uttered place name or an animal cry
 
   To get a single, average coordinate for each annotation, use the
   --geoshape point-single option.
 
   Lines:
 
-  -   types of movement through the landscape
-  -   narrative reflecting on the immediate surroundings
+  - types of movement through the landscape
+  - narrative reflecting on the immediate surroundings
 
   Two line options may apply to the above. To get a continuous polyline
   alternating between marked (annotated) and unmarked (un-annotated)
@@ -534,10 +529,10 @@ command and complain accordingly if it is not.
 
 cam2eaf
 
-  -   Command/alias: cam2eaf / c2e
-  -   Help: geoelan cam2eaf --help
-  -   Basic usage:
-      geoelan cam2eaf --indir INDIR/ --video GH010006.MP4 --outdir OUTDIR/
+  - Command/alias: cam2eaf / c2e
+  - Help: geoelan cam2eaf --help
+  - Basic usage:
+    geoelan cam2eaf --indir INDIR/ --video GH010006.MP4 --outdir OUTDIR/
 
 cam2eaf generates an ELAN-file with pre-linked media files. All clips in
 the specified recording session will be automatically located, grouped,
@@ -637,10 +632,10 @@ OUTDIR/ (-o).
 
 eaf2geo
 
-  -   Command/alias: eaf2geo / e2g
-  -   Help: geoelan eaf2geo --help
-  -   Basic usage:
-      geoelan eaf2geo --eaf VIRB0001-1.eaf --fit 2017-01-28-05-16-40.fit
+  - Command/alias: eaf2geo / e2g
+  - Help: geoelan eaf2geo --help
+  - Basic usage:
+    geoelan eaf2geo --eaf VIRB0001-1.eaf --fit 2017-01-28-05-16-40.fit
 
 eaf2geo generates KML and GeoJSON files by geo-referencing all
 annotations in the specified tier. The user is presented with a list of
@@ -714,9 +709,9 @@ presentations.
 
 locate
 
-  -   Command/alias: locate / l
-  -   Help: geoelan locate --help
-  -   Basic usage: geoelan locate --indir INDIR/ --kind gopro
+  - Command/alias: locate / l
+  - Help: geoelan locate --help
+  - Basic usage: geoelan locate --indir INDIR/ --kind gopro
 
 locate will locate and match original GoPro and VIRB clips in the input
 folder. For VIRB, corresponding FIT-file/s will also be located. By
@@ -767,12 +762,12 @@ VIRB0001-1.MP4 (-v) together with the corresponding FIT-file.
 
 inspect
 
-  -   Command/alias: inspect / i
-  -   Help: geoelan inspect --help
-  -   Basic usage:
-      -   GoPro: geoelan inspect --gpmf GH010026.MP4
-      -   VIRB: geoelan inspect --fit 2017-01-28-05-16-40.fit
-      -   MP4: geoelan inspect --video VideoFile.MP4
+  - Command/alias: inspect / i
+  - Help: geoelan inspect --help
+  - Basic usage:
+    - GoPro: geoelan inspect --gpmf GH010026.MP4
+    - VIRB: geoelan inspect --fit 2017-01-28-05-16-40.fit
+    - MP4: geoelan inspect --video VideoFile.MP4
 
 inspect can print telemetry contents of a GoPro MP4 or a Garmin
 FIT-file. Options include filtering to a sub-set of the telemetry, such
@@ -1048,13 +1043,13 @@ List atom structure in any MP4 file:
 
 plot
 
-  -   Command/alias: plot / p
-  -   Help: geoelan plot --help
-  -   Basic usage:
-      -   GoPro:
-          geoelan plot --gpmf GH010026.MP4 --y-axis accelerometer --x-axis time
-      -   VIRB:
-          geoelan plot --fit 2017-01-28-05-16-40.fit --y-axis accelerometer --x-axis time
+  - Command/alias: plot / p
+  - Help: geoelan plot --help
+  - Basic usage:
+    - GoPro:
+      geoelan plot --gpmf GH010026.MP4 --y-axis accelerometer --x-axis time
+    - VIRB:
+      geoelan plot --fit 2017-01-28-05-16-40.fit --y-axis accelerometer --x-axis time
 
 plot can plot some of the telemetry in a semi-interactive web view, such
 as sensor data (accelerometer, gyroscope over time or sample count), and
@@ -1082,30 +1077,30 @@ Options:
 
 Possible Y-axis values:
 
--   acc, accelerometer
--   gyr, gyroscope
--   grv, gravity
--   bar, barometer
--   mag, magnetometer
--   lat, latitude
--   lon, longitude
--   alt, altitude
--   s2d, speed2d
--   s3d, speed3d (scalar only)
--   dop, dilution (dilution of precision)
--   fix, gpsfix (satellite lock level)
+- acc, accelerometer
+- gyr, gyroscope
+- grv, gravity
+- bar, barometer
+- mag, magnetometer
+- lat, latitude
+- lon, longitude
+- alt, altitude
+- s2d, speed2d
+- s3d, speed3d (scalar only)
+- dop, dilution (dilution of precision)
+- fix, gpsfix (satellite lock level)
 
 Possible X-axis value:
 
--   c, count
--   t, time
--   dst, distance
+- c, count
+- t, time
+- dst, distance
 
 manual
 
-  -   Command/alias: manual / m
-  -   Help: geoelan manual --help
-  -   Basic usage: geoelan manual --pdf
+  - Command/alias: manual / m
+  - Help: geoelan manual --help
+  - Basic usage: geoelan manual --pdf
 
 manual exports or prints the contents of this file to screen, bute the
 full PDF-manual is also embedded within the compiled executable for
@@ -1162,10 +1157,10 @@ Support for GPMF (GoPro) and FIT (VIRB) formats were written from
 scratch for GeoELAN with the help of the official documentation for both
 formats.
 
--   Garmin FIT development kit and documentation:
-    https://developer.garmin.com/fit/
--   GoPro GPMF documentation and example code:
-    https://github.com/gopro/gpmf-parser
+- Garmin FIT development kit and documentation:
+  https://developer.garmin.com/fit/
+- GoPro GPMF documentation and example code:
+  https://github.com/gopro/gpmf-parser
 
 GoPro
 
@@ -1378,9 +1373,9 @@ similar to multi-track audio editors.
 The ELAN Annotation Format is XML-based which makes it both
 human-readable and fairly straightforward to parse.
 
--   Download (Windows, macOS, Linux):
-    https://archive.mpi.nl/tla/elan/download
--   Documentation: https://archive.mpi.nl/tla/elan/documentation
+- Download (Windows, macOS, Linux):
+  https://archive.mpi.nl/tla/elan/download
+- Documentation: https://archive.mpi.nl/tla/elan/documentation
 
 GeoELAN Rust crates
 
@@ -1393,21 +1388,21 @@ Cargo.toml (see the respective repository URLs).
 
 Crates were developed for GeoELAN:
 
--   eaf-rs
-    -   Read, write, and process EAF-files. Uses quick-xml and its
-        serialization support via serde.
-    -   Repository: https://github.com/jenslar/eaf-rs
--   gpmf-rs:
-    -   Read GoPro MP/GPMF-files.
-    -   Repository: https://github.com/jenslar/gpmf-rs
--   fit-rs:
-    -   Read Garmin FIT-files. Supports custom developer messages.
-    -   Repository: https://github.com/jenslar/fit-rs
--   mp4iter:
-    -   Crate to find tracks, move around, find sections, and read
-        values in an MP4 file (does not and will not support any kind of
-        media en/decoding).
-    -   Repository: https://github.com/jenslar/mp4iter
+- eaf-rs
+  - Read, write, and process EAF-files. Uses quick-xml and its
+    serialization support via serde.
+  - Repository: https://github.com/jenslar/eaf-rs
+- gpmf-rs:
+  - Read GoPro MP/GPMF-files.
+  - Repository: https://github.com/jenslar/gpmf-rs
+- fit-rs:
+  - Read Garmin FIT-files. Supports custom developer messages.
+  - Repository: https://github.com/jenslar/fit-rs
+- mp4iter:
+  - Crate to find tracks, move around, find sections, and read values in
+    an MP4 file (does not and will not support any kind of media
+    en/decoding).
+  - Repository: https://github.com/jenslar/mp4iter
 
 Data extracted with both gpmf-rs and fit-rs will mostly require further
 processing. Support for this is built-in for some data types (e.g. GPS

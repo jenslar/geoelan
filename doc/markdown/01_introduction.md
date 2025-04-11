@@ -1,4 +1,4 @@
-**GeoELAN v2.7.5 2025-02-12**
+**GeoELAN v2.7.6 2025-04-11**
 
 **Important:**
 > **GoPro Hero 12 Black is not supported** since it does not have a GPS module.

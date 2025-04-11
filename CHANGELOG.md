@@ -1,3 +1,7 @@
+# GeoELAN 2.7.6
+- FIX \[GOPRO\] Bump `gpmf-rs` crate (skips MP4/LRV-files with filenames that start with `._`.)
+- Bump crate versions.
+
 # GeoELAN 2.7.5
 - NEW `plot`: export the plot to HTML, PNG, SVG files (`--export PATH`).
 - NEW [\GOPRO\] `plot`: added static line representing ideal thresholds to dilution of precision (`--dilution-of-precision`, below 5 = good precision) and GPS satellite lock level (`--gpsfix`, 3 = 3D fix).
