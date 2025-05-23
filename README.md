@@ -1,4 +1,4 @@
-**GeoELAN v2.7.7 2025-05-18**
+**GeoELAN v2.7.7 2025-05-23**
 
 > **Important:**
 > - **GoPro Hero 12 Black does not have a GPS module and is not supported**. GoPro Hero 13 Black once again has a GPS and should be compatible.
