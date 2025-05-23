@@ -17,7 +17,11 @@ The most relevant commands are probably `cam2eaf` and `eaf2geo`. `locate` is the
 
 ### Set GoPro satellite lock (`--gpsfix`) and dilution of precision (`--gpsdop`) thresholdsldosfhds
 
-GoPro cameras log how well they can see satellites. If none is in line of sight, dummy coordinates will be logged. GeoELAN will ignore these by default, and for `cam2eaf` a '3D lock' (altitude is included) is the default. In cases where only 2D lock could be achieved, one can manually set minimum "lock level" via `--gpsfix`. Valid values are `0` (no lock), `2` (2D lock), and `3` (3D lock). Setting to `0` will result in unusable data for `eaf2geo` if most coordinates are bad.
+GoPro cameras log how well they can see satellites.
+
+If no satellite is in line of sight, the camera will log dummy coordinates. GeoELAN will ignore these by default, and for `cam2eaf` a '3D lock' (altitude is included) is the default. In cases where only 2D lock could be achieved, one can manually set minimum "lock level" via `--gpsfix`. Valid values are `0` (no lock), `2` (2D lock), and `3` (3D lock). Setting to `0` will result in unusable data for `eaf2geo` if most coordinates are bad.
+
+Similarly, [dilution of precision](https://en.wikipedia.org/wiki/Dilution_of_precision_(navigation)) (DOP) is a value that represent how tightly clustered the satellites are. A lower value is better. Ideally, it should be below 5.0. There is no default value set, but if coordinates seem erratic, the maximum DOP value can be manually set via `--gpsdop`. E.g. perhaps try 10.0 and gradually go lower.
 
 ### Time adjustment with `--time-offset`
 

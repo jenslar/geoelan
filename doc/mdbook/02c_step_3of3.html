@@ -173,16 +173,6 @@
 <p>Two line options may apply to the above. To get a continuous polyline alternating between marked (annotated) and unmarked (un-annotated) events, use the option <code>--geoshape line-all</code>. To get a broken-up polyline representing marked events only, use the option <code>--geoshape line-multi</code>.</p>
 </blockquote>
 <p>There are other options, such as <em>circle</em> output. It is the same as point output with the difference that radius and height can be specified (all circles will have the same size). For a more detailed overview of the possibilities, see the <code>--geoshape</code> option for the command <em>eaf2geo</em>. Experiment! If you realise one representation is not appropriate after all, re-run GeoELAN with a different option.</p>
-<h3 id="virb"><a class="header" href="#virb">VIRB</a></h3>
-<p><strong>Command</strong></p>
-<pre><code class="language-sh">geoelan eaf2geo --eaf VIRB0001-1.eaf --fit 2003-01-02-12-00-00.fit --geoshape point-single
-</code></pre>
-<p><strong>Output files</strong></p>
-<pre><code>OUTDIR/VIRB0001-1/
-├── ...                              Existing files
-├── VIRB0001-1_point-single.kml      New KML-file, one point per annotation in the selected tier
-└── VIRB0001-1_point-single.geojson  New GeoJSON-file, one point per annotation in the selected tier
-</code></pre>
 <h3 id="gopro"><a class="header" href="#gopro">GoPro</a></h3>
 <p><strong>Command</strong></p>
 <pre><code class="language-sh">geoelan eaf2geo --eaf GH010026.eaf --gpmf INDIR/GH010026.MP4  --geoshape point-single
@@ -195,6 +185,16 @@
 ├── ...                            Existing files
 ├── GH010026_point-single.kml      New KML-file, one point per annotation in the selected tier
 └── GH010026_point-single.geojson  New GeoJSON-file, one point per annotation in the selected tier
+</code></pre>
+<h3 id="virb"><a class="header" href="#virb">VIRB</a></h3>
+<p><strong>Command</strong></p>
+<pre><code class="language-sh">geoelan eaf2geo --eaf VIRB0001-1.eaf --fit 2003-01-02-12-00-00.fit --geoshape point-single
+</code></pre>
+<p><strong>Output files</strong></p>
+<pre><code>OUTDIR/VIRB0001-1/
+├── ...                              Existing files
+├── VIRB0001-1_point-single.kml      New KML-file, one point per annotation in the selected tier
+└── VIRB0001-1_point-single.geojson  New GeoJSON-file, one point per annotation in the selected tier
 </code></pre>
 <h3 id="explanation-of-the-command"><a class="header" href="#explanation-of-the-command">Explanation of the command</a></h3>
 <p>The relevant sub-command is <code>eaf2geo</code>. Run <code>geoelan eaf2geo --help</code> for an overview.</p>

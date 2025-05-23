@@ -9,8 +9,8 @@ pub fn run(args: &clap::ArgMatches, gopro_session: &GoProSession) -> std::io::Re
     let time_offset = args.get_one::<isize>("time-offset").unwrap().to_owned(); // clap: has default value
     let fullgps = *args.get_one::<bool>("fullgps").unwrap();
     // let gpsfix = *args.get_one::<u32>("gpsfix").unwrap(); // defaults to 2 (2D lock)
-    let gpsfix = args.get_one::<u32>("gpsfix"); // defaults to 2 (2D lock)
-    let gpsdop = args.get_one::<f64>("gpsdop"); // defaults to 3 (3D lock)
+    let gpsfix = *args.get_one::<u32>("gpsfix").expect("Error: GPS fix should default to 3."); // defaults to 3 (3D lock)
+    let gpsdop = args.get_one::<f64>("gpsdop");
     let geotier = *args.get_one::<bool>("geotier").unwrap();
 
     // Get the GPS-data and convert to geo::point::Point:s.
@@ -26,11 +26,12 @@ pub fn run(args: &clap::ArgMatches, gopro_session: &GoProSession) -> std::io::Re
         };
         println!(" Done");
         print!(
-            "Extracting GPS data (minimum satellite lock = {}) with time offset {} hours... ",
-            gpsfix.unwrap_or(&0), time_offset
+            "Extracting GPS data with time offset {} hours... ",
+            time_offset
         );
 
         let downsample_factor =
+            // !!! device needs to check for Hero 13 Black as well
             if matches!(gopro_session.device(), Some(&DeviceName::Hero11Black)) && !fullgps {
                 // Downsample GPS9 (10Hz) depending on setting
                 10
@@ -39,7 +40,15 @@ pub fn run(args: &clap::ArgMatches, gopro_session: &GoProSession) -> std::io::Re
             };
 
         // Extract points, prune those below satellite lock threshold. Defaults to 3D lock.
-        let gps = gpmf.gps().prune(gpsfix.copied(), gpsdop.copied());
+        let gps = gpmf.gps().prune(Some(gpsfix), gpsdop.copied());
+        println!("{} points extracted with filters minimum satellite lock = {}, max DOP = {}",
+            gps.len(),
+            gpsfix,
+            gpsdop.map(|n| n.to_string()).unwrap_or("N/A".to_owned()),
+        );
+        if gps.is_empty() {
+            println!("Try lowering filters for satellite lock level, e.g. '--gpsfix 2' (2D),\nand/or raising dilution of precision, e.g. '--gpsdop 10'");
+        }
         let end = match gpmf.duration() {
             Ok(d) => d,
             Err(err) => {
@@ -49,10 +58,10 @@ pub fn run(args: &clap::ArgMatches, gopro_session: &GoProSession) -> std::io::Re
         };
 
         pointcluster = Some(if downsample_factor > 1 {
-            EafPointCluster::from_gopro(&gps.0, None, &end, Some(time_offset as i64))
+            EafPointCluster::from_gopro(gps.points(), None, &end, Some(time_offset as i64))
                 .downsample(downsample_factor, None)
         } else {
-            EafPointCluster::from_gopro(&gps.0, None, &end, Some(time_offset as i64))
+            EafPointCluster::from_gopro(gps.points(), None, &end, Some(time_offset as i64))
         });
 
         println!("OK");

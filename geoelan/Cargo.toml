@@ -1,6 +1,6 @@
 [package]
 name = "geoelan"
-version = "2.7.6"
+version = "2.7.7"
 authors = ["Jens Larsson <jens.dev@fastmail.com>"]
 description = "GeoELAN is a command-line tool for annotating GoPro/Garmin VIRB GPS logs using ELAN"
 edition = "2021"
@@ -9,11 +9,11 @@ repository = "https://github.com/jenslar/geoelan"
 keywords = ["elan", "gopro", "virb", "action camera", "annotation", "geo", "gps"]
 
 [dependencies]
-clap = {version = "4.5.35", features = ["wrap_help"]}
-time = "0.3.41"
-geojson = {version = "0.24.2", features = ["geo-types"]}
-serde_json = "1.0.140"
-kml = "0.8.5"
+clap = {version = "4.5.27", features = ["wrap_help"]}
+time = "0.3.37"
+geojson = {version = "0.24", features = ["geo-types"]}
+serde_json = "1.0.137"
+kml = "0.8.7"
 walkdir = "2"
 rand = "0.9.0"
 regex = "1.10"

@@ -42,8 +42,12 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
     println!("---");
     for (i1, session) in sessions.iter().enumerate() {
         println!(
-            "┏━[ Session {} | {} {} - {} ({}sec)]",
+            "┏━[ Session {} | {} | {} {} - {} ({}sec)]",
             i1 + 1,
+            session
+                .device()
+                .map(|d| d.to_str())
+                .unwrap_or("Unknown model"),
             session
                 .start()
                 .map(|t| t.date().to_string())

@@ -194,7 +194,7 @@ geoelan inspect --gpmf GOPROVIDEO.MP4 --json
 <p>GoPro telemetry is stored as samples, interleaved between audio and video samples (and other tracks' samples). To list the sample locations and sizes, run:</p>
 <pre><code class="language-sh">geoelan inspect --video GOPROVIDEO.MP4 --offsets "GoPro MET"
 </code></pre>
-<p><code>GoPro MET</code> is the name of the MP4 track holding GPMF data.</p>
+<p><code>GoPro MET</code> is the name of the MP4 track holding timed GPMF data.</p>
 <p>This returns a table listing the samples' byte offsets (e.g. <code>@2026761919</code>), their sizes in bytes, and durations:</p>
 <pre><code>...
 [ 359 GoPro MET/4] @2026761919 size: 7252   duration: 1s1ms
@@ -209,7 +209,7 @@ geoelan inspect --gpmf GOPROVIDEO.MP4 --json
 <p>Save all track samples as a file (similar to FFmpeg's track export):</p>
 <pre><code class="language-sh">geoelan inspect --video GOPROVIDEO.MP4 --dump "GoPro MET"
 </code></pre>
-<p>Note that the video data may be many GB in size. GeoELAN will list the total size and prompt the user before exporting.</p>
+<p>Note that the video data may be many GB in size. GeoELAN will list the total size and prompt the user before saving to disk.</p>
 <h5 id="images"><a class="header" href="#images">Images</a></h5>
 <p>Original GoPro JPEG-images can also be inspected. These will contain much less GPMF data than the MP4-files, and are currently not used elsewhere in GeoELAN's workflow. If no named data shows up in the summary, try  <code>geoelan inspect --gpmf GOPROIMAGE.JPG --verbose</code> to print the raw data. Early GoPro models do not embed GPMF data in JPEG-images.</p>
 <h4 id="garmin-fit"><a class="header" href="#garmin-fit">Garmin FIT</a></h4>

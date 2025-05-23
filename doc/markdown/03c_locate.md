@@ -28,7 +28,7 @@
 |  |  |  |  |
 | :-: | :-: | :-: | :-:
 | `geoelan` | `locate`       | `-i INDIR/`       | `--kind gopro`
-|           | sub-command   | input directory  | consider GoPro files
+|           | sub-command   | input directory  | consider only GoPro files
 
 **Result:** Locates all GoPro clips in `INDIR/` (`-i`) and groups them in recording sessions.
 

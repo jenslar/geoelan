@@ -20,10 +20,31 @@ pub fn run(
 ) -> std::io::Result<()> {
     let ffmpeg = args.get_one::<PathBuf>("ffmpeg").unwrap().to_owned();
     let output_dir = {
-        let p = args.get_one::<PathBuf>("output-directory").unwrap();
+        let defaultdir = match args.get_one::<bool>("low-res-only").unwrap() {
+            true => session_lo.first().and_then(|p| p.parent()),
+            false => session_hi.first().and_then(|p| p.parent()),
+        };
+        let p = match args.get_one::<PathBuf>("output-directory") {
+            Some(dir) => dir, // must be valid
+            None => {
+                match defaultdir {
+                    Some(path) => path,
+                    None => {
+                        let msg = "Failed to derive outdir";
+                        return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
+                    },
+                }
+            },
+        };
         if !p.exists() {
             // canonicalise() returns err if p does not exist
-            std::fs::create_dir_all(&p)?
+            match std::fs::create_dir_all(&p) {
+                Ok(_) => (),
+                Err(err) => {
+                    let msg = format!("Failed to create {}: {err}", p.display());
+                    return Err(std::io::Error::new(std::io::ErrorKind::Other, msg));
+                },
+            }
         };
         p.canonicalize()?
     };

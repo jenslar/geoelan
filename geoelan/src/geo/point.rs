@@ -218,9 +218,12 @@ impl EafPoint {
     /// Returns datetime as formatted string:
     /// `YYYY-MM-DDTHH:mm:ss.fff`
     pub fn datetime_string(&self) -> Option<String> {
+        // let format = format_description::parse(
+        //     "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour \
+        //         sign:mandatory]:[offset_minute]", // no tz info
+        // )
         let format = format_description::parse(
-            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond][offset_hour \
-                sign:mandatory]:[offset_minute]",
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]",
         )
         .expect("Failed to create date time format"); // result instead?
         self.datetime.and_then(|dt| dt.format(&format).ok()) // result instead?

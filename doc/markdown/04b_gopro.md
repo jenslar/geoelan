@@ -10,4 +10,4 @@ GoPro cameras use micro SD Cards. GoPro provide recommendations here: <https://c
 
 #### Internal file layout
 
-Since Hero 5 Black all GoPro cameras use a telemetry format called GPMF developed by GoPro. Currently, the best overview can be found in their Github repository: <https://github.com/gopro/gpmf-parser>. (GeoELAN uses its own GPMF-parser, not GoPro's C-lang based one).
+Starting with Hero 5 Black all GoPro cameras use a telemetry format called GPMF developed by GoPro. Currently, the best overview can be found in their Github repository: <https://github.com/gopro/gpmf-parser>.

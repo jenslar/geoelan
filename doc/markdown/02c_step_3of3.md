@@ -19,21 +19,6 @@ This is where you choose the approriate geographical representations for your an
 
 There are other options, such as _circle_ output. It is the same as point output with the difference that radius and height can be specified (all circles will have the same size). For a more detailed overview of the possibilities, see the `--geoshape` option for the command _eaf2geo_. Experiment! If you realise one representation is not appropriate after all, re-run GeoELAN with a different option.
 
-### VIRB
-
-**Command**
-```sh
-geoelan eaf2geo --eaf VIRB0001-1.eaf --fit 2003-01-02-12-00-00.fit --geoshape point-single
-```
-
-**Output files**
-```
-OUTDIR/VIRB0001-1/
-├── ...                              Existing files
-├── VIRB0001-1_point-single.kml      New KML-file, one point per annotation in the selected tier
-└── VIRB0001-1_point-single.geojson  New GeoJSON-file, one point per annotation in the selected tier
-```
-
 ### GoPro
 
 **Command**
@@ -49,6 +34,21 @@ OUTDIR/GH010026/
 ├── ...                            Existing files
 ├── GH010026_point-single.kml      New KML-file, one point per annotation in the selected tier
 └── GH010026_point-single.geojson  New GeoJSON-file, one point per annotation in the selected tier
+```
+
+### VIRB
+
+**Command**
+```sh
+geoelan eaf2geo --eaf VIRB0001-1.eaf --fit 2003-01-02-12-00-00.fit --geoshape point-single
+```
+
+**Output files**
+```
+OUTDIR/VIRB0001-1/
+├── ...                              Existing files
+├── VIRB0001-1_point-single.kml      New KML-file, one point per annotation in the selected tier
+└── VIRB0001-1_point-single.geojson  New GeoJSON-file, one point per annotation in the selected tier
 ```
 
 ### Explanation of the command

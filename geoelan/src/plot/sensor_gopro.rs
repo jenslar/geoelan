@@ -58,7 +58,7 @@ pub(crate) fn sensor2plot(
                         .unwrap_or("Low-resolution MP4 not set")
                 );
             }
-            
+
             println!("Merging GPMF-data for {} files...", session.len());
             session.gpmf()?
         },
@@ -106,9 +106,9 @@ pub(crate) fn sensor2plot(
         ),
         // A single average value for each sensor cluster
         true => (
-            sensor_data.iter().map(|s| s.x_avg()).collect::<Vec<f64>>(),
-            sensor_data.iter().map(|s| s.y_avg()).collect::<Vec<f64>>(),
-            sensor_data.iter().map(|s| s.z_avg()).collect::<Vec<f64>>(),
+            sensor_data.iter().map(|s| s.x_mean()).collect::<Vec<f64>>(),
+            sensor_data.iter().map(|s| s.y_mean()).collect::<Vec<f64>>(),
+            sensor_data.iter().map(|s| s.z_mean()).collect::<Vec<f64>>(),
         ),
     };
 

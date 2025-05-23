@@ -40,8 +40,8 @@
 
 | | | | | |
 | :-------: | :--------: | :-----------------: | :---------: | :----------: |
-| `geoelan` | `eaf2geo`   | `-f 2017-01-28-05-16-40.fit` | `-e VIRB0001-1.eaf` | `--geoshape point-single`
-| | command | FIT-file                     | ELAN-file            | output option
+| `geoelan` | `eaf2geo`  | `-f 2017-01-28-05-16-40.fit` | `-e VIRB0001-1.eaf` | `--geoshape point-single`
+| | command | FIT-file   | ELAN-file            | output option
 
 **Result**: Geo-references annotations in the ELAN-file `VIRB0001-1.eaf` (`-e`) and generates KML and GeoJSON files with a single point per annotation (`--geoshape point-single`). Since no original VIRB clip is specified, the user will be presented with a list of clip UUIDs in the specified FIT-file `2017-01-28-05-16-40.fit` (`-f`) to choose from. It should be fairly straight forward to guess which session is relevant.
 ****

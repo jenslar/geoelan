@@ -155,8 +155,138 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="the-geoshape-option"><a class="header" href="#the-geoshape-option">The geoshape option</a></h1>
+                        <h2 id="the-geoshape-option"><a class="header" href="#the-geoshape-option">The <em>geoshape</em> option</a></h2>
+<p>Different geographical representations can be generated, including points and lines. Six possible <code>--geoshape</code> values are accepted:</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: center">Option</th><th style="text-align: left">Description</th></tr></thead><tbody>
+<tr><td style="text-align: center"><code>point-all</code></td><td style="text-align: left">All logged points exported (default if no option passed)</td></tr>
+<tr><td style="text-align: center"><code>point-multi</code></td><td style="text-align: left">Exported points correspond to marked/annotated events only</td></tr>
+<tr><td style="text-align: center"><code>point-single</code></td><td style="text-align: left">A single, averaged point for each annotation</td></tr>
+<tr><td style="text-align: center"><code>line-all</code></td><td style="text-align: left">Polyline from all logged points</td></tr>
+<tr><td style="text-align: center"><code>line-multi</code></td><td style="text-align: left">Polyline, corresponds to marked/annotated events only</td></tr>
+<tr><td style="text-align: center"><code>circle-2d</code></td><td style="text-align: left">2D polygon, corresponds to marked/annotated events only</td></tr>
+<tr><td style="text-align: center"><code>circle-3d</code></td><td style="text-align: left">3D polygon, corresponds to marked/annotated events only</td></tr>
+</tbody></table>
+</div>
+<p><code>--downsample</code> can be used with all these options, but will be ignored for <code>point-single</code>, <code>circle-2d</code>/<code>circle-3d</code> since these will only ever result in a single point per annotation. <code>circle-2d</code> and <code>circle-3d</code> allow for further customisation, such as radius and height (<code>circle-3d</code>, KML-only). The circle options work in the same way as <code>point-single</code> and are currently only a visual flair, since radius and height are not yet derived from ELAN annotation values.</p>
+<h3 id="point-all"><a class="header" href="#point-all"><code>point-all</code></a></h3>
+<p>All points logged during the recording session will be exported. Any point that intersects with the time span of an annotation will inherit the annotation value as the coordinate description. Points that do not, will have no description.</p>
+<pre><code>ELAN-file
 
+─────┼──────────┼──────────┼──────────┼──────&gt;  ELAN time-line
+ 00:01:35   00:01:40   00:01:45   00:01:50
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+  │ Dayum │           │ Chcuh       │           "Feature" tier
+  ├───────┤           ├─────────────┤           with annotations
+  │       │           │             │           to geo-reference
+                      .             .
+                      .             .
+KML-file              .             .
+                      .             .
+  + + +         + + + .             .
+  ┊     + + + +     ┊ +             + &lt;──────── Logged
+  ┊       ┊ ┊       ┊ ┊ +       + + ┊           point
+  ┊       ┊ ┊       ┊ ┊   + + +     ┊
+  └───┬───┘ └───┬───┘ └──────┬──────┘
+      │         │            │
+ Points logged  │            │
+  within ELAN   │            └ Description for each point in section:
+  annotation    │              "Chcuh" (placename)
+  time span     │
+      │         └ No descriptions for this section,
+      │           since there is no corresponding annotation
+      │
+      └ Description for each point in section: "Dayum" (placename)
+</code></pre>
+<h3 id="point-multi"><a class="header" href="#point-multi"><code>point-multi</code></a></h3>
+<p>Only points that intersect with the time span of an annotation will be exported and will inherit the annotation text as the coordinate description. Points that have no corresponding annotation will be discarded. <em>Useful for including points corresponding to marked events only</em>.</p>
+<pre><code>
+  + + +
+  ┊     + +           +             + &lt;──────── Logged
+  ┊       ┊           ┊ +       + + ┊           point
+  ┊       ┊           ┊   + + +     ┊
+  ┊       ┊           ┊             ┊
+  └───┬───┘           └──────┬──────┘
+ Points logged               │
+  within ELAN                │
+  annotation                 └ Description for each point in section:
+  time span                    "Chcuh" (placename)
+      │
+      └ Description for each point in section:
+        "Dayum" (placename)
+</code></pre>
+<h3 id="point-single"><a class="header" href="#point-single"><code>point-single</code></a></h3>
+<p>Only points that intersect with the time span of an annotation will be considered for export. The difference to <code>point-multi</code> is that each annotation will only generate a single point: an average of those logged within the annotation's time span. Note that a custom <code>--downsample</code> value will be ignored for <code>point-single</code> since it may affect the result negatively. <code>--downsample</code> also has little use here, since the number of points in the output will not be affected and will be quite low compared to the other options. <em>Useful for distilling marked events, such as place names, to a single point for each event</em>.</p>
+<pre><code>
+      +
+      │
+      │
+  Average for               +
+ points logged              │
+  within ELAN               │
+  annotation                └ Description for point:
+  time span                   "Chcuh" (placename)
+      │
+      └ Description for point:
+        "Dayum" (placename)
+
+</code></pre>
+<h3 id="line-all"><a class="header" href="#line-all"><code>line-all</code></a></h3>
+<p>All points logged during the recording session will be exported, resulting in a continuous polyline. Sub-sections that intersect with an annotation inherit the annotation value as a description, whereas those that do not will have no description.</p>
+<pre><code>ELAN-file
+
+─────┼──────────┼──────────┼──────────┼──────&gt;  ELAN time-line
+ 00:01:35   00:01:40   00:01:45   00:01:50
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+  │ walk down-hill  │        │ walk up-hill │   "Feature" tier
+  ├─────────────────┤        ├──────────────┤   with annotations
+  │                 │        │              │   to geo-reference
+
+
+KML-file
+  ____           ___
+  ┊   \         /   \                           Resulting polyline
+  ┊    \_______/    ┊\           ____________   in KML-file, continuous:
+  ┊                 ┊ \         /           ┊   only line-sections with
+  ┊                 ┊  \_______/            ┊   corresponding annotations
+  ┊                 ┊        ┊              ┊   have a description
+  └────────┬────────┘        └───────┬──────┘
+           │                         │          Description for
+   'walk down-hill'           'walk up-hill'    line-section
+                                                in KML
+</code></pre>
+<h3 id="line-multi"><a class="header" href="#line-multi"><code>line-multi</code></a></h3>
+<p>Only points that intersect with the time span of an annotation will be exported, resulting in a broken-up line. Each sub-section inherits the value of the annotation it intersects with. <em>Useful for representing paths corresponding to marked events only</em>.</p>
+<pre><code>
+ELAN-file
+
+─────┼──────────┼──────────┼──────────┼──────&gt;  ELAN time-line
+ 00:01:35   00:01:40   00:01:45   00:01:50
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+  │ walk down-hill  │        │ walk up-hill │   "Feature" tier
+  ├─────────────────┤        ├──────────────┤   with annotations
+  │                 │        │              │   to geo-reference
+
+
+KML-file
+  ____           ___
+  ┊   \         /   \                           Resulting polyline
+  ┊    \_______/    ┊            ____________   in KML-file, broken-up:
+  ┊                 ┊           /           ┊   line-sections with no
+  ┊                 ┊        __/            ┊   corresponding annotation
+  ┊                 ┊        ┊              ┊   are discarded
+  └────────┬────────┘        └───────┬──────┘
+           │                         │          Description for
+   'walk down-hill'           'walk up-hill'    line-section
+                                                in KML
+</code></pre>
+<h3 id="circle-2d-circle-3d"><a class="header" href="#circle-2d-circle-3d"><code>circle-2d</code>, <code>circle-3d</code></a></h3>
+<p><code>circle-2d</code>, and <code>circle-3d</code> work almost exactly like <code>point-single</code> with the difference that a circle is generated around the calculated average point. It is mostly a visual flair and its shape is currently not affected by annotation values. <code>circle-2d</code> is flat against the ground, whereas <code>circle-3d</code> can take a height value to become a cylindrical 3D shape (only applies to KML, not GeoJSON). If circle output is specified, three more options become available:</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: center">Option</th><th style="text-align: left">Description</th><th style="text-align: left">Default</th></tr></thead><tbody>
+<tr><td style="text-align: center"><code>--height</code></td><td style="text-align: left">Height relative to ground in meters (<code>circle-3d</code>)</td><td style="text-align: left"></td></tr>
+<tr><td style="text-align: center"><code>--radius</code></td><td style="text-align: left">Radius in meters (<code>circle-2d</code>, <code>circle-3d</code>)</td><td style="text-align: left"><code>2.0</code></td></tr>
+<tr><td style="text-align: center"><code>--vertices</code></td><td style="text-align: left">Roundness, valid range 3 - 255 (3 will literally be triangle)</td><td style="text-align: left"><code>40</code></td></tr>
+</tbody></table>
+</div>
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">

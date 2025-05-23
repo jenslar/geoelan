@@ -16,8 +16,8 @@ OUTDIR/GH010026/
 ├── GH010026_LO.mp4          Low-resolution video for ELAN (concatenated)
 ├── GH010026.wav             Extracted audio for ELAN (concatenated)
 ├── GH010026.eaf             ELAN-file with pre-linked media files
-├── GH010026.kml             Overview KML-file with all points logged during the recording session
-├── GH010026.json            Overview GeoJSON-file with all points logged during the recording session
+├── GH010026.kml             KML-file with all points logged for the session
+├── GH010026.json            GeoJSON-file with all points logged for the session
 └── GH010026.txt             FFmpeg concatenation file, paths to input clips
 ```
 
@@ -29,8 +29,8 @@ OUTDIR/VIRB0001-1/
 ├── VIRB0001-1_LO.mp4        Low-resolution video for ELAN (concatenated)
 ├── VIRB0001-1.wav           Extracted audio for ELAN (concatenated)
 ├── VIRB0001-1.eaf           ELAN-file with pre-linked media files
-├── VIRB0001-1.kml           Overview KML-file with all points logged during the recording session
-├── VIRB0001-1.json          Overview GeoJSON-file with all points logged during the recording session
+├── VIRB0001-1.kml           KML-file with all points logged for the session
+├── VIRB0001-1.json          GeoJSON-file with all points logged for the session
 └── VIRB0001-1.txt           FFmpeg concatenation file, paths to input clips
 ```
 

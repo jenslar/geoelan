@@ -44,9 +44,9 @@
 
 ### Examples VIRB
 
-> ❓Recording session can be specified using one of `--fit`, `--uuid`, `--video`. These options are mutually exclusive. `--fit` returns a list of sessions present in the FIT-file, from which the user can select the relevant one. `--uuid` and `--video` require no further user input. UUID is the unique VIRB clip identifier and can be retreived by running `geoelan inspect --video VIRB0001-1.MP4`.
+> Recording session can be specified using one of `--fit`, `--uuid`, `--video`. These options are mutually exclusive. `--fit` returns a list of sessions present in the FIT-file, from which the user can select the relevant one. `--uuid` and `--video` require no further user input. UUID is the unique VIRB clip identifier and can be retreived by running `geoelan inspect --video VIRB0001-1.MP4`.
 
-> ❗Using `--fullgps` (together with `--geotier`) may slow down ELAN considerably.
+> Using `--fullgps` (together with `--geotier`) may slow down ELAN considerably.
 
 **VIRB example 1**
 
@@ -66,4 +66,4 @@
 
 **Result**: Recording session is specified via the FIT-file `2017-01-28-05-16-40.fit` (`-f`). The user will be prompted to select session from a list, allowing GeoELAN to locate the corresponding clips in the input directory `INDIR/` (`-i`). Only the low-resolution clips (`--low-res-only`) will be concatenated. All resulting files are then copied together with the corresponding FIT-file to the output directory `OUTDIR/` (`-o`).
 
-> ❓If you are unsure of the whereabouts of the FIT-file, make the search wider. Specifying the root of an external hard drive as input directory (`--indir`) will make the search process take slightly longer, but should work well. Otherwise, just specify the FIT-file separately (`--fit`), which can be useful if it is located outside of the input directory.
+> If you are unsure of the whereabouts of the FIT-file, make the search wider. Specifying the root of an external hard drive as input directory (`--indir`) will make the search process take slightly longer, but should work well. Otherwise, just specify the FIT-file separately (`--fit`), which can be useful if it is located outside of the input directory.

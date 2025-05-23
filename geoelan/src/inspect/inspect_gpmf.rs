@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub fn inspect_gpmf(args: &clap::ArgMatches) -> std::io::Result<()> {
-    let path = args.get_one::<PathBuf>("gpmf").unwrap(); // clap: required arg
+    let path = args.get_one::<PathBuf>("gpmf").unwrap().canonicalize()?; // clap: required arg
     let indir = match args.get_one::<PathBuf>("input-directory") {
         // Some(p) => p.to_owned().canonicalize()?, // derive absolute path, must exist
         Some(p) => p.to_owned(),

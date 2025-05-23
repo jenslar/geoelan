@@ -1,7 +1,6 @@
 use std::{path::PathBuf, process::ExitCode};
 
 use clap::{builder::PossibleValuesParser, Arg, ArgAction, Command};
-use time::OffsetDateTime;
 
 use kml;
 
@@ -18,14 +17,14 @@ mod model;
 mod plot;
 mod text;
 
-const VERSION: &'static str = "2.7.6";
+const VERSION: &'static str = "2.7.7";
 const AUTHOR: &'static str = "Jens Larsson";
+const BUILD: &'static str = "2050-05-23";
 const REPO: &'static str = "https://github.com/jenslar/geoelan";
 
 fn main() -> ExitCode {
-    let build = OffsetDateTime::now_utc().date().to_string();
     let help = format!(
-        "GeoELAN {VERSION} (build: {build})
+        "GeoELAN {VERSION} (build: {BUILD})
 
     GeoELAN is a tool for annotating action camera GPS logs using the free annotation software ELAN.
 
@@ -35,7 +34,7 @@ Use 'geoelan --help' for a longer description."
     );
     // - Documentation: https://github.com/jenslar/geoelan/mdbook
     let long_help = format!(
-"GeoELAN {VERSION} (build: {build})
+"GeoELAN {VERSION} (build: {BUILD})
 
 GeoELAN is a tool for annotating action camera GPS logs using the free annotation software ELAN.
 Supports recent GoPro (excluding Hero 12 Black since it has no GPS) or a Garmin VIRB Ultra 30.
@@ -115,8 +114,8 @@ SOURCE:
                 .help("Output path for resulting files.")
                 .long("outdir")
                 .short('o')
-                .value_parser(clap::value_parser!(PathBuf))
-                .default_value("geoelan"))
+                .value_parser(clap::value_parser!(PathBuf)))
+                // .default_value("geoelan")) // use filestem of first file instead
             .arg(Arg::new("geotier")
                 .help("Insert tier with synchronised coordinates in ELAN-file.")
                 .long("geotier")
@@ -375,7 +374,7 @@ Geoshape options:
 
         // Inspect GoPro/Garmin telemetry
         .subcommand(Command::new("inspect")
-            .about("Inspect GoPro GPMF and Garmin FIT  data and MP4 files.")
+            .about("Inspect GoPro GPMF and Garmin FIT data and MP4 files.")
             .visible_alias("i")
 
             .next_help_heading("General")

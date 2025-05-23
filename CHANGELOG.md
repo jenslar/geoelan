@@ -1,6 +1,11 @@
+# GeoELAN 2.7.7
+- FIX `cam2eaf` Default output dir fixed. Now properly defaults to parent dir of specified clip if not specified via `--outdir`.
+- FIX `eaf2geo` Include ELAN tier name in KML/GeoJSON file names.
+- Small manual fixes and updates.
+- Bumped crate versions.
+
 # GeoELAN 2.7.6
-- FIX \[GOPRO\] Bump `gpmf-rs` crate (skips MP4/LRV-files with filenames that start with `._`.)
-- Bump crate versions.
+- FIX \[GOPRO\] Bump `gpmf-rs` crate (now skips MP4/LRV-files with filenames that start with `._`).
 
 # GeoELAN 2.7.5
 - NEW `plot`: export the plot to HTML, PNG, SVG files (`--export PATH`).

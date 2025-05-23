@@ -91,6 +91,13 @@ pub fn affix_file_name(
     new_path
 }
 
+pub fn filename_startswith(path: &Path, pattern: &str) -> bool {
+    path.file_name()
+        .and_then(|f| f.to_str())
+        .map(|s| s.starts_with(pattern))
+        .unwrap_or(false)
+}
+
 pub fn paths(dir: &Path, ext: &[&str]) -> Vec<PathBuf> {
     WalkDir::new(dir)
         .into_iter()

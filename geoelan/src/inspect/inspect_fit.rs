@@ -99,10 +99,8 @@ pub fn inspect_fit(args: &clap::ArgMatches) -> std::io::Result<()> {
                 for (i, point) in pts.iter().enumerate() {
                     println!("[{:6}]\n{point}", i + 1);
                     csv.push(format!(
-                        "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
-                        // counter,
+                        "{}\t{}\t{}\t{:.6}\t{:.6}\t{:.2}\t{:.2}\t{:.2}",
                         i + 1,
-                        // !!! datetime = None? works for gpmf...
                         point.datetime_string().as_deref().unwrap_or("Unspecified"),
                         point
                             .timestamp

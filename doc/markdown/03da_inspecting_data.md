@@ -62,7 +62,7 @@ GoPro telemetry is stored as samples, interleaved between audio and video sample
 geoelan inspect --video GOPROVIDEO.MP4 --offsets "GoPro MET"
 ```
 
-`GoPro MET` is the name of the MP4 track holding GPMF data.
+`GoPro MET` is the name of the MP4 track holding timed GPMF data.
 
 This returns a table listing the samples' byte offsets (e.g. `@2026761919`), their sizes in bytes, and durations:
 
@@ -87,7 +87,7 @@ geoelan inspect --video GOPROVIDEO.MP4 --samples "GoPro MET"
 geoelan inspect --video GOPROVIDEO.MP4 --dump "GoPro MET"
 ```
 
-Note that the video data may be many GB in size. GeoELAN will list the total size and prompt the user before exporting.
+Note that the video data may be many GB in size. GeoELAN will list the total size and prompt the user before saving to disk.
 
 ##### Images
 

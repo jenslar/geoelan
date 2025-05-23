@@ -156,11 +156,11 @@
 
                 <div id="content" class="content">
                     <main>
-                        <p><strong>GeoELAN v2.7.6 2025-04-11</strong></p>
+                        <p><strong>GeoELAN v2.7.7 2025-05-23</strong></p>
 <p><strong>Important:</strong></p>
 <blockquote>
 <p><strong>GoPro Hero 12 Black is not supported</strong> since it does not have a GPS module.</p>
-<p><strong>GoPro Hero 13 Black is/will be supported</strong> as soon as I get hold of some raw/unedited sample footage.</p>
+<p><strong>GoPro Hero 13 Black is supported</strong> as soon as I get hold of some raw/unedited sample footage. Initial tests ok.</p>
 <p><strong>Garmin VIRB Ultra 30 is discontinued</strong>. GeoELAN will continue to support these and the FIT-format.</p>
 </blockquote>
 <h2 id="introduction"><a class="header" href="#introduction">Introduction</a></h2>
@@ -189,7 +189,7 @@ the general workflow and the final output are the same.</p>
 <p>GeoELAN was developed with support from the <a href="https://www.rj.se/en/">Bank of Sweden Tercentenary Foundation</a> (Grant nos <a href="https://www.rj.se/en/grants/2015/language-as-key-to-perceptual-diversity-an-interdisciplinary-approach-to-the-senses/">NHS14-1665:1</a> and <a href="https://www.rj.se/en/grants/2017/digital-multimedia-archive-of-austroasiatic-intangible-heritage-phase-ii-seeding-multidisciplinary-workspaces/">IN17-0183:1</a>).</p>
 <p>We would also like to acknowledge the <a href="https://archive.mpi.nl/tla/">The Language Archive</a>, Max Planck Institute for Psycholinguistics in Nijmegen for their tireless efforts in developing <a href="https://archive.mpi.nl/tla/elan">ELAN</a>, and making it available for free.</p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
-<p>ELAN (Version 6.8) [Computer software]. 2024. Nijmegen: Max Planck Institute for Psycholinguistics, The Language Archive. Retrieved from https://archive.mpi.nl/tla/elan</p>
+<p>ELAN (Version 6.9) [Computer software]. 2024. Nijmegen: Max Planck Institute for Psycholinguistics, The Language Archive. Retrieved from https://archive.mpi.nl/tla/elan</p>
 <p>Larsson, J. 2024. GeoELAN Manual. Lund: Lund University Humanities Lab. <a href="https://github.com/jenslar/geoelan">https://github.com/jenslar/geoelan</a></p>
 <p>Larsson et al, 2021. Integrating behavioral and geospatial data on the timeline: towards new dimensions of analysis, <em>International Journal of Social Research Methodology</em>, 24:1, 1-13, DOI: <a href="https://doi.org/10.1080/13645579.2020.1763705">10.1080/13645579.2020.1763705</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="requirements"><a class="header" href="#requirements">Requirements</a></h2>
@@ -241,7 +241,7 @@ the general workflow and the final output are the same.</p>
 <ul>
 <li>GeoELAN is a command line tool and has no graphical user interface.</li>
 <li><a href="https://www.ffmpeg.org">FFmpeg</a> is required to concatenate clips. (<code>cam2eaf</code>)</li>
-<li>If you use macOS and GeoELAN does not run, see <a href="https://support.apple.com/en-us/HT202491">https://support.apple.com/en-us/HT202491</a>.</li>
+<li>If you use macOS and GeoELAN does not run, see <a href="https://support.apple.com/en-us/HT202491">https://support.apple.com/en-us/HT202491</a> (GeoELAN will be notarised in an upcoming build).</li>
 </ul>
 <h3 id="device-compatibility"><a class="header" href="#device-compatibility">Device compatibility</a></h3>
 <ul>
@@ -316,8 +316,8 @@ the general workflow and the final output are the same.</p>
 ├── GH010026_LO.mp4          Low-resolution video for ELAN (concatenated)
 ├── GH010026.wav             Extracted audio for ELAN (concatenated)
 ├── GH010026.eaf             ELAN-file with pre-linked media files
-├── GH010026.kml             Overview KML-file with all points logged during the recording session
-├── GH010026.json            Overview GeoJSON-file with all points logged during the recording session
+├── GH010026.kml             KML-file with all points logged for the session
+├── GH010026.json            GeoJSON-file with all points logged for the session
 └── GH010026.txt             FFmpeg concatenation file, paths to input clips
 </code></pre>
 <p><strong>Output files VIRB</strong></p>
@@ -327,8 +327,8 @@ the general workflow and the final output are the same.</p>
 ├── VIRB0001-1_LO.mp4        Low-resolution video for ELAN (concatenated)
 ├── VIRB0001-1.wav           Extracted audio for ELAN (concatenated)
 ├── VIRB0001-1.eaf           ELAN-file with pre-linked media files
-├── VIRB0001-1.kml           Overview KML-file with all points logged during the recording session
-├── VIRB0001-1.json          Overview GeoJSON-file with all points logged during the recording session
+├── VIRB0001-1.kml           KML-file with all points logged for the session
+├── VIRB0001-1.json          GeoJSON-file with all points logged for the session
 └── VIRB0001-1.txt           FFmpeg concatenation file, paths to input clips
 </code></pre>
 <h3 id="explanation-of-the-command"><a class="header" href="#explanation-of-the-command">Explanation of the command</a></h3>
@@ -375,16 +375,6 @@ the general workflow and the final output are the same.</p>
 <p>Two line options may apply to the above. To get a continuous polyline alternating between marked (annotated) and unmarked (un-annotated) events, use the option <code>--geoshape line-all</code>. To get a broken-up polyline representing marked events only, use the option <code>--geoshape line-multi</code>.</p>
 </blockquote>
 <p>There are other options, such as <em>circle</em> output. It is the same as point output with the difference that radius and height can be specified (all circles will have the same size). For a more detailed overview of the possibilities, see the <code>--geoshape</code> option for the command <em>eaf2geo</em>. Experiment! If you realise one representation is not appropriate after all, re-run GeoELAN with a different option.</p>
-<h3 id="virb"><a class="header" href="#virb">VIRB</a></h3>
-<p><strong>Command</strong></p>
-<pre><code class="language-sh">geoelan eaf2geo --eaf VIRB0001-1.eaf --fit 2003-01-02-12-00-00.fit --geoshape point-single
-</code></pre>
-<p><strong>Output files</strong></p>
-<pre><code>OUTDIR/VIRB0001-1/
-├── ...                              Existing files
-├── VIRB0001-1_point-single.kml      New KML-file, one point per annotation in the selected tier
-└── VIRB0001-1_point-single.geojson  New GeoJSON-file, one point per annotation in the selected tier
-</code></pre>
 <h3 id="gopro"><a class="header" href="#gopro">GoPro</a></h3>
 <p><strong>Command</strong></p>
 <pre><code class="language-sh">geoelan eaf2geo --eaf GH010026.eaf --gpmf INDIR/GH010026.MP4  --geoshape point-single
@@ -397,6 +387,16 @@ the general workflow and the final output are the same.</p>
 ├── ...                            Existing files
 ├── GH010026_point-single.kml      New KML-file, one point per annotation in the selected tier
 └── GH010026_point-single.geojson  New GeoJSON-file, one point per annotation in the selected tier
+</code></pre>
+<h3 id="virb"><a class="header" href="#virb">VIRB</a></h3>
+<p><strong>Command</strong></p>
+<pre><code class="language-sh">geoelan eaf2geo --eaf VIRB0001-1.eaf --fit 2003-01-02-12-00-00.fit --geoshape point-single
+</code></pre>
+<p><strong>Output files</strong></p>
+<pre><code>OUTDIR/VIRB0001-1/
+├── ...                              Existing files
+├── VIRB0001-1_point-single.kml      New KML-file, one point per annotation in the selected tier
+└── VIRB0001-1_point-single.geojson  New GeoJSON-file, one point per annotation in the selected tier
 </code></pre>
 <h3 id="explanation-of-the-command-1"><a class="header" href="#explanation-of-the-command-1">Explanation of the command</a></h3>
 <p>The relevant sub-command is <code>eaf2geo</code>. Run <code>geoelan eaf2geo --help</code> for an overview.</p>
@@ -420,7 +420,9 @@ the general workflow and the final output are the same.</p>
 <p>Note that some parameters in the following sections may only be valid for e.g. GoPro cameras, not VIRB, and vice versa. The description column will be prefixed [GoPro] or [VIRB] to denote this.</p>
 </blockquote>
 <h3 id="set-gopro-satellite-lock---gpsfix-and-dilution-of-precision---gpsdop-thresholdsldosfhds"><a class="header" href="#set-gopro-satellite-lock---gpsfix-and-dilution-of-precision---gpsdop-thresholdsldosfhds">Set GoPro satellite lock (<code>--gpsfix</code>) and dilution of precision (<code>--gpsdop</code>) thresholdsldosfhds</a></h3>
-<p>GoPro cameras log how well they can see satellites. If none is in line of sight, dummy coordinates will be logged. GeoELAN will ignore these by default, and for <code>cam2eaf</code> a '3D lock' (altitude is included) is the default. In cases where only 2D lock could be achieved, one can manually set minimum "lock level" via <code>--gpsfix</code>. Valid values are <code>0</code> (no lock), <code>2</code> (2D lock), and <code>3</code> (3D lock). Setting to <code>0</code> will result in unusable data for <code>eaf2geo</code> if most coordinates are bad.</p>
+<p>GoPro cameras log how well they can see satellites.</p>
+<p>If no satellite is in line of sight, the camera will log dummy coordinates. GeoELAN will ignore these by default, and for <code>cam2eaf</code> a '3D lock' (altitude is included) is the default. In cases where only 2D lock could be achieved, one can manually set minimum "lock level" via <code>--gpsfix</code>. Valid values are <code>0</code> (no lock), <code>2</code> (2D lock), and <code>3</code> (3D lock). Setting to <code>0</code> will result in unusable data for <code>eaf2geo</code> if most coordinates are bad.</p>
+<p>Similarly, <a href="https://en.wikipedia.org/wiki/Dilution_of_precision_(navigation)">dilution of precision</a> (DOP) is a value that represent how tightly clustered the satellites are. A lower value is better. Ideally, it should be below 5.0. There is no default value set, but if coordinates seem erratic, the maximum DOP value can be manually set via <code>--gpsdop</code>. E.g. perhaps try 10.0 and gradually go lower.</p>
 <h3 id="time-adjustment-with---time-offset"><a class="header" href="#time-adjustment-with---time-offset">Time adjustment with <code>--time-offset</code></a></h3>
 <p>If the action camera has not adjusted for the current time zone, several commands have a <code>--time-offset</code> option. It takes a +/- value in hours that will be applied to all timestamps in the output, e.g. <code>--time-offset 7</code> will add seven hours to all timestamps.</p>
 <h3 id="reducing-the-number-of-coordinates-with---downsample"><a class="header" href="#reducing-the-number-of-coordinates-with---downsample">Reducing the number of coordinates with <code>--downsample</code></a></h3>
@@ -482,10 +484,10 @@ the general workflow and the final output are the same.</p>
 <p><strong>Result:</strong> Locates all clips for the recording session containing the clip <code>GH010026.MP4</code> (<code>-g</code>) in the input directory <code>INDIR/</code> (<code>-i</code>). These will be concatenated, and the audio track exported as a WAV for use in ELAN. The resulting files are then copied to the output directory <code>OUTDIR/</code> (<code>-o</code>). The generated ELAN-file will also have synchronised coordinates inserted as a tier (<code>--geotier</code>).</p>
 <h3 id="examples-virb"><a class="header" href="#examples-virb">Examples VIRB</a></h3>
 <blockquote>
-<p>❓Recording session can be specified using one of <code>--fit</code>, <code>--uuid</code>, <code>--video</code>. These options are mutually exclusive. <code>--fit</code> returns a list of sessions present in the FIT-file, from which the user can select the relevant one. <code>--uuid</code> and <code>--video</code> require no further user input. UUID is the unique VIRB clip identifier and can be retreived by running <code>geoelan inspect --video VIRB0001-1.MP4</code>.</p>
+<p>Recording session can be specified using one of <code>--fit</code>, <code>--uuid</code>, <code>--video</code>. These options are mutually exclusive. <code>--fit</code> returns a list of sessions present in the FIT-file, from which the user can select the relevant one. <code>--uuid</code> and <code>--video</code> require no further user input. UUID is the unique VIRB clip identifier and can be retreived by running <code>geoelan inspect --video VIRB0001-1.MP4</code>.</p>
 </blockquote>
 <blockquote>
-<p>❗Using <code>--fullgps</code> (together with <code>--geotier</code>) may slow down ELAN considerably.</p>
+<p>Using <code>--fullgps</code> (together with <code>--geotier</code>) may slow down ELAN considerably.</p>
 </blockquote>
 <p><strong>VIRB example 1</strong></p>
 <div class="table-wrapper"><table><thead><tr><th style="text-align: center"></th><th style="text-align: center"></th><th style="text-align: center"></th><th style="text-align: center"></th><th style="text-align: center"></th><th style="text-align: center"></th></tr></thead><tbody>
@@ -502,7 +504,7 @@ the general workflow and the final output are the same.</p>
 </div>
 <p><strong>Result</strong>: Recording session is specified via the FIT-file <code>2017-01-28-05-16-40.fit</code> (<code>-f</code>). The user will be prompted to select session from a list, allowing GeoELAN to locate the corresponding clips in the input directory <code>INDIR/</code> (<code>-i</code>). Only the low-resolution clips (<code>--low-res-only</code>) will be concatenated. All resulting files are then copied together with the corresponding FIT-file to the output directory <code>OUTDIR/</code> (<code>-o</code>).</p>
 <blockquote>
-<p>❓If you are unsure of the whereabouts of the FIT-file, make the search wider. Specifying the root of an external hard drive as input directory (<code>--indir</code>) will make the search process take slightly longer, but should work well. Otherwise, just specify the FIT-file separately (<code>--fit</code>), which can be useful if it is located outside of the input directory.</p>
+<p>If you are unsure of the whereabouts of the FIT-file, make the search wider. Specifying the root of an external hard drive as input directory (<code>--indir</code>) will make the search process take slightly longer, but should work well. Otherwise, just specify the FIT-file separately (<code>--fit</code>), which can be useful if it is located outside of the input directory.</p>
 </blockquote>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="eaf2geo"><a class="header" href="#eaf2geo">eaf2geo</a></h2>
 <blockquote>
@@ -547,8 +549,138 @@ the general workflow and the final output are the same.</p>
 </div>
 <p><strong>Result</strong>: Geo-references annotations in the ELAN-file <code>VIRB0001-1.eaf</code> (<code>-e</code>) and generates KML and GeoJSON files with a single point per annotation (<code>--geoshape point-single</code>). Since no original VIRB clip is specified, the user will be presented with a list of clip UUIDs in the specified FIT-file <code>2017-01-28-05-16-40.fit</code> (<code>-f</code>) to choose from. It should be fairly straight forward to guess which session is relevant.</p>
 <hr />
-<div style="break-before: page; page-break-before: always;"></div><h1 id="the-geoshape-option"><a class="header" href="#the-geoshape-option">The geoshape option</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h3 id="the-cdata-option"><a class="header" href="#the-cdata-option">The 'cdata' option</a></h3>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="the-geoshape-option"><a class="header" href="#the-geoshape-option">The <em>geoshape</em> option</a></h2>
+<p>Different geographical representations can be generated, including points and lines. Six possible <code>--geoshape</code> values are accepted:</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: center">Option</th><th style="text-align: left">Description</th></tr></thead><tbody>
+<tr><td style="text-align: center"><code>point-all</code></td><td style="text-align: left">All logged points exported (default if no option passed)</td></tr>
+<tr><td style="text-align: center"><code>point-multi</code></td><td style="text-align: left">Exported points correspond to marked/annotated events only</td></tr>
+<tr><td style="text-align: center"><code>point-single</code></td><td style="text-align: left">A single, averaged point for each annotation</td></tr>
+<tr><td style="text-align: center"><code>line-all</code></td><td style="text-align: left">Polyline from all logged points</td></tr>
+<tr><td style="text-align: center"><code>line-multi</code></td><td style="text-align: left">Polyline, corresponds to marked/annotated events only</td></tr>
+<tr><td style="text-align: center"><code>circle-2d</code></td><td style="text-align: left">2D polygon, corresponds to marked/annotated events only</td></tr>
+<tr><td style="text-align: center"><code>circle-3d</code></td><td style="text-align: left">3D polygon, corresponds to marked/annotated events only</td></tr>
+</tbody></table>
+</div>
+<p><code>--downsample</code> can be used with all these options, but will be ignored for <code>point-single</code>, <code>circle-2d</code>/<code>circle-3d</code> since these will only ever result in a single point per annotation. <code>circle-2d</code> and <code>circle-3d</code> allow for further customisation, such as radius and height (<code>circle-3d</code>, KML-only). The circle options work in the same way as <code>point-single</code> and are currently only a visual flair, since radius and height are not yet derived from ELAN annotation values.</p>
+<h3 id="point-all"><a class="header" href="#point-all"><code>point-all</code></a></h3>
+<p>All points logged during the recording session will be exported. Any point that intersects with the time span of an annotation will inherit the annotation value as the coordinate description. Points that do not, will have no description.</p>
+<pre><code>ELAN-file
+
+─────┼──────────┼──────────┼──────────┼──────&gt;  ELAN time-line
+ 00:01:35   00:01:40   00:01:45   00:01:50
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+  │ Dayum │           │ Chcuh       │           "Feature" tier
+  ├───────┤           ├─────────────┤           with annotations
+  │       │           │             │           to geo-reference
+                      .             .
+                      .             .
+KML-file              .             .
+                      .             .
+  + + +         + + + .             .
+  ┊     + + + +     ┊ +             + &lt;──────── Logged
+  ┊       ┊ ┊       ┊ ┊ +       + + ┊           point
+  ┊       ┊ ┊       ┊ ┊   + + +     ┊
+  └───┬───┘ └───┬───┘ └──────┬──────┘
+      │         │            │
+ Points logged  │            │
+  within ELAN   │            └ Description for each point in section:
+  annotation    │              "Chcuh" (placename)
+  time span     │
+      │         └ No descriptions for this section,
+      │           since there is no corresponding annotation
+      │
+      └ Description for each point in section: "Dayum" (placename)
+</code></pre>
+<h3 id="point-multi"><a class="header" href="#point-multi"><code>point-multi</code></a></h3>
+<p>Only points that intersect with the time span of an annotation will be exported and will inherit the annotation text as the coordinate description. Points that have no corresponding annotation will be discarded. <em>Useful for including points corresponding to marked events only</em>.</p>
+<pre><code>
+  + + +
+  ┊     + +           +             + &lt;──────── Logged
+  ┊       ┊           ┊ +       + + ┊           point
+  ┊       ┊           ┊   + + +     ┊
+  ┊       ┊           ┊             ┊
+  └───┬───┘           └──────┬──────┘
+ Points logged               │
+  within ELAN                │
+  annotation                 └ Description for each point in section:
+  time span                    "Chcuh" (placename)
+      │
+      └ Description for each point in section:
+        "Dayum" (placename)
+</code></pre>
+<h3 id="point-single"><a class="header" href="#point-single"><code>point-single</code></a></h3>
+<p>Only points that intersect with the time span of an annotation will be considered for export. The difference to <code>point-multi</code> is that each annotation will only generate a single point: an average of those logged within the annotation's time span. Note that a custom <code>--downsample</code> value will be ignored for <code>point-single</code> since it may affect the result negatively. <code>--downsample</code> also has little use here, since the number of points in the output will not be affected and will be quite low compared to the other options. <em>Useful for distilling marked events, such as place names, to a single point for each event</em>.</p>
+<pre><code>
+      +
+      │
+      │
+  Average for               +
+ points logged              │
+  within ELAN               │
+  annotation                └ Description for point:
+  time span                   "Chcuh" (placename)
+      │
+      └ Description for point:
+        "Dayum" (placename)
+
+</code></pre>
+<h3 id="line-all"><a class="header" href="#line-all"><code>line-all</code></a></h3>
+<p>All points logged during the recording session will be exported, resulting in a continuous polyline. Sub-sections that intersect with an annotation inherit the annotation value as a description, whereas those that do not will have no description.</p>
+<pre><code>ELAN-file
+
+─────┼──────────┼──────────┼──────────┼──────&gt;  ELAN time-line
+ 00:01:35   00:01:40   00:01:45   00:01:50
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+  │ walk down-hill  │        │ walk up-hill │   "Feature" tier
+  ├─────────────────┤        ├──────────────┤   with annotations
+  │                 │        │              │   to geo-reference
+
+
+KML-file
+  ____           ___
+  ┊   \         /   \                           Resulting polyline
+  ┊    \_______/    ┊\           ____________   in KML-file, continuous:
+  ┊                 ┊ \         /           ┊   only line-sections with
+  ┊                 ┊  \_______/            ┊   corresponding annotations
+  ┊                 ┊        ┊              ┊   have a description
+  └────────┬────────┘        └───────┬──────┘
+           │                         │          Description for
+   'walk down-hill'           'walk up-hill'    line-section
+                                                in KML
+</code></pre>
+<h3 id="line-multi"><a class="header" href="#line-multi"><code>line-multi</code></a></h3>
+<p>Only points that intersect with the time span of an annotation will be exported, resulting in a broken-up line. Each sub-section inherits the value of the annotation it intersects with. <em>Useful for representing paths corresponding to marked events only</em>.</p>
+<pre><code>
+ELAN-file
+
+─────┼──────────┼──────────┼──────────┼──────&gt;  ELAN time-line
+ 00:01:35   00:01:40   00:01:45   00:01:50
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+  │ walk down-hill  │        │ walk up-hill │   "Feature" tier
+  ├─────────────────┤        ├──────────────┤   with annotations
+  │                 │        │              │   to geo-reference
+
+
+KML-file
+  ____           ___
+  ┊   \         /   \                           Resulting polyline
+  ┊    \_______/    ┊            ____________   in KML-file, broken-up:
+  ┊                 ┊           /           ┊   line-sections with no
+  ┊                 ┊        __/            ┊   corresponding annotation
+  ┊                 ┊        ┊              ┊   are discarded
+  └────────┬────────┘        └───────┬──────┘
+           │                         │          Description for
+   'walk down-hill'           'walk up-hill'    line-section
+                                                in KML
+</code></pre>
+<h3 id="circle-2d-circle-3d"><a class="header" href="#circle-2d-circle-3d"><code>circle-2d</code>, <code>circle-3d</code></a></h3>
+<p><code>circle-2d</code>, and <code>circle-3d</code> work almost exactly like <code>point-single</code> with the difference that a circle is generated around the calculated average point. It is mostly a visual flair and its shape is currently not affected by annotation values. <code>circle-2d</code> is flat against the ground, whereas <code>circle-3d</code> can take a height value to become a cylindrical 3D shape (only applies to KML, not GeoJSON). If circle output is specified, three more options become available:</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: center">Option</th><th style="text-align: left">Description</th><th style="text-align: left">Default</th></tr></thead><tbody>
+<tr><td style="text-align: center"><code>--height</code></td><td style="text-align: left">Height relative to ground in meters (<code>circle-3d</code>)</td><td style="text-align: left"></td></tr>
+<tr><td style="text-align: center"><code>--radius</code></td><td style="text-align: left">Radius in meters (<code>circle-2d</code>, <code>circle-3d</code>)</td><td style="text-align: left"><code>2.0</code></td></tr>
+<tr><td style="text-align: center"><code>--vertices</code></td><td style="text-align: left">Roundness, valid range 3 - 255 (3 will literally be triangle)</td><td style="text-align: left"><code>40</code></td></tr>
+</tbody></table>
+</div><div style="break-before: page; page-break-before: always;"></div><h3 id="the-cdata-option"><a class="header" href="#the-cdata-option">The 'cdata' option</a></h3>
 <p>The <code>--cdata</code> option only affects KML-files. It will insert extra information into the KML-file in the form of HTML inside the <code>&lt;description&gt;</code> element for each point (see the <a href="https://developers.google.com/kml/documentation/kml_tut">CDATA section in Google's KML documentation</a>). In Google Earth this results in an information bubble to pop up when a point is clicked on, as a visual flair for e.g. presentations.</p>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="locate"><a class="header" href="#locate">locate</a></h2>
 <blockquote>
@@ -577,7 +709,7 @@ the general workflow and the final output are the same.</p>
 <p><strong>Example 1</strong></p>
 <div class="table-wrapper"><table><thead><tr><th style="text-align: center"></th><th style="text-align: center"></th><th style="text-align: center"></th><th style="text-align: center"></th></tr></thead><tbody>
 <tr><td style="text-align: center"><code>geoelan</code></td><td style="text-align: center"><code>locate</code></td><td style="text-align: center"><code>-i INDIR/</code></td><td style="text-align: center"><code>--kind gopro</code></td></tr>
-<tr><td style="text-align: center"></td><td style="text-align: center">sub-command</td><td style="text-align: center">input directory</td><td style="text-align: center">consider GoPro files</td></tr>
+<tr><td style="text-align: center"></td><td style="text-align: center">sub-command</td><td style="text-align: center">input directory</td><td style="text-align: center">consider only GoPro files</td></tr>
 </tbody></table>
 </div>
 <p><strong>Result:</strong> Locates all GoPro clips in <code>INDIR/</code> (<code>-i</code>) and groups them in recording sessions.</p>
@@ -668,7 +800,7 @@ geoelan inspect --gpmf GOPROVIDEO.MP4 --json
 <p>GoPro telemetry is stored as samples, interleaved between audio and video samples (and other tracks' samples). To list the sample locations and sizes, run:</p>
 <pre><code class="language-sh">geoelan inspect --video GOPROVIDEO.MP4 --offsets "GoPro MET"
 </code></pre>
-<p><code>GoPro MET</code> is the name of the MP4 track holding GPMF data.</p>
+<p><code>GoPro MET</code> is the name of the MP4 track holding timed GPMF data.</p>
 <p>This returns a table listing the samples' byte offsets (e.g. <code>@2026761919</code>), their sizes in bytes, and durations:</p>
 <pre><code>...
 [ 359 GoPro MET/4] @2026761919 size: 7252   duration: 1s1ms
@@ -683,7 +815,7 @@ geoelan inspect --gpmf GOPROVIDEO.MP4 --json
 <p>Save all track samples as a file (similar to FFmpeg's track export):</p>
 <pre><code class="language-sh">geoelan inspect --video GOPROVIDEO.MP4 --dump "GoPro MET"
 </code></pre>
-<p>Note that the video data may be many GB in size. GeoELAN will list the total size and prompt the user before exporting.</p>
+<p>Note that the video data may be many GB in size. GeoELAN will list the total size and prompt the user before saving to disk.</p>
 <h5 id="images"><a class="header" href="#images">Images</a></h5>
 <p>Original GoPro JPEG-images can also be inspected. These will contain much less GPMF data than the MP4-files, and are currently not used elsewhere in GeoELAN's workflow. If no named data shows up in the summary, try  <code>geoelan inspect --gpmf GOPROIMAGE.JPG --verbose</code> to print the raw data. Early GoPro models do not embed GPMF data in JPEG-images.</p>
 <h4 id="garmin-fit"><a class="header" href="#garmin-fit">Garmin FIT</a></h4>
@@ -861,7 +993,7 @@ Select session:
 <h4 id="sd-cards"><a class="header" href="#sd-cards">SD Cards</a></h4>
 <p>GoPro cameras use micro SD Cards. GoPro provide recommendations here: <a href="https://community.gopro.com/s/article/microSD-Card-Considerations?language=en_US">https://community.gopro.com/s/article/microSD-Card-Considerations?language=en_US</a>.</p>
 <h4 id="internal-file-layout"><a class="header" href="#internal-file-layout">Internal file layout</a></h4>
-<p>Since Hero 5 Black all GoPro cameras use a telemetry format called GPMF developed by GoPro. Currently, the best overview can be found in their Github repository: <a href="https://github.com/gopro/gpmf-parser">https://github.com/gopro/gpmf-parser</a>. (GeoELAN uses its own GPMF-parser, not GoPro's C-lang based one).</p>
+<p>Starting with Hero 5 Black all GoPro cameras use a telemetry format called GPMF developed by GoPro. Currently, the best overview can be found in their Github repository: <a href="https://github.com/gopro/gpmf-parser">https://github.com/gopro/gpmf-parser</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h3 id="garmin-virb"><a class="header" href="#garmin-virb">Garmin VIRB</a></h3>
 <p>Note that the Garmin VIRB Ultra 30 is no longer available for purchase. Garmin currently has no replacement product.</p>
 <h4 id="file-structure-1"><a class="header" href="#file-structure-1">File structure</a></h4>
@@ -967,7 +1099,7 @@ time span ├─────────┼────────────�
 </li>
 <li><code>gpmf-rs</code>:
 <ul>
-<li>Read GoPro MP/GPMF-files.</li>
+<li>Read GoPro GPMF-data.</li>
 <li>Repository: <a href="https://github.com/jenslar/gpmf-rs">https://github.com/jenslar/gpmf-rs</a></li>
 </ul>
 </li>
@@ -979,13 +1111,15 @@ time span ├─────────┼────────────�
 </li>
 <li><code>mp4iter</code>:
 <ul>
-<li>Crate to find tracks, move around, find sections, and read values in an MP4 file (does not and will not support any kind of media en/decoding).</li>
+<li>Extract track information, samples, and read various kind of data in an MP4 file (does not and will not support any kind of media en/decoding).</li>
 <li>Repository: <a href="https://github.com/jenslar/mp4iter">https://github.com/jenslar/mp4iter</a></li>
 </ul>
 </li>
 </ul>
 <p>Data extracted with both <code>gpmf-rs</code> and <code>fit-rs</code> will mostly require further processing. Support for this is built-in for some data types (e.g. GPS data, since this is fundamental for GeoELAN, some processing of sensor data as well), but for others you will have to develop and expand on this yourself. A first pass, extracting and parsing data, should always work for both crates. GeoELAN's <code>inspect</code> command with the <code>--verbose</code> flag or <code>--type</code> option prints data in this "raw" form.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="references-1"><a class="header" href="#references-1">References</a></h1>
+<p>Larsson, Jens, Niclas Burenhult, Nicole Kruspe, Ross. S Purves, Mikael Rothstein and Peter Sercombe. 2020. Integrating behavioral and geospatial data on the timeline: towards new dimensions of analysis. <em>International Journal of Social Research Methodology</em>. doi: <a href="https://doi.org/10.1080/13645579.2020.1763705">10.1080/13645579.2020.1763705</a></p>
+<p>ELAN (Version 6.9) [Computer software]. 2025. Nijmegen: Max Planck Institute for Psycholinguistics. Retrieved from https://archive.mpi.nl/tla/elan</p>
 
                     </main>
 

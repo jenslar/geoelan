@@ -1,9 +1,9 @@
-**GeoELAN v2.7.6 2025-04-11**
+**GeoELAN v2.7.7 2025-05-23**
 
 **Important:**
 > **GoPro Hero 12 Black is not supported** since it does not have a GPS module.
 >
-> **GoPro Hero 13 Black is/will be supported** as soon as I get hold of some raw/unedited sample footage.
+> **GoPro Hero 13 Black is supported** as soon as I get hold of some raw/unedited sample footage. Initial tests ok.
 >
 > **Garmin VIRB Ultra 30 is discontinued**. GeoELAN will continue to support these and the FIT-format.
 
@@ -35,7 +35,7 @@ We would also like to acknowledge the [The Language Archive](https://archive.mpi
 
 ## References
 
-ELAN (Version 6.8) [Computer software]. 2024. Nijmegen: Max Planck Institute for Psycholinguistics, The Language Archive. Retrieved from https://archive.mpi.nl/tla/elan
+ELAN (Version 6.9) [Computer software]. 2024. Nijmegen: Max Planck Institute for Psycholinguistics, The Language Archive. Retrieved from https://archive.mpi.nl/tla/elan
 
 Larsson, J. 2024. GeoELAN Manual. Lund: Lund University Humanities Lab. <https://github.com/jenslar/geoelan>
 

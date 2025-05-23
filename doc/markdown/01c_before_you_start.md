@@ -15,7 +15,7 @@
 
 - GeoELAN is a command line tool and has no graphical user interface.
 - [FFmpeg](https://www.ffmpeg.org) is required to concatenate clips. (`cam2eaf`)
-- If you use macOS and GeoELAN does not run, see <https://support.apple.com/en-us/HT202491>.
+- If you use macOS and GeoELAN does not run, see <https://support.apple.com/en-us/HT202491> (GeoELAN will be notarised in an upcoming build).
 
 ### Device compatibility
 

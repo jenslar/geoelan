@@ -35,16 +35,23 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
         let mut mp4 = match mp4iter::Mp4::new(path) {
             Ok(v) => v,
             Err(err) => {
-                let msg = format!("(!) Failed to read MP4: {err}");
+                let msg = format!("(!) Failed to read video file: {err}");
                 return Err(std::io::Error::new(ErrorKind::Other, msg));
             }
         };
 
         if let Some(track_id) = track_offsets {
 
-            if has_extension_any(&path, &["glv", "lrv", "mp4", "mov"]) {
+            // if has_extension_any(&path, &["glv", "lrv", "mp4", "mov"]) {
 
-                let mut mp4 = mp4iter::Mp4::new(&path)?;
+                // let mut mp4 = mp4iter::Mp4::new(&path)?;
+                // let mut mp4 = match mp4iter::Mp4::new(&path) {
+                //     Ok(vid) => vid,
+                //     Err(err) => {
+                //         let msg = format!("(!) Failed to read video file: {err}");
+                //         return Err(std::io::Error::new(ErrorKind::InvalidData, msg))
+                //     },
+                // };
 
                 let track_identifier = TrackIdentifier::from(track_id.as_str());
 
@@ -69,17 +76,24 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 }
 
                 return Ok(());
-            } else {
-                let msg = format!("(!) Incompatible file format: must be an MP4 file.");
-                return Err(std::io::Error::new(ErrorKind::Other, msg));
-            }
+            // } else {
+            //     let msg = format!("(!) Incompatible file format: must be an MP4 file.");
+            //     return Err(std::io::Error::new(ErrorKind::Other, msg));
+            // }
         }
 
         if let Some(track_id) = track_samples {
 
-            if has_extension_any(&path, &["glv", "lrv", "mp4", "mov"]) {
+            // if has_extension_any(&path, &["glv", "lrv", "mp4", "mov"]) {
 
-                let mut mp4 = mp4iter::Mp4::new(&path)?;
+                // let mut mp4 = mp4iter::Mp4::new(&path)?;
+                // let mut mp4 = match mp4iter::Mp4::new(&path) {
+                //     Ok(vid) => vid,
+                //     Err(err) => {
+                //         let msg = format!("(!) Failed to read video file: {err}");
+                //         return Err(std::io::Error::new(ErrorKind::InvalidData, msg))
+                //     },
+                // };
 
                 let track_identifier = TrackIdentifier::from(track_id.as_str());
 
@@ -114,17 +128,24 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 }
 
                 return Ok(());
-            } else {
-                let msg = format!("(!) Incorrect file format for '--offsets', must be an MP4 file.");
-                return Err(std::io::Error::new(ErrorKind::Other, msg));
-            }
+            // } else {
+            //     let msg = format!("(!) Incorrect file format for '--offsets', must be an MP4 file.");
+            //     return Err(std::io::Error::new(ErrorKind::Other, msg));
+            // }
         }
 
         if let Some(track_id) = track_dump {
 
-            if has_extension_any(&path, &["glv", "lrv", "mp4", "mov"]) {
+            // if has_extension_any(&path, &["glv", "lrv", "mp4", "mov"]) {
 
-                let mut mp4 = mp4iter::Mp4::new(&path)?;
+                // let mut mp4 = mp4iter::Mp4::new(&path)?;
+                // let mut mp4 = match mp4iter::Mp4::new(&path) {
+                //     Ok(vid) => vid,
+                //     Err(err) => {
+                //         let msg = format!("(!) Failed to read video file: {err}");
+                //         return Err(std::io::Error::new(ErrorKind::InvalidData, msg))
+                //     },
+                // };
 
                 let track_identifier = TrackIdentifier::from(track_id.as_str());
 
@@ -177,46 +198,46 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 };
 
                 return Ok(());
-            } else {
-                let msg = format!("(!) Incorrect file format for '--offsets', must be an MP4 file.");
-                return Err(std::io::Error::new(ErrorKind::Other, msg));
-            }
+            // } else {
+            //     let msg = format!("(!) Incorrect file format for '--offsets', must be an MP4 file.");
+            //     return Err(std::io::Error::new(ErrorKind::Other, msg));
+            // }
         }
 
-        println!("Tracks:");
-        let tracks = mp4.track_list(false)?;
-        println!(" IDX │ NAME             │ ID │ DURATION    │ SAMPLES │ TYPE │ MEDIA INFO");
-        println!("─────┼──────────────────┼────┼─────────────┼─────────┼──────┼────────────");
-        for (i, track) in tracks.iter().enumerate() {
-            let ttype = track.sub_type();
-            print!(" {:2}. │ {:16} │ {:2} │ {:10.3}s │ {:7} │ {ttype}",
-                i+1,
-                track.name(),
-                track.id(),
-                track.duration().as_seconds_f64(),
-                track.offsets().len()
-            );
-            match ttype {
-                "vide" => {
-                    println!(" │ Video ({} x {} @ {} fps)",
-                        track.width(),
-                        track.height(),
-                        track.frame_rate(),
-                    )
-                },
-                "soun" => println!(" │ Audio ({} Hz)",
-                    track.sample_rate().map(|s| s.to_string()).unwrap_or("Unknown".to_owned())
-                ),
-                "tmcd" => println!(" │ Timecode"),
-                _ => println!(" │ N/A")
-            }
-        }
+        // println!("Tracks:");
+        // let tracks = mp4.track_list(false)?;
+        // println!(" IDX │ NAME             │ ID │ DURATION    │ SAMPLES │ TYPE │ MEDIA INFO");
+        // println!("─────┼──────────────────┼────┼─────────────┼─────────┼──────┼────────────");
+        // for (i, track) in tracks.iter().enumerate() {
+        //     let ttype = track.sub_type();
+        //     print!(" {:2}. │ {:16} │ {:2} │ {:10.3}s │ {:7} │ {ttype}",
+        //         i+1,
+        //         track.name(),
+        //         track.id(),
+        //         track.duration().as_seconds_f64(),
+        //         track.offsets().len()
+        //     );
+        //     match ttype {
+        //         "vide" => {
+        //             println!(" │ Video ({} x {} @ {} fps)",
+        //                 track.width(),
+        //                 track.height(),
+        //                 track.frame_rate(),
+        //             )
+        //         },
+        //         "soun" => println!(" │ Audio ({} Hz)",
+        //             track.sample_rate().map(|s| s.to_string()).unwrap_or("Unknown".to_owned())
+        //         ),
+        //         "tmcd" => println!(" │ Timecode"),
+        //         _ => println!(" │ N/A")
+        //     }
+        // }
 
-        println!("---");
+        // println!("---");
 
         if print_atoms {
 
-            mp4.reset()?;
+            // mp4.reset()?;
 
             // Print atom fourcc, size, offsets
             // 'sizes' contains 'atom size - 8' since 8 byte header is already read.
@@ -258,7 +279,37 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                     }
                 }
             }
-            println!("---");
+
+            return Ok(())
+        }
+
+        println!("Tracks:");
+        let tracks = mp4.track_list(false)?;
+        println!(" IDX │ NAME             │ ID │ DURATION    │ SAMPLES │ TYPE │ MEDIA INFO");
+        println!("─────┼──────────────────┼────┼─────────────┼─────────┼──────┼────────────");
+        for (i, track) in tracks.iter().enumerate() {
+            let ttype = track.sub_type();
+            print!(" {:2}. │ {:16} │ {:2} │ {:10.3}s │ {:7} │ {ttype}",
+                i+1,
+                track.name(),
+                track.id(),
+                track.duration().as_seconds_f64(),
+                track.offsets().len(),
+            );
+            match ttype {
+                "vide" => {
+                    println!(" │ Video ({} x {} @ {} fps)",
+                        track.width(),
+                        track.height(),
+                        track.frame_rate(),
+                    )
+                },
+                "soun" => println!(" │ Audio ({} Hz)",
+                    track.sample_rate().map(|s| s.to_string()).unwrap_or("Unknown".to_owned())
+                ),
+                "tmcd" => println!(" │ Timecode"),
+                _ => println!(" │ N/A")
+            }
         }
 
         match model {
@@ -292,7 +343,7 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 }
 
                 println!(
-                    "Identified as {} MP4 file\n  MUID: {:?}\n  GUMI: {:?}",
+                    "Device: {}\n  MUID: {:?}\n  GUMI: {:?}",
                     devname.to_str(),
                     gopro.muid,
                     gopro.gumi,
@@ -364,15 +415,15 @@ pub fn run(args: &clap::ArgMatches) -> std::io::Result<()> {
                 if let Ok(gp) = GoProFile::new(&path) {
                     println!("Possibly GoPro with no GPMF data and MUID {:?}", gp.muid)
                 } else {
-                    println!("No GoPro GPMF data or VIRB UUID found. Make sure to use the original files.");
+                    println!("No GoPro or VIRB data found. If this is a GoPro/VIRB video, ensure you use the original files.");
                     let mut mp4 = Mp4::new(&path)?;
                     let (start, duration) = mp4.time(false)?;
                     let end = start + duration;
                     println!(
-                        "{} - {} ({} s)",
+                        "{} - {} ({:10.3}s)",
                         start.to_string(),
                         end.to_string(),
-                        duration.as_seconds_f32()
+                        duration.as_seconds_f64()
                     );
                 }
 

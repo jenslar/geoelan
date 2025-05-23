@@ -29,6 +29,12 @@ pub fn downsample(
     points: &[point::EafPoint],
     min: Option<usize>,
 ) -> Vec<point::EafPoint> {
+    // points may be empty due to being filtered out
+    // (satellite lock level too low, or DOP too high for GoPro)
+    if points.is_empty() {
+        return Vec::new();
+    }
+
     match sample_factor {
         0 => panic!("Sample factor cannot be 0."), // avoid division by 0
         1 => return points.to_vec(),

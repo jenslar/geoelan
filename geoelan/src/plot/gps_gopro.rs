@@ -65,7 +65,7 @@ pub(crate) fn gps2plot(
                         .unwrap_or("Low-resolution MP4 not set")
                 );
             }
-            
+
             println!("Merging GPMF-data for {} files...", session.len());
             session.gpmf()?
         },
@@ -155,7 +155,7 @@ pub(crate) fn gps2plot(
             // Generate increasing distance vector
             let mut dist: Vec<f64> = vec![0.];
             let mut d = 0.;
-            for p in gps.0.windows(2) {
+            for p in gps.points().windows(2) {
                 d +=
                     haversine(p[0].latitude, p[0].longitude, p[1].latitude, p[1].longitude) * 1000.; // haversine returns km
                 dist.push(d)
